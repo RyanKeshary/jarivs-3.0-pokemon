@@ -174,3 +174,5 @@ export function isRegistrationOpen(
   if (!deadline) return false;
   return adminOpen && nowMs < deadline.getTime();
 }
+
+export { useNow } from '../hooks/useNow';

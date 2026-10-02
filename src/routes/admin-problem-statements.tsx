@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNow } from '../lib/time';
-import { EditMe } from '../components/ui/EditMe';
+import type { ProblemStatementRow } from '../lib/database.types';
 
 /**
  * Admin Problem Statements Manager.
@@ -11,27 +10,13 @@ import { EditMe } from '../components/ui/EditMe';
  * - Delete problem statement
  * - Visible / Private toggle
  * - Trainers only ever see visible ones (RLS enforcement)
- * - Optional scheduled reveal time
- *
- * All data stored in public.problem_statements table.
  */
 export default function AdminProblemStatements() {
-  const [problemStatements, setProblemStatements] = useState<
-    {
-      id: string;
-      title: string;
-      description: string;
-      visible: boolean;
-      file_path: string | null;
-      scheduled_reveal: string | null;
-      created_at: string;
-    }[]>([]);
-
+  const [problemStatements, setProblemStatements] = useState<ProblemStatementRow[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newVisible, setNewVisible] = useState(true);
   const [newScheduledReveal, setNewScheduledReveal] = useState<Date | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,16 +39,18 @@ export default function AdminProblemStatements() {
     }
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+
     try {
       const { error } = await supabase
         .from('problem_statements')
         .insert({
-          title: newTitle,
-          description: newDescription,
+          title: newTitle.trim(),
+          description: newDescription.trim(),
           visible: newVisible,
-          file_path: null, // Will be set when file is uploaded
-          scheduled_reveal: newScheduledReveal?.toISOString() || null,
+          file_path: null,
         });
 
       if (error) throw error;
@@ -80,9 +67,10 @@ export default function AdminProblemStatements() {
 
   const handleToggleVisibility = async (id: string) => {
     try {
+      const current = problemStatements.find((ps) => ps.id === id);
       const { error } = await supabase
         .from('problem_statements')
-        .update({ visible: !problemStatements.find((ps) => ps.id === id)?.visible })
+        .update({ visible: !current?.visible })
         .eq('id', id);
 
       if (error) throw error;
@@ -93,6 +81,7 @@ export default function AdminProblemStatements() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this problem statement?')) return;
     try {
       const { error } = await supabase.from('problem_statements').delete().eq('id', id);
       if (error) throw error;
@@ -114,10 +103,10 @@ export default function AdminProblemStatements() {
           Create New Problem Statement
         </h3>
 
-        <form>
-          <div className="grid grid-cols-2 gap-4 mb-4">
+        <form onSubmit={handleCreate}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1">
+              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1 block">
                 Title
               </label>
               <input
@@ -131,7 +120,7 @@ export default function AdminProblemStatements() {
             </div>
 
             <div>
-              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1">
+              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1 block">
                 Description
               </label>
               <input
@@ -144,9 +133,9 @@ export default function AdminProblemStatements() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1">
+              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1 block">
                 Visible
               </label>
               <select
@@ -160,38 +149,45 @@ export default function AdminProblemStatements() {
             </div>
 
             <div>
-              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1">
+              <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1 block">
                 Scheduled Reveal
               </label>
               <input
                 type="datetime-local"
-                value={newScheduledReveal ? newDate.toISOString().slice(0, -5) : ''}
+                value={newScheduledReveal ? newScheduledReveal.toISOString().slice(0, 16) : ''}
                 onChange={(e) => setNewScheduledReveal(e.target.value ? new Date(e.target.value) : null)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-ink-950/60 px-4 py-3 text-base text-shell-50 placeholder-text-shell-600 focus:border-ball-400 focus:outline-none"
               />
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="mt-4 rounded-full border-2 border-ball-500 bg-ball-500 px-6 py-3 font-pixel text-xs tracking-wider text-shell-50 uppercase transition-colors hover:bg-ball-400 active:bg-ball-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Create Problem Statement
-          </button>
-          <button
-            type="button"
-            onClick={() => setNewTitle(''), setNewDescription(''), setNewVisible(true)}
-            className="mt-2 rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
-          >
-            Cancel
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              className="rounded-full border-2 border-ball-500 bg-ball-500 px-6 py-3 font-pixel text-xs tracking-wider text-shell-50 uppercase transition-colors hover:bg-ball-400 active:bg-ball-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Create Problem Statement
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNewTitle('');
+                setNewDescription('');
+                setNewVisible(true);
+                setNewScheduledReveal(null);
+              }}
+              className="rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       </div>
 
       {/* Existing problem statements list */}
       {problemStatements.length === 0 && !loading && (
         <p className="text-shell-200/75">
-          <EditMe>Phase 3: no problem statements found.</EditMe>
+          No problem statements found.
         </p>
       )}
 
@@ -227,8 +223,19 @@ export default function AdminProblemStatements() {
                 <td className="font-pixel text-sm text-shell-400">
                   {new Date(ps.created_at).toLocaleDateString()}
                 </td>
-                <td className="font-pixel text-sm">
-                  <EditMe>Phase 3: toggle visibility / delete</EditMe>
+                <td className="font-pixel text-sm flex gap-3 py-3">
+                  <button
+                    onClick={() => handleToggleVisibility(ps.id)}
+                    className="text-xs text-ball-300 hover:underline uppercase"
+                  >
+                    {ps.visible ? 'Hide' : 'Show'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(ps.id)}
+                    className="text-xs text-ball-500 hover:underline uppercase"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -236,4 +243,5 @@ export default function AdminProblemStatements() {
         </table>
       </div>
     </div>
-  </div>
+  );
+}

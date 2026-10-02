@@ -1,5 +1,6 @@
 // Test: File validation for submissions
-import { SubmissionStatus } from '../lib/database.types';
+import { describe, test, expect } from 'vitest';
+import type { SubmissionStatus } from '../lib/database.types';
 
 describe('File validation', () => {
   test('submission status enum values', () => {
@@ -28,10 +29,10 @@ describe('File validation', () => {
   });
 
   test('deck file path shape constraint', () => {
-    // From migration 0010: file_path must match ^TEAM-XXXX/[filename].(ppt|pptx|pdf)$
+    // From migration 0010: file_path must match ^[teamId]/[filename].(ppt|pptx|pdf)$
     const teamId = 'TEAM-ABCD';
     const fileName = 'deck.pptx';
-    const expectedPattern = new RegExp(`^${teamId.replace('-', '')}/[A-Za-z0-9._-]+\\.(ppt|pptx|pdf)$`);
+    const expectedPattern = new RegExp(`^${teamId}/[A-Za-z0-9._-]+\\.(ppt|pptx|pdf)$`);
     const testPath = `${teamId}/${fileName}`;
     expect(testPath).toMatch(expectedPattern);
   });

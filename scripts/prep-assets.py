@@ -24,6 +24,7 @@ except ImportError:
     sys.exit("Pillow is not installed. Run:  pip install pillow")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RAW = os.path.join(ROOT, "raw-assets") if os.path.isdir(os.path.join(ROOT, "raw-assets")) else ROOT
 OUT = os.path.join(ROOT, "src", "assets", "placeholders")
 
 # source filename -> output stem
@@ -56,11 +57,11 @@ def make_seam_ball():
     full half is either 200px tall (and swamps the card) or so squashed it stops
     reading as a ball. The seam is the recognisable part, so we keep just that.
     """
-    top = Image.open(os.path.join(ROOT, "pokeball top red.png")).convert("RGBA").crop(
-        Image.open(os.path.join(ROOT, "pokeball top red.png")).getbbox()
+    top = Image.open(os.path.join(RAW, "pokeball top red.png")).convert("RGBA").crop(
+        Image.open(os.path.join(RAW, "pokeball top red.png")).getbbox()
     )
-    bottom = Image.open(os.path.join(ROOT, "pokeball bottom white.png")).convert("RGBA").crop(
-        Image.open(os.path.join(ROOT, "pokeball bottom white.png")).getbbox()
+    bottom = Image.open(os.path.join(RAW, "pokeball bottom white.png")).convert("RGBA").crop(
+        Image.open(os.path.join(RAW, "pokeball bottom white.png")).getbbox()
     )
 
     cx = top.width // 2
@@ -80,15 +81,15 @@ def make_seam_ball():
 
 def main() -> int:
     os.makedirs(OUT, exist_ok=True)
-    missing = [s for s in SOURCES if not os.path.exists(os.path.join(ROOT, s))]
+    missing = [s for s in SOURCES if not os.path.exists(os.path.join(RAW, s))]
     if missing:
-        print("Missing source art (expected in the repo root):")
+        print(f"Missing source art (expected in {RAW}):")
         for m in missing:
             print(f"  - {m}")
         return 1
 
     for src, stem in SOURCES.items():
-        image = Image.open(os.path.join(ROOT, src)).convert("RGBA")
+        image = Image.open(os.path.join(RAW, src)).convert("RGBA")
         cropped = image.crop(image.getbbox())  # drop transparent padding
 
         paths = {
@@ -106,7 +107,7 @@ def main() -> int:
         sizes = "  ".join(
             f"{ext} {os.path.getsize(p) / 1024:6.1f} KB" for ext, p in paths.items() if os.path.exists(p)
         )
-        original = os.path.getsize(os.path.join(ROOT, src))
+        original = os.path.getsize(os.path.join(RAW, src))
         print(f"{stem:24s} {str(cropped.size):12s} {sizes}   (was {original / 1024:.1f} KB)")
 
     size = make_seam_ball()

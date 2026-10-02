@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import React, { useEffect } from 'react';
+import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 
 /**
  * Admin Route Guard.
@@ -8,15 +7,13 @@ import { supabase } from '../lib/supabase';
  * Protects all /admin/* routes. Checks if the signed-in user has role 'admin' or 'manager'.
  * If the user is a trainer (role = 'trainer'), they are refused access and redirected to /.
  * The role is read from sessionStorage set by AdminLogin.
- *
- * Usage: <Route path="admin/*" element={<AdminGate />} />
  */
 export default function AdminGate() {
   const navigate = useNavigate();
   const location = useLocation();
+  const storedRole = sessionStorage.getItem('admin_role');
 
   useEffect(() => {
-    const storedRole = sessionStorage.getItem('admin_role');
     if (!storedRole) {
       // Not logged in as admin/manager; redirect to login
       navigate('/admin/login', { replace: true });
@@ -28,84 +25,71 @@ export default function AdminGate() {
       navigate('/', { replace: true });
       return;
     }
-  }, [storedRole, navigate]);
+  }, [storedRole, navigate, location.pathname]);
 
-  // If we get here, the user is authorized
-  return null;
+  if (!storedRole || (storedRole !== 'admin' && storedRole !== 'manager')) {
+    return null;
+  }
+
+  return <Outlet />;
 }
 
 /**
  * Layout wrapper for admin pages.
  * Provides a consistent sidebar navigation and page header.
  */
-function AdminLayout({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate();
+export function AdminLayout({ children }: { children?: React.ReactNode }) {
+  const location = useLocation();
+  const role = sessionStorage.getItem('admin_role');
+
+  const navLinks = [
+    { href: '/admin/overview', label: 'Overview' },
+    { href: '/admin/participants', label: 'Participants' },
+    { href: '/admin/teams', label: 'Teams' },
+    { href: '/admin/settings', label: 'Settings' },
+    { href: '/admin/problem-statements', label: 'Problem Statements' },
+    { href: '/admin/announcements', label: 'Announcements' },
+    { href: '/admin/resources', label: 'Resources' },
+    { href: '/admin/winners', label: 'Winners & Badges' },
+  ];
 
   return (
     <div className="min-h-screen bg-ink-900">
       {/* Sidebar navigation */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-ink-800/90 border-right border-white/10 px-4 py-6">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-ink-800/90 border-r border-white/10 px-4 py-6 z-20">
         <h2 className="font-pixel text-[0.5rem] tracking-[0.15em] text-ball-400 uppercase mb-6">
           Kanto League
         </h2>
         <nav className="space-y-2">
-          <a
-            href="/admin/overview"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/overview' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-            aria-current="page"
-            >Overview</a
-          >
-          <a
-            href="/admin/participants"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/participants' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-          >Participants</a>
-          <a
-            href="/admin/teams"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/teams' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-          >Teams</a>
-          <a
-            href="/admin/settings"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/settings' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-          >Settings</a>
-          <a
-            href="/admin/problem-statements"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/problem-statements' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-          >Problem Statements</a>
-          <a
-            href="/admin/announcements"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/announcements' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-          >Announcements</a>
-          <a
-            href="/admin/resources"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/resources' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-          >Resources</a>
-          <a
-            href="/admin/winners"
-            className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-              location.pathname === '/admin/winners' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
-            } block py-3 px-4`}
-          >Winners & Badges</a>
-          {sessionStorage.getItem('admin_role') === 'manager' && (
-            <a
-              href="/admin/manage-admins"
-              className={`rounded-pixel text-xs font-pixel uppercase text-ball-300 ${
-                location.pathname === '/admin/manage-admins' ? 'bg-ball-500 text-shell-50' : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
+          {navLinks.map((link) => {
+            const isActive =
+              location.pathname === link.href ||
+              (link.href === '/admin/overview' && location.pathname === '/admin');
+            return (
+              <Link
+                key={link.href}
+                to={link.href}
+                className={`rounded-pixel text-xs font-pixel uppercase ${
+                  isActive
+                    ? 'bg-ball-500 text-shell-50'
+                    : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
+                } block py-3 px-4`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+          {role === 'manager' && (
+            <Link
+              to="/admin/manage-admins"
+              className={`rounded-pixel text-xs font-pixel uppercase ${
+                location.pathname === '/admin/manage-admins'
+                  ? 'bg-ball-500 text-shell-50'
+                  : 'text-shell-400 hover:bg-ball-400 hover:text-shell-100 transition-colors'
               } block py-3 px-4`}
-            >Manage Admins</a>
+            >
+              Manage Admins
+            </Link>
           )}
         </nav>
       </aside>
@@ -117,11 +101,11 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
             Kanto League Admin
           </h1>
           <p className="text-shell-400 mt-2">
-            Logged in as: <span className="font-bold text-shell-100">{sessionStorage.getItem('admin_role')}</span>
+            Logged in as: <span className="font-bold text-shell-100">{role || 'unknown'}</span>
           </p>
         </header>
 
-        {children}
+        {children ?? <Outlet />}
       </main>
     </div>
   );

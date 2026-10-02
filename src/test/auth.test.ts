@@ -1,4 +1,5 @@
 // Test: Email validation and registration flow
+import { describe, test, expect } from 'vitest';
 import { isUnconfirmed } from '../lib/content';
 
 describe('Email validation', () => {

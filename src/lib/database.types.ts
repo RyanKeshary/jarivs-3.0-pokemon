@@ -58,16 +58,67 @@ export type ProfileRow = {
   branch: string | null;
   role: UserRole;
   team_id: string | null;
+  trainer_id?: string | null;
+  mobile?: string | null;
+  avatar?: string | null;
+  socials?: Json;
   created_at: string;
   updated_at: string;
 }
 
 export type TeamRow = {
   id: string;
+  team_id?: string | null;
   name: string;
   join_code: string;
   leader_id: string | null;
   max_members: number;
+  locked?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TeamMemberRow = {
+  team_id: string;
+  user_id: string;
+  is_leader: boolean;
+  joined_at: string;
+}
+
+export type AllowedEmailRow = {
+  email: string;
+  grants_role: UserRole | null;
+  note: string | null;
+  added_by: string | null;
+  created_at: string;
+}
+
+export type AnnouncementRow = {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProblemStatementRow = {
+  id: string;
+  title: string;
+  description: string;
+  file_path: string | null;
+  visible: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ResourceRow = {
+  id: string;
+  kind: 'brochure' | 'ppt_template' | string;
+  title: string;
+  description: string;
+  file_path: string | null;
+  url: string | null;
+  visible: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -77,12 +128,16 @@ export type SubmissionRow = {
   team_id: string;
   title: string;
   abstract: string | null;
-  deck_path: string;
-  deck_file_name: string;
+  deck_path?: string;
+  deck_file_name?: string;
   deck_mime_type: string;
   deck_size_bytes: number;
+  file_path?: string;
+  file_name?: string;
+  version?: number;
   status: SubmissionStatus;
   submitted_at: string | null;
+  uploaded_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -100,11 +155,6 @@ export type AuditLogRow = {
 
 /**
  * The shape supabase-js requires for a `Database` generic.
- *
- * `Relationships` is not optional. If a table omits it, the whole type stops
- * satisfying GenericSchema and TypeScript silently falls back to `any`-ish
- * types - which is how `rpc()` ends up rejecting valid arguments. Tables with
- * no foreign keys we care about declare an empty array.
  */
 interface Table<
   Row,
@@ -117,6 +167,17 @@ interface Table<
   Update: Update;
   Relationships: Relationships;
 }
+
+export type WinnerRow = {
+  id: string;
+  first_place_team_id: string | null;
+  second_place_team_id: string | null;
+  third_place_team_id: string | null;
+  published: boolean;
+  published_at: string | null;
+  created_at: string;
+  updated_at?: string;
+};
 
 export interface Database {
   public: {
@@ -131,6 +192,12 @@ export interface Database {
         [{ foreignKeyName: 'profiles_team_id_fkey'; columns: ['team_id']; referencedRelation: 'teams'; referencedColumns: ['id'] }]
       >;
       teams: Table<TeamRow>;
+      team_members: Table<TeamMemberRow>;
+      allowed_emails: Table<AllowedEmailRow>;
+      announcements: Table<AnnouncementRow>;
+      problem_statements: Table<ProblemStatementRow>;
+      resources: Table<ResourceRow>;
+      winners: Table<WinnerRow>;
       submissions: Table<
         SubmissionRow,
         Partial<SubmissionRow>,

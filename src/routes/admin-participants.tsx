@@ -1,28 +1,23 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { EditMe } from '../components/ui/EditMe';
+import type { ProfileRow } from '../lib/database.types';
+
+type ParticipantWithTeam = ProfileRow & {
+  teams?: { id: string; name: string } | null;
+};
 
 /**
  * Admin Participants Table.
- *
- * Features:
- * - Search by name or email
- * - Filter by team status (has team, no team)
- * - Sort by name, email, trainer ID, join date
- * - Pagination
- * - CSV export
- * - Inline role display
- *
- * Columns: Name, Email, Mobile, Trainer ID, Team, Role
  */
 export default function AdminParticipants() {
-  const [participants, setParticipants] = useState<
-    { id: string; email: string; full_name: string | null; roll_no: string | null; year: string | null; branch: string | null; role: string; team_id: string | null }[]>([]);
+  const [participants, setParticipants] = useState<ParticipantWithTeam[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'has-team' | 'no-team'>('all');
   const [sort, setSort] = useState<'name' | 'email' | 'trainer-id' | 'join-date'>('name');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetchParticipants();
@@ -30,6 +25,15 @@ export default function AdminParticipants() {
 
   const fetchParticipants = async () => {
     try {
+      const sortColumn =
+        sort === 'name'
+          ? 'full_name'
+          : sort === 'email'
+          ? 'email'
+          : sort === 'trainer-id'
+          ? 'trainer_id'
+          : 'created_at';
+
       let query = supabase
         .from('profiles')
         .select(
@@ -37,17 +41,18 @@ export default function AdminParticipants() {
           *,
           teams (id, name)
         `,
+          { count: 'exact' },
         )
-        .order(sort, { ascending: true });
+        .order(sortColumn as any, { ascending: true });
 
       // Apply search filter
-      if (search) {
-        query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+      if (search.trim()) {
+        query = query.or(`full_name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`);
       }
 
       // Apply team filter
       if (filter === 'has-team') {
-        query = query.isNot('team_id', null);
+        query = query.not('team_id', 'is', null);
       } else if (filter === 'no-team') {
         query = query.is('team_id', null);
       }
@@ -59,7 +64,8 @@ export default function AdminParticipants() {
 
       if (error) throw error;
 
-      setParticipants(data || []);
+      setParticipants((data as unknown as ParticipantWithTeam[]) || []);
+      setTotalCount(count ?? 0);
     } catch (error) {
       console.error('Failed to fetch participants:', error);
     }
@@ -163,6 +169,22 @@ export default function AdminParticipants() {
           </select>
         </div>
 
+        <div className="flex items-center gap-2">
+          <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-0">
+            Sort:
+          </label>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as any)}
+            className="rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-shell-50 placeholder-text-shell-600 focus:border-ball-400 focus:outline-none"
+          >
+            <option value="name">Name</option>
+            <option value="email">Email</option>
+            <option value="trainer-id">Trainer ID</option>
+            <option value="join-date">Join Date</option>
+          </select>
+        </div>
+
         <button
           onClick={handleCSVExport}
           className="rounded-full border-2 border-ball-500 bg-ball-800/50 px-4 py-2 font-pixel text-xs text-ball-300 uppercase hover:bg-ball-400 transition-colors"
@@ -201,7 +223,7 @@ export default function AdminParticipants() {
                   {p.trainer_id || '—'}
                 </td>
                 <td className="font-pixel text-sm text-shell-400">
-                  {p.teams?.name || (p.team_id ? '—' : '<span className="text-ball-500">—</span>')}
+                  {p.teams?.name || (p.team_id ? '—' : <span className="text-ball-500">—</span>)}
                 </td>
                 <td className="font-pixel text-sm text-shell-400">
                   {p.role}
@@ -217,11 +239,37 @@ export default function AdminParticipants() {
 
       {/* Pagination */}
       {participants.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-6 flex items-center justify-between">
           <p className="font-pixel text-[0.5rem] text-shell-400">
-            Page {page} of{Math.ceil((count ?? participants.length) / pageSize)}
+            Page {page} of {Math.max(1, Math.ceil((totalCount ?? participants.length) / pageSize))}
           </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-pixel border border-white/10 bg-ink-950/60 px-3 py-1 font-pixel text-xs text-shell-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() =>
+                setPage((p) =>
+                  Math.min(
+                    Math.max(1, Math.ceil((totalCount ?? participants.length) / pageSize)),
+                    p + 1,
+                  ),
+                )
+              }
+              disabled={
+                page >= Math.max(1, Math.ceil((totalCount ?? participants.length) / pageSize))
+              }
+              className="rounded-pixel border border-white/10 bg-ink-950/60 px-3 py-1 font-pixel text-xs text-shell-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>
-  </div>
+  );
+}

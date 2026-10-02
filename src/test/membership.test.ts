@@ -1,5 +1,5 @@
 // Test: Team membership and race conditions
-import { SubmissionStatus } from '../lib/database.types';
+import { describe, test, expect } from 'vitest';
 
 describe('Membership and race conditions', () => {
   test('user can only be in one team (unique index)', () => {
@@ -9,7 +9,7 @@ describe('Membership and race conditions', () => {
     const teamIds = ['team-1', 'team-2'];
     
     // Should not be able to be in two teams simultaneously
-    const inTwoTeams = teamIds.some((tid, i) => tid === userId);
+    const inTwoTeams = teamIds.some(tid => tid === userId);
     expect(inTwoTeams).toBe(false); // Logic: userId shouldn't match team names
   });
 
@@ -42,13 +42,14 @@ describe('Membership and race conditions', () => {
 
   test('team join code format (6 chars, no ambiguous glyphs)', () => {
     // From migration 0010: join_code must be ^[A-Z0-9]{6}$ (no 0/O/1/I)
-    const codes = ['ABCDEF', 'KNT4-9QX']; // simplified
+    const validCodes = ['ABCDEF', 'HJKLMN'];
     // No 0, O, 1, I in the alphabet used
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     expect(alphabet).not.toContain('0');
     expect(alphabet).not.toContain('O');
     expect(alphabet).not.toContain('1');
     expect(alphabet).not.toContain('I');
+    expect(validCodes.every(c => c.split('').every(ch => alphabet.includes(ch)))).toBe(true);
   });
 });
 

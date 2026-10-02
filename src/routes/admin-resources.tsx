@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNow } from '../lib/time';
 import { EditMe } from '../components/ui/EditMe';
 
 /**
@@ -44,7 +43,7 @@ export default function AdminResources() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setResources(data || []);
+      setResources((data as any) || []);
     } catch (error) {
       console.error('Failed to fetch resources:', error);
     } finally {
@@ -53,6 +52,7 @@ export default function AdminResources() {
   };
 
   const handleCreate = async () => {
+    if (!newTitle.trim()) return;
     try {
       const { error } = await supabase.from('resources').insert({
         kind: newKind,
@@ -108,7 +108,7 @@ export default function AdminResources() {
           Create New Resource
         </h3>
 
-        <form>
+        <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }}>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1">
@@ -176,8 +176,13 @@ export default function AdminResources() {
           </button>
           <button
             type="button"
-            onClick={() => setNewTitle(''), setNewDescription(''), setNewKind('brochure'), setNewVisible(true)}
-            className="mt-2 rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
+            onClick={() => {
+              setNewTitle('');
+              setNewDescription('');
+              setNewKind('brochure');
+              setNewVisible(true);
+            }}
+            className="mt-2 ml-3 rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
           >
             Cancel
           </button>
@@ -229,8 +234,21 @@ export default function AdminResources() {
                 <td className="font-pixel text-sm text-shell-400">
                   {new Date(r.created_at).toLocaleDateString()}
                 </td>
-                <td className="font-pixel text-sm">
-                  <EditMe>Phase 3: toggle / delete</EditMe>
+                <td className="font-pixel text-xs space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleVisibility(r.id)}
+                    className="text-ball-400 hover:text-ball-300 underline"
+                  >
+                    {r.visible ? 'Hide' : 'Show'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(r.id)}
+                    className="text-rose-400 hover:text-rose-300 underline"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -238,4 +256,5 @@ export default function AdminResources() {
         </table>
       </div>
     </div>
-  </div>
+  );
+}

@@ -1,7 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
-import { Center } from './routes/center';
-import AdminRoutes from './routes/admin-routes';
 
 import { PokeballTransition } from './components/transition/PokeballTransition';
 import { hasSeenIntro, markIntroSeen } from './lib/session-flag';
@@ -18,6 +16,8 @@ import { hasSeenIntro, markIntroSeen } from './lib/session-flag';
  */
 const Landing = lazy(() => import('./routes/Landing'));
 const Auth = lazy(() => import('./routes/Auth'));
+const Center = lazy(() => import('./routes/center'));
+const AdminRoutes = lazy(() => import('./routes/admin-routes'));
 const IntroScene = lazy(() => import('./components/intro/IntroScene'));
 
 /** Black screen while the intro chunk and the 4MB video arrive. */
@@ -87,9 +87,9 @@ export default function App() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="auth" element={Auth} />
-          <Route path="center" element={Center} />
-          <Route path="admin/login" element={AdminRoutes} />
+          <Route path="auth" element={<Auth />} />
+          <Route path="center" element={<Center />} />
+          <Route path="admin/*" element={<AdminRoutes />} />
           <Route path="*" element={<Landing />} />
         </Routes>
       </Suspense>

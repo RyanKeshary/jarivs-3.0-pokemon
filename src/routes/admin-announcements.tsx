@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNow } from '../lib/time';
 import { EditMe } from '../components/ui/EditMe';
 
 /**
@@ -23,7 +22,6 @@ export default function AdminAnnouncements() {
 
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +45,7 @@ export default function AdminAnnouncements() {
   };
 
   const handleCreate = async () => {
+    if (!newTitle.trim()) return;
     try {
       const { error } = await supabase.from('announcements').insert({
         title: newTitle,
@@ -72,12 +71,6 @@ export default function AdminAnnouncements() {
     }
   };
 
-  const handleToggle = async (id: string) => {
-    // In a full implementation, we'd have an 'active' toggle
-    // For now, just refresh
-    await fetchAnnouncements();
-  };
-
   return (
     <div className="p-6 sm:p-8">
       <h2 className="font-pixel text-[0.55rem] tracking-[0.15em] text-ball-400 uppercase mb-6">
@@ -90,7 +83,7 @@ export default function AdminAnnouncements() {
           Create New Announcement
         </h3>
 
-        <form>
+        <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }}>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1">
@@ -120,7 +113,7 @@ export default function AdminAnnouncements() {
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex items-center gap-3">
             <button
               type="submit"
               className="rounded-full border-2 border-ball-500 bg-ball-500 px-6 py-3 font-pixel text-xs tracking-wider text-shell-50 uppercase transition-colors hover:bg-ball-400 active:bg-ball-600 disabled:cursor-not-allowed disabled:opacity-50"
@@ -129,8 +122,11 @@ export default function AdminAnnouncements() {
             </button>
             <button
               type="button"
-              onClick={() => setNewTitle(''), setNewBody('')}
-              className="mt-2 rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
+              onClick={() => {
+                setNewTitle('');
+                setNewBody('');
+              }}
+              className="rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
             >
               Cancel
             </button>
@@ -138,46 +134,49 @@ export default function AdminAnnouncements() {
         </form>
       </div>
 
-        {/* Existing announcements list */}
-        {announcements.length === 0 && !loading && (
-          <p className="text-shell-200/75">
-            <EditMe>Phase 3: no announcements found.</EditMe>
-          </p>
-        )}
+      {/* Existing announcements list */}
+      {announcements.length === 0 && !loading && (
+        <p className="text-shell-200/75">
+          <EditMe>Phase 3: no announcements found.</EditMe>
+        </p>
+      )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="font-pixel text-[0.5rem] text-shell-400 uppercase text-left">
-                  Title
-                </th>
-                <th className="font-pixel text-[0.5rem] text-shell-400 uppercase text-left">
-                  Created
-                </th>
-                <th className="font-pixel text-[0.5rem] text-shell-400 uppercase text-left">
-                  Actions
-                </th>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="font-pixel text-[0.5rem] text-shell-400 uppercase text-left">
+                Title
+              </th>
+              <th className="font-pixel text-[0.5rem] text-shell-400 uppercase text-left">
+                Created
+              </th>
+              <th className="font-pixel text-[0.5rem] text-shell-400 uppercase text-left">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {announcements.map((a) => (
+              <tr key={a.id} className="border-b border-white/10 hover:bg-ink-950/50">
+                <td className="font-pixel text-sm text-shell-500">{a.title}</td>
+                <td className="font-pixel text-sm text-shell-400">
+                  {new Date(a.created_at).toLocaleDateString()}
+                </td>
+                <td className="font-pixel text-sm">
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(a.id)}
+                    className="text-xs text-rose-400 hover:text-rose-300 underline"
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {announcements.map((a) => (
-                <tr key={a.id} className="border-b border-white/10 hover:bg-ink-950/50">
-                  <td className="font-pixel text-sm text-shell-500">{a.title}</td>
-                  <td className="font-pixel text-sm text-shell-400">
-                    {new Date(a.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="font-pixel text-sm">
-                    <EditMe>Phase 3: edit / delete</EditMe>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
-    )
-  }
 
       {/* Real-time note */}
       <div className="mt-8 p-6 rounded-card border ball-400/30 bg-ball-500/10">
@@ -188,3 +187,6 @@ export default function AdminAnnouncements() {
           <EditMe>Phase 3: announcements appear on trainers' dashboards via realtime subscription automatically.</EditMe>
         </p>
       </div>
+    </div>
+  );
+}

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNow } from '../lib/time';
 import { EditMe } from '../components/ui/EditMe';
 
 /**
@@ -20,9 +19,8 @@ import { EditMe } from '../components/ui/EditMe';
 export default function AdminSettings() {
   const [eventConfig, setEventConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<'name' | 'tagline' | 'deadline' | 'countdown' | 'venue' | 'team-size'>('name');
+  const [saved, setSaved] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const now = useNow(60_000);
 
   useEffect(() => {
     fetchEventConfig();
@@ -46,15 +44,19 @@ export default function AdminSettings() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
-    const { name, value } = e.target;
-    setEventConfig((prev: any) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    setEventConfig((prev: any) => ({
+      ...prev,
+      [name]: type === 'number' ? (value === '' ? null : Number(value)) : value,
+    }));
   };
 
   const saveEventConfig = async () => {
     try {
       setFormErrors({});
+      setSaved(false);
 
       const { error } = await supabase
         .from('event_config')
@@ -62,14 +64,13 @@ export default function AdminSettings() {
         .eq('id', 1);
 
       if (error) {
-        // Extract human-readable error
         setFormErrors({ general: error.message });
         throw error;
       }
 
-      // Refresh the config
       await fetchEventConfig();
-      setEditing('name'); // Reset editing state
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch (error: any) {
       setFormErrors({
         general: error.message || 'Failed to save event config. Please try again.',
@@ -100,7 +101,7 @@ export default function AdminSettings() {
 
       {/* Event Configuration Form */}
       <div className="rounded-card border border-white/10 bg-ink-800/80 p-8">
-        <form>
+        <form onSubmit={(e) => { e.preventDefault(); saveEventConfig(); }}>
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <label className="font-pixel text-[0.5rem] tracking-[0.15em] text-shell-400 uppercase mb-1">
@@ -167,8 +168,13 @@ export default function AdminSettings() {
               </label>
               <select
                 name="registration_open"
-                value={eventConfig?.registration_open ? String(eventConfig.registration_open) : 'true'}
-                onChange={(e) => handleInputChange(e.target)}
+                value={eventConfig?.registration_open ? String(eventConfig.registration_open) : 'false'}
+                onChange={(e) =>
+                  setEventConfig((prev: any) => ({
+                    ...prev,
+                    registration_open: e.target.value === 'true',
+                  }))
+                }
                 className="mt-1 w-full rounded-xl border border-white/10 bg-ink-950/60 px-4 py-3 text-base text-shell-50 placeholder-text-shell-600 focus:border-ball-400 focus:outline-none"
               >
                 <option value="true">true</option>
@@ -197,7 +203,7 @@ export default function AdminSettings() {
               <input
                 type="number"
                 name="team_size_min"
-                value={eventConfig?.team_size_min || ''}
+                value={eventConfig?.team_size_min ?? ''}
                 onChange={handleInputChange}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-ink-950/60 px-4 py-3 text-base text-shell-50 placeholder-text-shell-600 focus:border-ball-400 focus:outline-none"
                 min="1"
@@ -211,7 +217,7 @@ export default function AdminSettings() {
               <input
                 type="number"
                 name="team_size_max"
-                value={eventConfig?.team_size_max || ''}
+                value={eventConfig?.team_size_max ?? ''}
                 onChange={handleInputChange}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-ink-950/60 px-4 py-3 text-base text-shell-50 placeholder-text-shell-600 focus:border-ball-400 focus:outline-none"
                 min="1"
@@ -219,7 +225,7 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 flex items-center gap-4">
             <button
               type="submit"
               disabled={loading}
@@ -229,11 +235,14 @@ export default function AdminSettings() {
             </button>
             <button
               type="button"
-              onClick={() => setEditing('name')}
-              className="mt-2 rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
+              onClick={fetchEventConfig}
+              className="rounded-full border-2 border-ball-400 bg-ball-800/50 px-4 py-2 font-pixel text-xs uppercase text-ball-300 hover:bg-ball-400 transition-colors"
             >
-              Cancel
+              Reset
             </button>
+            {saved && (
+              <span className="font-pixel text-xs text-emerald-400">Settings saved successfully!</span>
+            )}
           </div>
         </form>
       </div>
@@ -248,4 +257,5 @@ export default function AdminSettings() {
         </p>
       </div>
     </div>
-  </div>
+  );
+}

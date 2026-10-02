@@ -24,26 +24,44 @@ export default function AdminTeams() {
       created_at: string;
     }[]>([]);
 
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [submissionCounts, setSubmissionCounts] = useState<Record<string, number>>({});
+  const [openDeleteConfirm, setOpenDeleteConfirm] = useState<'team' | null>(null);
+  const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchTeams();
+    fetchSubmissionCounts();
   }, []);
 
   const fetchTeams = async () => {
     try {
-      const { data, error, count } = await supabase
+      const { data, error } = await supabase
         .from('teams')
-        .select('*, profiles!inner (full_name, email)', { count: 'exact' })
+        .select('*')
         .order('name', { ascending: true });
 
       if (error) throw error;
       setTeams(data || []);
+
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('team_id')
+        .not('team_id', 'is', null);
+
+      if (profilesData) {
+        const counts: Record<string, number> = {};
+        profilesData.forEach((p: any) => {
+          if (p.team_id) {
+            counts[p.team_id] = (counts[p.team_id] || 0) + 1;
+          }
+        });
+        setMemberCounts(counts);
+      }
     } catch (error) {
       console.error('Failed to fetch teams:', error);
     }
   };
-
-  const [openDeleteConfirm, setOpenDeleteConfirm] = useState<'team' | null>(null);
-  const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
 
   const confirmDeleteTeam = (teamId: string) => {
     setDeletingTeamId(teamId);
@@ -53,14 +71,13 @@ export default function AdminTeams() {
   const handleDeleteTeam = async () => {
     if (!deletingTeamId) return;
     try {
-      // Delete team - submissions cascade on delete per RLS
       const { error } = await supabase
         .from('teams')
         .delete()
         .eq('id', deletingTeamId);
 
       if (error) throw error;
-      fetchTeams();
+      await fetchTeams();
     } catch (error) {
       console.error('Failed to delete team:', error);
     } finally {
@@ -68,15 +85,6 @@ export default function AdminTeams() {
       setOpenDeleteConfirm(null);
     }
   };
-
-  // Fetch submission counts per team
-  const [submissionCounts, setSubmissionCounts] = useState<
-    Record<string, number>
-  >({});
-
-  useEffect(() => {
-    fetchSubmissionCounts();
-  }, []);
 
   const fetchSubmissionCounts = async () => {
     try {
@@ -145,19 +153,24 @@ export default function AdminTeams() {
                   {t.join_code}
                 </td>
                 <td className="font-pixel text-sm text-shell-400">
-                  {/* Count team members from the profiles joined via team_members */}
-                  {t.profiles ? t.profiles.length : '—'}
+                  {memberCounts[t.id] ?? 0}
                 </td>
                 <td className="font-pixel text-sm text-shell-400">
                   {submissionCounts[t.id] || 0} deck(s)
                   {submissionCounts[t.id] ? (
-                    <span className="text-xs text-shell-200/75">submitted</span>
+                    <span className="ml-1 text-xs text-shell-200/75">submitted</span>
                   ) : (
-                    <span className="text-xs text-ball-500">not submitted</span>
+                    <span className="ml-1 text-xs text-ball-500">not submitted</span>
                   )}
                 </td>
                 <td className="font-pixel text-sm">
-                  <EditMe>Phase 3: view details / manage members</EditMe>
+                  <button
+                    type="button"
+                    onClick={() => confirmDeleteTeam(t.id)}
+                    className="text-xs text-rose-400 hover:text-rose-300 underline"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -165,7 +178,38 @@ export default function AdminTeams() {
         </table>
       </div>
 
-      {/* Team detail drawer would go here */}
+      {/* Delete Confirmation Modal */}
+      {openDeleteConfirm === 'team' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl">
+            <h3 className="font-pixel text-sm text-rose-400 mb-2">Delete Team</h3>
+            <p className="text-sm text-shell-300 mb-6">
+              Are you sure you want to delete this team? All associated submissions and memberships will be affected.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenDeleteConfirm(null);
+                  setDeletingTeamId(null);
+                }}
+                className="rounded-lg border border-white/20 px-4 py-2 text-xs font-pixel text-shell-300 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTeam}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-pixel text-white hover:bg-rose-500"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team detail drawer placeholder */}
       <div className="mt-8">
         <h3 className="font-pixel text-[0.5rem] tracking-[0.15em] text-ball-400 uppercase mb-4">
           Team Details
@@ -175,4 +219,5 @@ export default function AdminTeams() {
         </p>
       </div>
     </div>
-  </div>
+  );
+}

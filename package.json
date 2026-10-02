@@ -9,12 +9,13 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "lint": "tsc -b",
+    "test": "vitest run",
     "db:push": "node scripts/apply-migrations.mjs",
     "db:status": "node scripts/apply-migrations.mjs --status",
     "db:verify": "node scripts/verify-rls.mjs",
     "assets:prep": "python scripts/prep-assets.py",
     "fonts:fetch": "node scripts/fetch-fonts.mjs",
-    "verify": "npm run typecheck && npm run db:verify"
+    "verify": "npm run typecheck && npm run test && npm run db:verify"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
@@ -33,6 +34,7 @@
     "postgres": "^3.4.7",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.2",
-    "vite": "^7.1.5"
+    "vite": "^7.1.5",
+    "vitest": "^5.0.3"
   }
 }

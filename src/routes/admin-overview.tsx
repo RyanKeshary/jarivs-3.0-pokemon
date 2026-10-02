@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNow } from '../lib/time';
 import { EditMe } from '../components/ui/EditMe';
 
 /**
@@ -25,13 +24,13 @@ export default function AdminOverview() {
     registrationsOverTime: [] as { date: string; count: number }[],
   });
 
-  const now = useNow(60_000); // 1 minute stale, realtime keeps it fresh
-
   // Initial data fetch
   useEffect(() => {
     fetchStats();
-    // Set up realtime subscriptions for live updates
-    setupRealtime();
+    const cleanup = setupRealtime();
+    return () => {
+      cleanup();
+    };
   }, []);
 
   const fetchStats = async () => {
@@ -55,8 +54,8 @@ export default function AdminOverview() {
         // Profiles with no team_id
         supabase
           .from('profiles')
-          .select('*, teams!inner(id)', { count: 'exact', head: true })
-          .is('team_id', 'null'),
+          .select('*', { count: 'exact', head: true })
+          .is('team_id', null),
       ]);
 
       setStats({
@@ -65,6 +64,7 @@ export default function AdminOverview() {
         teamsWithSubmissions: teamsWithSubmissions ?? 0,
         teamsWithoutSubmissions: teamsWithoutSubmissions ?? 0,
         participantsWithoutTeam: participantsWithoutTeam ?? 0,
+        registrationsOverTime: [],
       });
     } catch (error) {
       console.error('Failed to fetch admin stats:', error);
@@ -75,26 +75,32 @@ export default function AdminOverview() {
     // Subscribe to profile changes (participant count)
     const profileSubscription = supabase
       .channel('admin_stats')
-      on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
         fetchStats();
       })
-      subscribe();
+      .subscribe();
 
     // Subscribe to team changes
     const teamSubscription = supabase
       .channel('admin_teams')
-      on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
         fetchStats();
       })
-      subscribe();
+      .subscribe();
 
     // Subscribe to submission changes
     const submissionSubscription = supabase
       .channel('admin_submissions')
-      on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, () => {
         fetchStats();
       })
-      subscribe();
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileSubscription);
+      supabase.removeChannel(teamSubscription);
+      supabase.removeChannel(submissionSubscription);
+    };
   };
 
   return (
@@ -143,4 +149,5 @@ export default function AdminOverview() {
         </p>
       </div>
     </div>
-  </div>
+  );
+}

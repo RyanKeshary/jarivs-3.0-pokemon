@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { EditMe } from '../components/ui/EditMe';
-import { useNow } from '../lib/time';
 
 /**
  * Manager-Only: Manage Admins.
@@ -16,14 +15,13 @@ import { useNow } from '../lib/time';
 export default function AdminManageAdmins() {
   const [admins, setAdmins] = useState<
     {
-      id: string;
       email: string;
-      role: string;
-      joined_at: string;
+      grants_role: string | null;
+      created_at: string;
     }[]>([]);
 
   const [targetEmail, setTargetEmail] = useState('');
-  const [targetAction, setTargetAction] = useState<'add' | 'remove' | 'none'>('none');
+  const [targetAction, setTargetAction] = useState<'add' | 'remove'>('add');
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,83 +45,86 @@ export default function AdminManageAdmins() {
   };
 
   const handleAction = async () => {
-    if (!targetEmail || targetAction === 'none') return;
+    if (!targetEmail.trim()) return;
+    setError(null);
+    setSuccess(null);
+
+    const email = targetEmail.trim().toLowerCase();
 
     try {
       if (targetAction === 'add') {
-        // Insert into allowed_emails with role 'admin'
-        const { error } = await supabase.from('allowed_emails').insert({
-          email: targetEmail.trim().toLowerCase(),
+        const { error } = await supabase.from('allowed_emails').upsert({
+          email,
           grants_role: 'admin',
           note: 'Added by manager via admin panel',
         });
 
         if (error) throw error;
 
-        // Also create/update the profile role to admin
         const { data: existingProfile } = await supabase
           .from('profiles')
-          .select('role')
-          .eq('email', targetEmail.trim().toLowerCase())
-          .single();
+          .select('id, role')
+          .eq('email', email)
+          .maybeSingle();
 
         if (existingProfile) {
           await supabase
             .from('profiles')
             .update({ role: 'admin' })
-            .eq('email', targetEmail.trim().toLowerCase());
+            .eq('email', email);
         }
 
-        // Add audit log
-        await supabase.rpc('public.insert_audit_log', {
+        await supabase.rpc('insert_audit_log', {
           p_action: 'grant_admin',
           p_target_id: existingProfile?.id,
           p_target_type: 'profile',
-          p_details: { email: targetEmail.trim().toLowerCase() }
+          p_details: { email }
         });
 
-        setSuccess(`Admin role granted to ${targetEmail}`);
+        setSuccess(`Admin role granted to ${email}`);
         await fetchAdmins();
         setTargetEmail('');
-        setTargetAction('none');
       } else if (targetAction === 'remove') {
-        // Check if the user is a protected manager by full email address
         const isProtected = [
           'ryankeshary@gmail.com',
           'shrey.sleeps@gmail.com',
-        ].includes(targetEmail.trim().toLowerCase());
+        ].includes(email);
 
         if (isProtected) {
           setError('Cannot demote a protected manager. Only another manager may change their role, and even then they cannot be demoted.');
           return;
         }
 
-        // Update the grants_role to 'trainer' in allowed_emails
         const { error } = await supabase
           .from('allowed_emails')
           .update({ grants_role: 'trainer' })
-          .eq('email', targetEmail.trim().toLowerCase());
+          .eq('email', email);
 
         if (error) throw error;
 
-        // Also update the profile role back to trainer
-        await supabase
+        const { data: existingProfile } = await supabase
           .from('profiles')
-          .update({ role: 'trainer' })
-          .eq('email', targetEmail.trim().toLowerCase());
+          .select('id, role')
+          .eq('email', email)
+          .maybeSingle();
 
-        // Add audit log
-        await supabase.rpc('public.insert_audit_log', {
+        if (existingProfile) {
+          await supabase
+            .from('profiles')
+            .update({ role: 'trainer' })
+            .eq('email', email);
+        }
+
+        await supabase.rpc('insert_audit_log', {
           p_action: 'revoke_admin',
-          p_target_id: null,
+          p_target_id: existingProfile?.id,
           p_target_type: 'profile',
-          p_details: { email: targetEmail.trim().toLowerCase() }
+          p_details: { email }
         });
 
-        setSuccess(`${targetEmail} demoted to trainer role`);
+        setSuccess(`${email} demoted to trainer role`);
         await fetchAdmins();
         setTargetEmail('');
-        setTargetAction('none');
       }
     } catch (error: any) {
       setError(error.message || 'Action failed. Please try again.');
@@ -171,7 +172,16 @@ export default function AdminManageAdmins() {
                       {a.grants_role}
                     </td>
                     <td className="font-pixel text-sm">
-                      <EditMe>Phase 3: manage role</EditMe>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTargetEmail(a.email);
+                          setTargetAction('remove');
+                        }}
+                        className="text-xs text-rose-400 hover:text-rose-300 underline"
+                      >
+                        Select to Demote
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -195,16 +205,13 @@ export default function AdminManageAdmins() {
           )}
 
           {error && (
-            <p className="font-pixel text-ball-400 text-sm mb-2">{error}</p>
+            <p className="font-pixel text-rose-400 text-sm mb-2">{error}</p>
           )}
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              // Determine action based on whether email exists in the admins list
-              const emailLower = targetEmail.trim().toLowerCase();
-              const alreadyAdmin = admins.some((a) => a.email === emailLower);
-              setTargetAction(alreadyAdmin ? 'remove' : 'add');
+              handleAction();
             }}
           >
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -227,7 +234,7 @@ export default function AdminManageAdmins() {
                   Action
                 </label>
                 <select
-                  defaultValue="add"
+                  value={targetAction}
                   onChange={(e) => setTargetAction(e.target.value as any)}
                   className="mt-1 w-full rounded-xl border border-white/10 bg-ink-950/60 px-4 py-3 text-base text-shell-50 placeholder-text-shell-600 focus:border-ball-400 focus:outline-none"
                 >
@@ -246,3 +253,5 @@ export default function AdminManageAdmins() {
           </form>
         </div>
       </div>
+    );
+  }

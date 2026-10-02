@@ -1,10 +1,12 @@
 // Test: Countdown logic edge cases
-import { computeCountdown, formatIstDateTime, isRegistrationOpen, CountdownPhase } from '../lib/time';
+import { describe, test, expect } from 'vitest';
+import { computeCountdown, formatIstDateTime, isRegistrationOpen } from '../lib/time';
+import { isUnconfirmed } from '../lib/content';
 
 describe('computeCountdown', () => {
-  test('returns zero countdown when target is now', () => {
+  test('returns live countdown when target is reached', () => {
     const result = computeCountdown('2026-10-18T06:30:00.000Z', null, Date.parse('2026-10-18T06:30:00.000Z'));
-    expect(result.phase).toBe('counting');
+    expect(result.phase).toBe('live');
     expect(result.days).toBe(0);
     expect(result.hours).toBe(0);
     expect(result.minutes).toBe(0);
@@ -13,15 +15,15 @@ describe('computeCountdown', () => {
   });
 
   test('returns counting phase when target is in future', () => {
-    const result = computeCountdown('2026-10-18T12:00:00.000Z', null, Date.parse('2026-10-18T06:30:00.000Z'));
+    const result = computeCountdown('2026-10-20T12:00:00.000Z', null, Date.parse('2026-10-18T06:30:00.000Z'));
     expect(result.phase).toBe('counting');
     expect(result.days).toBeGreaterThan(0);
   });
 
-  test('returns live phase when event_ends_at has passed', () => {
+  test('returns live phase when target has passed but ends_at has not', () => {
     const result = computeCountdown(
+      '2026-10-18T06:00:00.000Z',
       '2026-10-18T12:00:00.000Z',
-      '2026-10-18T06:30:00.000Z',
       Date.parse('2026-10-18T06:30:00.000Z')
     );
     expect(result.phase).toBe('live');

@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { useNow } from '../lib/time';
-import { EditMe } from '../components/ui/EditMe';
 
 /**
  * Master Login for Admin/Manager.
@@ -19,7 +17,7 @@ import { EditMe } from '../components/ui/EditMe';
  */
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [location] = useLocation();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
