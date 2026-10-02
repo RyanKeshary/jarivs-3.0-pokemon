@@ -134,8 +134,9 @@ export default function AdminAnnouncements() {
             >
               Cancel
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
+      </div>
 
         {/* Existing announcements list */}
         {announcements.length === 0 && !loading && (
@@ -175,6 +176,8 @@ export default function AdminAnnouncements() {
           </table>
         </div>
       </div>
+    )
+  }
 
       {/* Real-time note */}
       <div className="mt-8 p-6 rounded-card border ball-400/30 bg-ball-500/10">

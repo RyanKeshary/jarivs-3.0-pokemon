@@ -113,7 +113,3 @@ export default function Center() {
             <EditMe>Phase 2: this space will be filled later.</EditMe>
           </h2>
         </div>
-       </div>
-     </div>
-  )
-}
