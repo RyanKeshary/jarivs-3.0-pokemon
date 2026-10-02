@@ -142,3 +142,4 @@ export default function AdminOverview() {
           <EditMe>Phase 3: chart data will be populated from auth.users signup timestamps.</EditMe>
         </p>
       </div>
+    </div>

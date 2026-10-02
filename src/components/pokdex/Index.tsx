@@ -103,7 +103,7 @@ export default function Pokdex() {
             Team Members
           </p>
           <p className="text-sm text-shell-200/75">
-            <EditMe>Phase 2: team members will appear here.</É>
+            <EditMe>Phase 2: team members will appear here.</EditMe>
           </p>
           <p className="text-sm text-shell-200/75">
             Team size: 0 / {session?.user?.trainer_id ? '---' : '---'}

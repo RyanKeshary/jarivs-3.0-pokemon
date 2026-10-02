@@ -235,3 +235,5 @@ export default function AdminProblemStatements() {
           </tbody>
         </table>
       </div>
+    </div>
+  </div>

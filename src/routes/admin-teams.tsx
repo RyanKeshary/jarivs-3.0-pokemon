@@ -174,3 +174,5 @@ export default function AdminTeams() {
           <EditMe>Phase 3: team detail drawer with members, submission history, and PPT view.</EditMe>
         </p>
       </div>
+    </div>
+  </div>

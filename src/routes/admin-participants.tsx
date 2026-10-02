@@ -223,3 +223,5 @@ export default function AdminParticipants() {
           </p>
         </div>
       )}
+    </div>
+  </div>

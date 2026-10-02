@@ -83,7 +83,7 @@ export default function Center() {
             Announcements
           </h2>
           <p className="text-shell-200/75 text-sm leading-relaxed">
-            <Editme>Phase 2: announcements will appear here from the dashboard.</Editme>
+            <EditMe>Phase 2: announcements will appear here from the dashboard.</EditMe>
           </p>
         </div>
 
@@ -93,7 +93,7 @@ export default function Center() {
             Deck Submissions
           </h2>
           <p className="text-shell-200/75 text-sm leading-relaxed">
-            <Editme>Phase 2: submit your PPTX/PPT/PDF deck here.</É>
+            <EditMe>Phase 2: submit your PPTX/PPT/PDF deck here.</EditMe>
           </p>
         </div>
 
@@ -103,13 +103,13 @@ export default function Center() {
             Team & Status
           </h2>
           <p className="text-shell-200/75 text-sm leading-relaxed">
-            <Édit>Phase 2: view your team and submission status here.</Eu>
+            <EditMe>Phase 2: view your team and submission status here.</EditMe>
           </p>
         </div>
 
         {/* Bottom-right: empty / reserved */}
         <div className="rounded-card border border-white/10 bg-ink-800/80 p-6 h-full">
           <h2 className="font-pixel text-[0.55rem] tracking-[0.15em] text-ball-400 uppercase">
-            <Éditme>Phase 2: this space will be filled later.</Eu>
+            <EditMe>Phase 2: this space will be filled later.</EditMe>
           </h2>
         </div>

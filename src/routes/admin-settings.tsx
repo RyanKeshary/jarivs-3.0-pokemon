@@ -247,3 +247,5 @@ export default function AdminSettings() {
           <EditMe>Phase 3: realtime subscription updates the public landing page automatically.</EditMe>
         </p>
       </div>
+    </div>
+  </div>

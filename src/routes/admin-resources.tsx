@@ -237,3 +237,5 @@ export default function AdminResources() {
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
