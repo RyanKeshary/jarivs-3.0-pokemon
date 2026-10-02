@@ -1,0 +1,38 @@
+{
+  "name": "kanto-league-jarvis-3",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "tsc -b",
+    "db:push": "node scripts/apply-migrations.mjs",
+    "db:status": "node scripts/apply-migrations.mjs --status",
+    "db:verify": "node scripts/verify-rls.mjs",
+    "assets:prep": "python scripts/prep-assets.py",
+    "fonts:fetch": "node scripts/fetch-fonts.mjs",
+    "verify": "npm run typecheck && npm run db:verify"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "@tanstack/react-query": "^5.90.2",
+    "framer-motion": "^12.23.12",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.13",
+    "@types/node": "^24.7.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "postgres": "^3.4.7",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
+  }
+}

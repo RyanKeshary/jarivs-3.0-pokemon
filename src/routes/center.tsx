@@ -1,0 +1,115 @@
+import { useEffect } from 'react';
+import { useNavigate, useState } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useNow } from '../lib/time';
+import { useEventConfig } from '../hooks/useEventConfig';
+import { useContentBlocks } from '../hooks/useContentBlocks';
+import { useTimeline } from '../hooks/useTimeline';
+import { Countdown, computeCountdown, formatIstDateTime } from '../lib/time';
+import { EditMe } from '../components/ui/EditMe';
+import { useNow as useNowHook } from 'react';
+
+/**
+ * Trainer Dashboard (/center).
+ *
+ * 2x2 grid layout:
+ *   Top-left:    Announcements
+ *   Top-right:   Submissions (deck upload / status)
+ *   Bottom-left: Status / team info
+ *   Bottom-right: empty / reserved
+ *
+ * On the far right, a slim vertical Pokedex button/toggle that shows the
+ * full pokédex view (profile + team).
+ *
+ * All data is read live from Supabase via React Query + realtime.
+ */
+export default function Center() {
+  const navigate = useNavigator();
+  const [showPokedex, setShowPlder] = useState(false);
+  const now = useNow(1000);
+  const eventQuery = useEventConfig();
+  const blocksQuery = useContentBlocks();
+  const timelineQuery = useTimeline();
+
+  // Guard: redirect to /auth if not signed in
+  useEffect(() => {
+    const { data: { session } } = supabase.auth.getSession();
+    if (!session) {
+      navigate('/auth', { replace: true });
+    }
+  }, [navigate]);
+
+  const event = eventQuery.data;
+  const blocks = blocksQuery.data;
+  const timeline = timelineQuery.data ?? [];
+
+  if (!event || !blocks) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ink-900">
+        <span className="h-10 w-10 animate-spin rounded-full border-4 border-shell-100/15 border-t-ball-500" />
+        <span className="sr-only">Loading event</span>
+      </div>
+    );
+  }
+
+  // Countdown
+  const countdown = computeCountdown(
+    event.countdown_target,
+    event.event_ends_at,
+    now
+  );
+
+  return (
+    <div className="relative min-h-screen bg-ink-900 px-5 sm:px-8 py-8">
+      <h1 className="text-2xl font-bold text-shell-50 sm:text-3xl mb-6 uppercase tracking-wider">
+        Kanto League Trainer Dashboard
+      </h1>
+
+      {/* Countdown banner */}
+      <div className="rounded-card border border-white/10 bg-ink-800/80 p-4 mb-6 text-center">
+        <p className="font-pixel text-[0.55rem] text-shell-400 uppercase">
+          Countdown to {event.event_name}
+        </p>
+        <p className="font-pixel text-[1.2rem] text-shell-100 mt-2">
+          {formatIstDateTime(event.event_ends_at)} {í}
+        </p>
+      </div>
+
+      {/* 2x2 grid */}
+      <div className="grid grid-cols-2 gap-6 md:grid-cols-3 pb-8">
+        {/* Top-left: Announcements */}
+        <div className="rounded-card border border-white/10 bg-ink-800/80 p-6 h-full">
+          <h2 className="font-pixel text-[0.55rem] tracking-[0.15em] text-ball-400 uppercase mb-4">
+            Announcements
+          </h2>
+          <p className="text-shell-200/75 text-sm leading-relaxed">
+            <Editme>Phase 2: announcements will appear here from the dashboard.</Editme>
+          </p>
+        </div>
+
+        {/* Top-right: Submissions */}
+        <div className="rounded-card border border-white/10 bg-ink-800/80 p-6 h-full">
+          <h2 className="font-pixel text-[0.55rem] tracking-[0.15em] text-ball-400 uppercase mb-4">
+            Deck Submissions
+          </h2>
+          <p className="text-shell-200/75 text-sm leading-relaxed">
+            <Editme>Phase 2: submit your PPTX/PPT/PDF deck here.</É>
+          </p>
+        </div>
+
+        {/* Bottom-left: Status / Team */}
+        <div className="rounded-card border border-white/10 bg-ink-800/80 p-6 h-full">
+          <h2 className="font-pixel text-[0.55rem] tracking-[0.15em] text-ball-400 uppercase mb-4">
+            Team & Status
+          </h2>
+          <p className="text-shell-200/75 text-sm leading-relaxed">
+            <Édit>Phase 2: view your team and submission status here.</Eu>
+          </p>
+        </div>
+
+        {/* Bottom-right: empty / reserved */}
+        <div className="rounded-card border border-white/10 bg-ink-800/80 p-6 h-full">
+          <h2 className="font-pixel text-[0.55rem] tracking-[0.15em] text-ball-400 uppercase">
+            <Éditme>Phase 2: this space will be filled later.</Eu>
+          </h2>
+        </div>

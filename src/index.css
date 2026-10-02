@@ -1,0 +1,205 @@
+@import 'tailwindcss';
+@import './styles/fonts.css';
+
+/* ==========================================================================
+   Design tokens
+   The ball red (#A91D26) and shell white (#EDEDED) are sampled directly from
+   the Pokeball art, so the UI panels and the transition overlay are the exact
+   same colour as the ball they sit next to.
+   ========================================================================== */
+@theme {
+  --font-display:
+    'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-pixel: 'Press Start 2P', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Backdrop: near-black with a violet cast, so red reads as warm against it. */
+  --color-ink-950: #06050a;
+  --color-ink-900: #0a0810;
+  --color-ink-800: #120e1d;
+  --color-ink-700: #1b1528;
+  --color-ink-600: #272038;
+  --color-ink-500: #3a3050;
+
+  /* Pokeball red ramp */
+  --color-ball-50: #f3d9db;
+  --color-ball-200: #e39499;
+  --color-ball-400: #d35055;
+  --color-ball-500: #a91d26;
+  --color-ball-600: #8a151d;
+  --color-ball-700: #6c0e0f;
+  --color-ball-900: #3e0708;
+
+  /* Pokeball white ramp + muted text */
+  --color-shell-50: #fafafa;
+  --color-shell-100: #ededed;
+  --color-shell-200: #d7d2de;
+  --color-shell-400: #9b93a8;
+  --color-shell-600: #6b6479;
+
+  --color-gold-400: #f5c518;
+  --color-gold-500: #d9a404;
+
+  --color-mint-400: #4ade9b;
+  --color-mint-500: #16a36a;
+
+  --radius-card: 1.25rem;
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 11s ease-in-out infinite;
+  --animate-spin-slow: spin 24s linear infinite;
+  --animate-glow: glow 3.2s ease-in-out infinite;
+  --animate-sheen: sheen 2.4s linear infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes sheen {
+  from {
+    transform: translate3d(-120%, 0, 0);
+  }
+  to {
+    transform: translate3d(220%, 0, 0);
+  }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  html {
+    /* The navbar is fixed, so anchors must stop below it. */
+    scroll-padding-top: 5.5rem;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink-900);
+    color: var(--color-shell-100);
+    font-family: var(--font-display);
+    /* No web font can match a fallback exactly; keeping the fallback tight
+       limits how much the swap can reflow the page. */
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Pixel type is only ever used on short labels. A fixed line-height keeps the
+     swap from nudging anything. */
+  .font-pixel {
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-ball-400);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--color-ball-500);
+    color: var(--color-shell-50);
+  }
+
+  /* Anchors should not be hidden under the navbar when jumped to. */
+  section[id] {
+    scroll-margin-top: 5.5rem;
+  }
+}
+
+/* ==========================================================================
+   Components
+   ========================================================================== */
+@layer components {
+  /* A faint dot grid. Pure CSS gradients, so it costs no extra request and
+     cannot cause layout shift. */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, rgb(255 255 255 / 0.07) 1px, transparent 1px);
+    background-size: 26px 26px;
+  }
+
+  /* Diagonal red hatch used behind "Gym" style panels. */
+  .bg-hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgb(169 29 38 / 0.16) 0 10px,
+      transparent 10px 20px
+    );
+  }
+
+  /* Red -> transparent wash used for the hero backdrop. */
+  .bg-hero-wash {
+    background:
+      radial-gradient(ellipse 80% 55% at 50% 0%, rgb(169 29 38 / 0.42), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 82% 18%, rgb(108 14 15 / 0.35), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 12% 30%, rgb(39 32 56 / 0.6), transparent 70%);
+  }
+
+  /* Thin scanline overlay for the "stadium monitor" screen. */
+  .bg-scanlines {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgb(0 0 0 / 0.16) 0 1px,
+      transparent 1px 3px
+    );
+  }
+
+  /* Text gradient for the event name. */
+  .text-chrome {
+    background: linear-gradient(180deg, #ffffff 0%, #d7d2de 55%, #9b93a8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Skip link: off-screen until focused. */
+  .skip-link {
+    position: absolute;
+    left: 0.75rem;
+    top: -100%;
+    z-index: 100;
+  }
+  .skip-link:focus {
+    top: 0.75rem;
+  }
+}
+
+/* ==========================================================================
+   Motion preferences
+   Framer Motion handles component-level animation, but CSS-driven decoration
+   still needs opting out. We keep content visible either way - nothing that
+   reveals information depends on an animation completing.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
