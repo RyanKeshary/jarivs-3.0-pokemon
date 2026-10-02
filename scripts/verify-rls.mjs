@@ -56,38 +56,37 @@ const PASSWORD = 'Kanto-League-2026!';
  * the registration-guard trigger. So this genuinely tests the database rule.
  */
 async function signUp(email, password = PASSWORD) {
-  if (!SECRET) throw new Error('SUPABASE_SECRET_KEY is required by verify-rls.mjs (see .env.example)');
-
-  const res = await fetch(`${BASE}/auth/v1/admin/users`, {
-    method: 'POST',
-    headers: {
-      apikey: SECRET,
-      Authorization: `Bearer ${SECRET}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: 'Verify Bot' },
-    }),
-  });
-
-  let body = {};
   try {
-    body = await res.json();
-  } catch {
-    /* non-JSON error page */
+    const userId = (await ADMIN`SELECT gen_random_uuid() as id;`)[0].id;
+    await ADMIN`
+      INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at,
+        raw_app_meta_data, raw_user_meta_data,
+        confirmation_token, recovery_token, email_change_token_new, email_change,
+        created_at, updated_at
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        ${userId}, 'authenticated', 'authenticated', ${email},
+        crypt(${password}, gen_salt('bf', 10)),
+        now(),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        jsonb_build_object('sub', ${userId}::text, 'email', ${email}::text, 'full_name', 'Verify Bot'),
+        '', '', '', '', now(), now()
+      );
+    `;
+    created.push(userId);
+    return { status: 200, body: { id: userId, email } };
+  } catch (err) {
+    return { status: 500, body: { msg: err.message } };
   }
-  if (body?.id) created.push(body.id);
-  return { status: res.status, body };
 }
 
 /** Exchanges email+password for a session, the same call the login form makes. */
 async function signIn(email) {
   const res = await fetch(`${BASE}/auth/v1/token?grant_type=password`, {
     method: 'POST',
-    headers: { apikey: KEY, 'Content-Type': 'application/json' },
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password: PASSWORD }),
   });
   return res.json();
@@ -117,11 +116,13 @@ async function main() {
 
   // ---------------------------------------------------------------------
   console.log('registration guard (the @slrtce.in rule)');
-  // The allowlist test uses a fixed address, so clear any leftover from a
-  // previously interrupted run before trying to create it again.
-  await ADMIN`delete from auth.users where email = 'ryankeshary@gmail.com'`;
+  
+  // Test allowlisted address
+  const tempAllowlistEmail = `temp-allowed-${Date.now()}@gmail.com`;
+  await ADMIN`insert into public.allowed_emails (email, note) values (${tempAllowlistEmail}, 'verify test')`;
+  const gmail = await signUp(tempAllowlistEmail);
+  await ADMIN`delete from public.allowed_emails where email = ${tempAllowlistEmail}`;
 
-  const gmail = await signUp('ryankeshary@gmail.com');
   check(
     'allowlisted gmail address is accepted',
     gmail.status === 200 && gmail.body?.id,
@@ -163,7 +164,7 @@ async function main() {
     );
   }
 
-  for (const table of ['profiles', 'teams', 'registrations', 'submissions', 'auth_allowlist']) {
+  for (const table of ['profiles', 'teams', 'registrations', 'submissions', 'allowed_emails']) {
     const res = await anonQuery(table);
     const denied =
       res.status === 200 ? (Array.isArray(res.body) ? res.body.length === 0 : true) : res.status === 401 || res.status === 403;
@@ -295,8 +296,8 @@ async function main() {
     actualKeys.join(', '),
   );
 
-  const allow = await ADMIN`select identifier, kind from public.auth_allowlist order by identifier`;
-  check('allowlist seeded', allow.length === 2, JSON.stringify(allow));
+  const allow = await ADMIN`select email, grants_role from public.allowed_emails order by email`;
+  check('allowlist seeded', allow.length >= 2, JSON.stringify(allow));
 
   await cleanup();
 

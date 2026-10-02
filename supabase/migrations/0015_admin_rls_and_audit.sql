@@ -11,9 +11,8 @@ begin
   if not exists (select 1 from pg_type where typname = 'user_role') then
     create type public.user_role as enum ('trainer', 'admin', 'manager');
   else
-    -- Add 'admin' if it's missing (should already exist from Phase 2)
-    if not exists (select 1 from pg_enum where enumlabel = 'admin' and oid = (select oid from pg_type where typname = 'user_role')) then
-      execute 'alter type public.user_role add value ''admin''';
+    if not exists (select 1 from pg_enum where enumlabel = 'admin' and enumtypid = 'public.user_role'::regtype) then
+      alter type public.user_role add value 'admin';
     end if;
   end if;
 end
@@ -136,14 +135,14 @@ create or replace function public.insert_audit_log(
   p_details jsonb default '{}'::jsonb
 )
 returns void
-language sql
+language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
   insert into public.audit_log (actor_id, action, target_id, target_type, details)
   values (auth.uid(), p_action, p_target_id, p_target_type, p_details);
-end
+end;
 $$;
 
 grant execute on function public.insert_audit_log to authenticated;

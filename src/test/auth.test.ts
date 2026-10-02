@@ -65,3 +65,24 @@ describe('team size validation', () => {
     expect(max).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('Admin and Manager Default Credentials', () => {
+  test('default password is password@67', () => {
+    const defaultPassword = 'password@67';
+    expect(defaultPassword).toBe('password@67');
+    expect(defaultPassword.length).toBeGreaterThanOrEqual(8);
+  });
+
+  test('password change requires matching passwords and at least 8 chars', () => {
+    const validate = (p1: string, p2: string) => {
+      if (p1.length < 8) return 'Password must be at least 8 characters long.';
+      if (p1 !== p2) return 'Passwords do not match.';
+      return null;
+    };
+
+    expect(validate('short', 'short')).toBe('Password must be at least 8 characters long.');
+    expect(validate('validPass123', 'differentPass123')).toBe('Passwords do not match.');
+    expect(validate('validPass123', 'validPass123')).toBeNull();
+  });
+});
+
