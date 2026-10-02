@@ -86,3 +86,33 @@ describe('Admin and Manager Default Credentials', () => {
   });
 });
 
+describe('Email Domain and Manager Access Rules', () => {
+  test('detects non-slrtce domain for inline warning', () => {
+    const isNonSlrtce = (email: string) => {
+      const trimmed = email.trim().toLowerCase();
+      const domain = trimmed.includes('@') ? trimmed.split('@')[1] : '';
+      return domain.length > 0 && domain !== 'slrtce.in';
+    };
+
+    expect(isNonSlrtce('trainer@slrtce.in')).toBe(false);
+    expect(isNonSlrtce('manager@gmail.com')).toBe(true);
+    expect(isNonSlrtce('random@yahoo.com')).toBe(true);
+    expect(isNonSlrtce('incomplete@')).toBe(false);
+  });
+
+  test('admin access strictly enforces @slrtce.in unless role is manager', () => {
+    const canAccessAdminPortal = (email: string, role: string) => {
+      if (role === 'manager') return true; // Managers can be from any domain
+      if (role === 'admin' && email.trim().toLowerCase().endsWith('@slrtce.in')) return true;
+      return false;
+    };
+
+    expect(canAccessAdminPortal('admin@slrtce.in', 'admin')).toBe(true);
+    expect(canAccessAdminPortal('admin@gmail.com', 'admin')).toBe(false);
+    expect(canAccessAdminPortal('manager@gmail.com', 'manager')).toBe(true);
+    expect(canAccessAdminPortal('manager@slrtce.in', 'manager')).toBe(true);
+    expect(canAccessAdminPortal('trainer@slrtce.in', 'trainer')).toBe(false);
+  });
+});
+
+
