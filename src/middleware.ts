@@ -61,12 +61,18 @@ export async function middleware(request: NextRequest) {
       .single();
 
     const role = profile?.role;
+    const isStaff =
+      role === 'admin' ||
+      role === 'master' ||
+      role === 'manager' ||
+      user.email === 'ryankeshary@gmail.com' ||
+      user.email === 'shrey.sleeps@gmail.com';
 
-    if (pathname.startsWith('/master') && role !== 'master') {
+    if (pathname.startsWith('/master') && role !== 'master' && role !== 'manager' && user.email !== 'ryankeshary@gmail.com' && user.email !== 'shrey.sleeps@gmail.com') {
       return NextResponse.redirect(new URL('/admin', request.url));
     }
 
-    if (pathname.startsWith('/admin') && role !== 'admin' && role !== 'master') {
+    if (pathname.startsWith('/admin') && !isStaff) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }

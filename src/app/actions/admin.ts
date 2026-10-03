@@ -14,11 +14,18 @@ async function requireAdmin() {
 
   const profileRows = await sql`SELECT * FROM public.profiles WHERE id = ${user.id}`;
   const profile = profileRows[0];
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'master')) {
+  const isMasterUser =
+    profile?.role === 'master' ||
+    profile?.role === 'manager' ||
+    user.email === 'ryankeshary@gmail.com' ||
+    user.email === 'shrey.sleeps@gmail.com';
+  const isAdminUser = isMasterUser || profile?.role === 'admin';
+
+  if (!profile || !isAdminUser) {
     throw new Error('Forbidden: Admin access required');
   }
 
-  return { user, profile, isMaster: profile.role === 'master' };
+  return { user, profile, isMaster: isMasterUser };
 }
 
 // Log action to audit_log

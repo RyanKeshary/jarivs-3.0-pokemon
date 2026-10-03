@@ -8,12 +8,21 @@ import { Shield, AlertTriangle, ArrowRight, UserCheck, KeyRound, Sparkles, Check
 import { createClient } from '@/lib/supabase/client';
 import { playRetroBeep, playVictoryChime } from '@/lib/sound';
 
+const MASTER_EMAILS = [
+  'ryankeshary@gmail.com',
+  'shrey.sleeps@gmail.com',
+];
+
+function isMasterEmail(emailStr: string): boolean {
+  return MASTER_EMAILS.includes(emailStr.trim().toLowerCase());
+}
+
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialMode = searchParams.get('mode') === 'login' ? 'login' : searchParams.get('mode') === 'master' ? 'master' : 'register';
+  const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
 
-  const [mode, setMode] = useState<'register' | 'login' | 'master' | 'reset'>(initialMode);
+  const [mode, setMode] = useState<'register' | 'login' | 'reset'>(initialMode);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,19 +35,25 @@ export function AuthForm() {
   const supabase = createClient();
 
   // Real-time domain validation check
+  // Until and unless someone puts exactly what the master email is, show college email caution
   useEffect(() => {
     if (!email) {
       setDomainWarning(null);
       return;
     }
 
-    if (mode === 'register' || mode === 'login') {
-      const emailLower = email.trim().toLowerCase();
-      if (emailLower.includes('@') && !emailLower.endsWith('@slrtce.in')) {
-        setDomainWarning('Only @slrtce.in trainers may enter! Please use your institutional college email.');
-      } else {
-        setDomainWarning(null);
-      }
+    const emailLower = email.trim().toLowerCase();
+    const isMaster = isMasterEmail(emailLower);
+
+    // If exact master email, do not show college email caution
+    if (isMaster) {
+      setDomainWarning(null);
+      return;
+    }
+
+    // Otherwise, show caution if email doesn't end with @slrtce.in
+    if (emailLower.includes('@') && !emailLower.endsWith('@slrtce.in')) {
+      setDomainWarning('Only @slrtce.in trainers may enter! Please use your institutional college email.');
     } else {
       setDomainWarning(null);
     }
@@ -50,14 +65,13 @@ export function AuthForm() {
     setSuccessMsg(null);
 
     const emailTrimmed = email.trim().toLowerCase();
+    const isMaster = isMasterEmail(emailTrimmed);
 
-    // Enforce @slrtce.in for register & regular login
-    if (mode === 'register' || mode === 'login') {
-      if (!emailTrimmed.endsWith('@slrtce.in')) {
-        setErrorMsg('Only @slrtce.in trainers may enter! Registration is restricted to SLRTCE college IDs.');
-        playRetroBeep(220, 'sawtooth', 0.15);
-        return;
-      }
+    // Enforce @slrtce.in unless exact master email
+    if (!emailTrimmed.endsWith('@slrtce.in') && !isMaster) {
+      setErrorMsg('Only @slrtce.in trainers may enter! Registration & Login is restricted to SLRTCE college IDs.');
+      playRetroBeep(220, 'sawtooth', 0.15);
+      return;
     }
 
     setLoading(true);
@@ -101,7 +115,7 @@ export function AuthForm() {
               playVictoryChime();
               setSuccessMsg('Trainer ID recognized! Logging into Pokémon Center...');
               setTimeout(() => {
-                window.location.href = '/dashboard';
+                window.location.href = isMaster ? '/admin' : '/dashboard';
               }, 150);
               return;
             }
@@ -119,10 +133,10 @@ export function AuthForm() {
           playVictoryChime();
           setSuccessMsg('Trainer ID registered successfully! Redirecting to Pokémon Center...');
           setTimeout(() => {
-            window.location.href = '/dashboard';
+            window.location.href = isMaster ? '/admin' : '/dashboard';
           }, 150);
         }
-      } else if (mode === 'login' || mode === 'master') {
+      } else if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: emailTrimmed,
           password,
@@ -135,15 +149,19 @@ export function AuthForm() {
           playVictoryChime();
           setSuccessMsg('Login successful! Welcome back, Trainer.');
 
+          // If admin/master email or role, redirect directly to admin panel (/admin)
           let target = '/dashboard';
-          if (data?.user?.id) {
+          if (isMaster) {
+            target = '/admin';
+          } else if (data?.user?.id) {
             const { data: profile } = await supabase
               .from('profiles')
               .select('role')
               .eq('id', data.user.id)
               .single();
-            if (profile?.role === 'master') target = '/master';
-            else if (profile?.role === 'admin') target = '/admin';
+            if (profile?.role === 'master' || profile?.role === 'admin' || profile?.role === 'manager') {
+              target = '/admin';
+            }
           }
 
           setTimeout(() => {
@@ -168,6 +186,8 @@ export function AuthForm() {
     }
   };
 
+  const isMasterActive = isMasterEmail(email);
+
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Retro Pokémon Card Frame */}
@@ -188,9 +208,10 @@ export function AuthForm() {
             </div>
           </div>
 
-          {mode === 'master' ? (
-            <span className="px-2 py-0.5 bg-[#FFCB05] text-[#1E232A] font-pixel text-[9px] rounded border border-[#1E232A]">
-              MASTER
+          {isMasterActive ? (
+            <span className="px-2.5 py-1 bg-[#FFCB05] text-[#1E232A] font-pixel text-[9px] rounded border border-[#1E232A] shadow-sm flex items-center gap-1">
+              <Shield size={10} />
+              <span>COMMAND STAFF</span>
             </span>
           ) : (
             <span className="px-2 py-0.5 bg-white/20 text-white font-mono text-[10px] rounded">
@@ -199,17 +220,17 @@ export function AuthForm() {
           )}
         </div>
 
-        {/* Tab Selection */}
-        <div className="grid grid-cols-3 border-b-2 border-gray-200 bg-gray-50">
+        {/* Tab Selection: Only REGISTER and LOGIN */}
+        <div className="grid grid-cols-2 border-b-2 border-gray-200 bg-gray-50">
           <button
             type="button"
             onClick={() => {
               setMode('register');
               setErrorMsg(null);
             }}
-            className={`py-3 font-pixel text-[10px] sm:text-xs transition-all cursor-pointer ${
+            className={`py-3.5 font-pixel text-xs transition-all cursor-pointer ${
               mode === 'register'
-                ? 'bg-white text-[#EE1515] border-b-2 border-[#EE1515] font-bold'
+                ? 'bg-white text-[#EE1515] border-b-3 border-[#EE1515] font-bold shadow-sm'
                 : 'text-gray-500 hover:text-black'
             }`}
           >
@@ -221,27 +242,13 @@ export function AuthForm() {
               setMode('login');
               setErrorMsg(null);
             }}
-            className={`py-3 font-pixel text-[10px] sm:text-xs transition-all cursor-pointer ${
+            className={`py-3.5 font-pixel text-xs transition-all cursor-pointer ${
               mode === 'login'
-                ? 'bg-white text-[#EE1515] border-b-2 border-[#EE1515] font-bold'
+                ? 'bg-white text-[#EE1515] border-b-3 border-[#EE1515] font-bold shadow-sm'
                 : 'text-gray-500 hover:text-black'
             }`}
           >
             LOGIN
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('master');
-              setErrorMsg(null);
-            }}
-            className={`py-3 font-pixel text-[10px] sm:text-xs transition-all cursor-pointer ${
-              mode === 'master'
-                ? 'bg-white text-[#3B4CCA] border-b-2 border-[#3B4CCA] font-bold'
-                : 'text-gray-500 hover:text-black'
-            }`}
-          >
-            MASTER
           </button>
         </div>
 
@@ -258,7 +265,7 @@ export function AuthForm() {
               >
                 <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={18} />
                 <div className="text-xs text-amber-900 font-medium">
-                  <span className="font-bold block">TRAINER DOMAIN RESTRICTION</span>
+                  <span className="font-bold block">COLLEGE EMAIL CAUTION</span>
                   {domainWarning}
                 </div>
               </motion.div>
@@ -301,8 +308,8 @@ export function AuthForm() {
           {/* Email Field */}
           <div>
             <label className="font-pixel text-[10px] text-gray-700 block mb-1 flex items-center justify-between">
-              <span>{mode === 'master' ? 'MASTER EMAIL' : 'COLLEGE EMAIL (@slrtce.in)'}</span>
-              {mode !== 'master' && (
+              <span>{isMasterActive ? 'STAFF / MASTER EMAIL' : 'COLLEGE EMAIL (@slrtce.in)'}</span>
+              {!isMasterActive && (
                 <span className="text-[9px] text-[#EE1515] font-mono font-bold">REQUIRED</span>
               )}
             </label>
@@ -311,7 +318,7 @@ export function AuthForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={mode === 'master' ? 'master@allowlist.com' : 'trainer@slrtce.in'}
+              placeholder="trainer@slrtce.in"
               className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] transition-all"
             />
           </div>
@@ -374,13 +381,14 @@ export function AuthForm() {
                 <span>REGISTER AS TRAINER</span>
                 <ArrowRight size={14} />
               </>
-            ) : mode === 'master' ? (
-              <>
-                <Shield size={14} />
-                <span>MASTER AUTHENTICATE</span>
-              </>
             ) : mode === 'reset' ? (
               <span>SEND RECOVERY POKÉ-BALL</span>
+            ) : isMasterActive ? (
+              <>
+                <Shield size={14} />
+                <span>COMMAND STAFF LOGIN</span>
+                <ArrowRight size={14} />
+              </>
             ) : (
               <>
                 <span>TRAINER LOGIN</span>
