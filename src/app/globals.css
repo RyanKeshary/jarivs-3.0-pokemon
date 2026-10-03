@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+:root {
+  --pokedex-red: #EE1515;
+  --pokedex-dark-red: #B70E0E;
+  --pokemon-yellow: #FFCB05;
+  --pokemon-blue: #3B4CCA;
+  --pokemon-blue-dark: #2A3A98;
+  --pokemon-gold: #C7A008;
+  --background: #F8F9FA;
+  --foreground: #1E232A;
+  --card-bg: #FFFFFF;
+  --border-color: #E2E8F0;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+.font-pixel {
+  font-family: var(--font-pixel), "Press Start 2P", monospace;
+}
+
+/* Retro Pixel Border Utilities */
+.pixel-box {
+  border: 3px solid #1E232A;
+  box-shadow: 4px 4px 0px #1E232A;
+}
+
+.pixel-box-sm {
+  border: 2px solid #1E232A;
+  box-shadow: 2px 2px 0px #1E232A;
+}
+
+.pixel-box-red {
+  border: 3px solid #EE1515;
+  box-shadow: 4px 4px 0px #B70E0E;
+}
+
+.pixel-box-yellow {
+  border: 3px solid #1E232A;
+  box-shadow: 4px 4px 0px #FFCB05;
+}
+
+/* CRT and Monitor Effects */
+.crt-screen {
+  background: radial-gradient(circle, #2a3439 0%, #151a1d 100%);
+  border: 4px solid #334155;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8), 0 0 10px rgba(59, 130, 246, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.crt-scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 20;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Pokeball Center Button Animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(238, 21, 21, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(238, 21, 21, 0.9), inset 0 0 10px rgba(255, 255, 255, 1);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}

@@ -1,0 +1,357 @@
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/supabase/admin';
+import { revalidatePath } from 'next/cache';
+import type {
+  Profile,
+  Team,
+  SocialLink,
+  Announcement,
+  StatusUpdate,
+  ProblemStatement,
+  Submission,
+  EventSettings,
+} from '@/lib/database.types';
+
+// Helper to get authenticated user
+async function getAuthUser() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) {
+    throw new Error('Not authenticated');
+  }
+  return { supabase, user: data.user };
+}
+
+// 1. Fetch complete dashboard data
+export async function getDashboardData() {
+  const { user } = await getAuthUser();
+
+  // Profile
+  const profileRows = await sql`
+    SELECT * FROM public.profiles WHERE id = ${user.id}
+  `;
+  const profile = (profileRows[0] || null) as unknown as Profile | null;
+
+  // Social Links
+  const socialLinksRows = await sql`
+    SELECT * FROM public.social_links WHERE user_id = ${user.id} ORDER BY created_at ASC
+  `;
+  const socialLinks = socialLinksRows as unknown as SocialLink[];
+
+  // Team Membership
+  const memberRows = await sql`
+    SELECT tm.*, t.team_id as team_code, t.name as team_name, t.join_code, t.created_by, t.created_at, t.updated_at
+    FROM public.team_members tm
+    JOIN public.teams t ON tm.team_id = t.id
+    WHERE tm.user_id = ${user.id}
+  `;
+
+  let team: Team | null = null;
+  let teamMembers: any[] = [];
+  let submissions: Submission[] = [];
+
+  if (memberRows.length > 0) {
+    const m = memberRows[0];
+    team = {
+      id: m.team_id,
+      team_id: m.team_code,
+      name: m.team_name,
+      join_code: m.join_code,
+      created_by: m.created_by,
+      created_at: m.created_at,
+      updated_at: m.updated_at,
+    };
+
+    // Fetch team members with profiles
+    const tmRows = await sql`
+      SELECT tm.user_id, tm.joined_at, p.trainer_id, p.full_name, p.avatar_url, p.email, p.phones
+      FROM public.team_members tm
+      JOIN public.profiles p ON tm.user_id = p.id
+      WHERE tm.team_id = ${team.id}
+      ORDER BY tm.joined_at ASC
+    `;
+    teamMembers = tmRows as unknown as any[];
+
+    // Fetch team submissions
+    const subRows = await sql`
+      SELECT * FROM public.submissions 
+      WHERE team_id = ${team.id} 
+      ORDER BY version DESC
+    `;
+    submissions = subRows as unknown as Submission[];
+  }
+
+  // Announcements
+  const announcementsRows = await sql`
+    SELECT * FROM public.announcements ORDER BY created_at DESC LIMIT 10
+  `;
+  const announcements = announcementsRows as unknown as Announcement[];
+
+  // Status updates for user or team
+  const statusUpdatesRows = await sql`
+    SELECT * FROM public.status_updates 
+    WHERE user_id = ${user.id} OR (${team?.id ? sql`team_id = ${team.id}` : sql`false`})
+    ORDER BY created_at DESC LIMIT 10
+  `;
+  const statusUpdates = statusUpdatesRows as unknown as StatusUpdate[];
+
+  // Visible Problem Statements
+  const problemStatementsRows = await sql`
+    SELECT * FROM public.problem_statements WHERE is_visible = true ORDER BY created_at ASC
+  `;
+  const problemStatements = problemStatementsRows as unknown as ProblemStatement[];
+
+  // Event settings
+  const settingsRows = await sql`
+    SELECT * FROM public.event_settings WHERE id = 1
+  `;
+  const eventSettings = (settingsRows[0] || null) as unknown as EventSettings;
+
+  return {
+    profile,
+    socialLinks,
+    team,
+    teamMembers,
+    submissions,
+    announcements,
+    statusUpdates,
+    problemStatements,
+    eventSettings,
+  };
+}
+
+// 2. Update Profile
+export async function updateProfile(formData: {
+  fullName: string;
+  avatarUrl?: string;
+  phones?: string[];
+}) {
+  const { user } = await getAuthUser();
+
+  await sql`
+    UPDATE public.profiles
+    SET 
+      full_name = ${formData.fullName.trim()},
+      avatar_url = ${formData.avatarUrl || '/assets/placeholders/monitor.png'},
+      phones = ${formData.phones || []},
+      updated_at = NOW()
+    WHERE id = ${user.id}
+  `;
+
+  revalidatePath('/dashboard');
+  return { success: true };
+}
+
+// 3. Add Social Link (max 3 enforced)
+export async function addSocialLink(label: string, url: string) {
+  const { user } = await getAuthUser();
+
+  const countRows = await sql`
+    SELECT COUNT(*) FROM public.social_links WHERE user_id = ${user.id}
+  `;
+  if (parseInt(countRows[0].count) >= 3) {
+    throw new Error('Maximum of 3 social links allowed.');
+  }
+
+  await sql`
+    INSERT INTO public.social_links (user_id, label, url)
+    VALUES (${user.id}, ${label.trim()}, ${url.trim()})
+  `;
+
+  revalidatePath('/dashboard');
+  return { success: true };
+}
+
+// 4. Delete Social Link
+export async function deleteSocialLink(id: string) {
+  const { user } = await getAuthUser();
+
+  await sql`
+    DELETE FROM public.social_links WHERE id = ${id} AND user_id = ${user.id}
+  `;
+
+  revalidatePath('/dashboard');
+  return { success: true };
+}
+
+// 5. Create Team
+export async function createTeam(teamName: string) {
+  const { user } = await getAuthUser();
+
+  // Check if user is already in a team
+  const existing = await sql`
+    SELECT * FROM public.team_members WHERE user_id = ${user.id}
+  `;
+  if (existing.length > 0) {
+    throw new Error('You are already part of a team.');
+  }
+
+  // Generate unique Team ID and join code
+  const teamIdResult = await sql`SELECT public.generate_team_id() as team_id`;
+  const teamCode = teamIdResult[0].team_id;
+  const joinCode = 'POKE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+  const newTeam = await sql`
+    INSERT INTO public.teams (team_id, name, created_by, join_code)
+    VALUES (${teamCode}, ${teamName.trim()}, ${user.id}, ${joinCode})
+    RETURNING id
+  `;
+
+  const teamId = newTeam[0].id;
+
+  // Add creator as first team member
+  await sql`
+    INSERT INTO public.team_members (team_id, user_id)
+    VALUES (${teamId}, ${user.id})
+  `;
+
+  // Post welcome status update
+  await sql`
+    INSERT INTO public.status_updates (team_id, user_id, title, message, status)
+    VALUES (
+      ${teamId},
+      ${user.id},
+      'Team Formed',
+      ${'Squad ' + teamName.trim() + ' registered in Kento League!'},
+      'success'
+    )
+  `;
+
+  revalidatePath('/dashboard');
+  return { success: true, teamId };
+}
+
+// 6. Join Team via Join Code or Team ID
+export async function joinTeam(code: string) {
+  const { user } = await getAuthUser();
+
+  const existing = await sql`
+    SELECT * FROM public.team_members WHERE user_id = ${user.id}
+  `;
+  if (existing.length > 0) {
+    throw new Error('You are already part of a team.');
+  }
+
+  const cleanCode = code.trim().toUpperCase();
+
+  const teamRows = await sql`
+    SELECT * FROM public.teams 
+    WHERE UPPER(join_code) = ${cleanCode} OR UPPER(team_id) = ${cleanCode}
+  `;
+
+  if (teamRows.length === 0) {
+    throw new Error('No team found with this Join Code or Team ID.');
+  }
+
+  const targetTeam = teamRows[0];
+
+  // Insert member (trigger enforces max_team_size)
+  try {
+    await sql`
+      INSERT INTO public.team_members (team_id, user_id)
+      VALUES (${targetTeam.id}, ${user.id})
+    `;
+  } catch (err: any) {
+    throw new Error(err.message || 'Failed to join team');
+  }
+
+  revalidatePath('/dashboard');
+  return { success: true };
+}
+
+// 7. Leave or Disband Team
+export async function leaveTeam() {
+  const { user } = await getAuthUser();
+
+  const memberRows = await sql`
+    SELECT * FROM public.team_members WHERE user_id = ${user.id}
+  `;
+  if (memberRows.length === 0) {
+    throw new Error('You are not in any team.');
+  }
+
+  const teamId = memberRows[0].team_id;
+  const teamRows = await sql`SELECT * FROM public.teams WHERE id = ${teamId}`;
+  const team = teamRows[0];
+
+  if (team.created_by === user.id) {
+    // Team Leader disbands the team
+    await sql`DELETE FROM public.teams WHERE id = ${teamId}`;
+  } else {
+    // Normal member leaves
+    await sql`DELETE FROM public.team_members WHERE team_id = ${teamId} AND user_id = ${user.id}`;
+  }
+
+  revalidatePath('/dashboard');
+  return { success: true };
+}
+
+// 8. Upload Submission
+export async function uploadSubmission(formData: FormData) {
+  const { user, supabase } = await getAuthUser();
+
+  // Check deadline
+  const settingsRows = await sql`SELECT deadline FROM public.event_settings WHERE id = 1`;
+  if (settingsRows.length > 0) {
+    const deadline = new Date(settingsRows[0].deadline);
+    if (new Date() > deadline) {
+      throw new Error('Submission deadline has passed. Submissions are locked.');
+    }
+  }
+
+  // Get user team
+  const memberRows = await sql`SELECT team_id FROM public.team_members WHERE user_id = ${user.id}`;
+  if (memberRows.length === 0) {
+    throw new Error('You must be in a team to submit.');
+  }
+  const teamId = memberRows[0].team_id;
+
+  const file = formData.get('file') as File;
+  if (!file) {
+    throw new Error('No file provided.');
+  }
+
+  const fileName = file.name;
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (!['pdf', 'ppt', 'pptx'].includes(ext || '')) {
+    throw new Error('Only PDF, PPT, or PPTX presentation decks are accepted.');
+  }
+
+  // Upload to private bucket
+  const fileBytes = await file.arrayBuffer();
+  const storagePath = `${teamId}/v_${Date.now()}_${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('submissions')
+    .upload(storagePath, fileBytes, {
+      contentType: file.type,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(`Upload error: ${uploadError.message}`);
+  }
+
+  // Determine current version count
+  const versionRows = await sql`
+    SELECT COALESCE(MAX(version), 0) as max_v FROM public.submissions WHERE team_id = ${teamId}
+  `;
+  const nextVersion = (versionRows[0].max_v || 0) + 1;
+
+  // Insert submission row
+  await sql`
+    INSERT INTO public.submissions (team_id, ppt_url, version, status)
+    VALUES (${teamId}, ${storagePath}, ${nextVersion}, 'submitted')
+  `;
+
+  // Status update
+  await sql`
+    INSERT INTO public.status_updates (team_id, user_id, title, message, status)
+    VALUES (${teamId}, ${user.id}, 'Submission Deck Uploaded', ${'Version ' + nextVersion + ' submitted successfully.'}, 'success')
+  `;
+
+  revalidatePath('/dashboard');
+  return { success: true, version: nextVersion };
+}
