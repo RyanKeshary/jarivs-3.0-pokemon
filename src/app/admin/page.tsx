@@ -13,6 +13,13 @@ export default async function AdminPage() {
   try {
     data = await getAdminData();
   } catch (err: any) {
+    if (err?.digest?.startsWith('NEXT_REDIRECT') || err?.message === 'NEXT_REDIRECT') {
+      throw err;
+    }
+    redirect('/dashboard');
+  }
+
+  if (!data) {
     redirect('/dashboard');
   }
 

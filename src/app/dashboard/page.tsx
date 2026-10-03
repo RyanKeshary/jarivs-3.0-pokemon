@@ -12,7 +12,10 @@ export default async function DashboardPage() {
   let data;
   try {
     data = await getDashboardData();
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.digest?.startsWith('NEXT_REDIRECT') || err?.message === 'NEXT_REDIRECT') {
+      throw err;
+    }
     redirect('/auth?mode=login');
   }
 

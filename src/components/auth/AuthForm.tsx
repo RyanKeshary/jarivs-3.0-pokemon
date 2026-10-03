@@ -34,10 +34,9 @@ export function AuthForm() {
 
   const supabase = createClient();
 
-  // Prefetch targets so login redirects are instantaneous
+  // Prefetch dashboard so login redirects are instantaneous
   useEffect(() => {
     try {
-      router.prefetch('/admin');
       router.prefetch('/dashboard');
     } catch {}
   }, [router]);
