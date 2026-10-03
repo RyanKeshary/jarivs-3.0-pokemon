@@ -99,7 +99,7 @@ export function SubmissionBox({
                   <span className="font-pixel text-[10px] text-[#FFCB05]">
                     LATEST: VERSION {latestSubmission.version}
                   </span>
-                  <span className="text-[9px] font-mono text-gray-400">
+                  <span className="text-[9px] font-mono text-gray-400" suppressHydrationWarning>
                     {new Date(latestSubmission.submitted_at).toLocaleString([], {
                       month: 'short',
                       day: 'numeric',
@@ -135,7 +135,7 @@ export function SubmissionBox({
                       className="flex items-center justify-between px-2 py-1 bg-black/30 rounded text-gray-300"
                     >
                       <span>Version {sub.version}</span>
-                      <span className="text-[9px] text-gray-500">
+                      <span className="text-[9px] text-gray-500" suppressHydrationWarning>
                         {new Date(sub.submitted_at).toLocaleDateString()}
                       </span>
                     </div>

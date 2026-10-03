@@ -78,7 +78,7 @@ export function Hero({
         {/* Registration Deadline Warning */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 border-2 border-[#EE1515] rounded-lg text-xs font-mono text-[#EE1515] font-bold mb-8 shadow-sm">
           <Calendar size={14} />
-          <span>Registration Closes: {formattedRegDeadline} IST</span>
+          <span suppressHydrationWarning>Registration Closes: {formattedRegDeadline} IST</span>
           <span className="text-gray-400">|</span>
           <span className="text-gray-600 font-normal">Teams of 1 to 4</span>
         </div>

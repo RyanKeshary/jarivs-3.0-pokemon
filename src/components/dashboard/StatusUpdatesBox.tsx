@@ -75,7 +75,7 @@ export function StatusUpdatesBox({ initialUpdates, teamId }: StatusUpdatesBoxPro
                   <span className="font-pixel text-[10px] text-white truncate">
                     {item.title}
                   </span>
-                  <span className="text-[9px] font-mono text-gray-400 shrink-0">
+                  <span className="text-[9px] font-mono text-gray-400 shrink-0" suppressHydrationWarning>
                     {new Date(item.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',

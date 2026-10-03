@@ -34,6 +34,14 @@ export function AuthForm() {
 
   const supabase = createClient();
 
+  // Prefetch targets so login redirects are instantaneous
+  useEffect(() => {
+    try {
+      router.prefetch('/admin');
+      router.prefetch('/dashboard');
+    } catch {}
+  }, [router]);
+
   // Real-time domain validation check
   // Until and unless someone puts exactly what the master email is, show college email caution
   useEffect(() => {
@@ -182,7 +190,7 @@ export function AuthForm() {
 
           setTimeout(() => {
             window.location.href = target;
-          }, 350);
+          }, 100);
         }
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {

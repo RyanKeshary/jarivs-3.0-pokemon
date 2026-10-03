@@ -46,9 +46,7 @@ export async function getAdminData() {
 
   // Run all independent queries concurrently in a single batch
   const [
-    participantCount,
-    teamCount,
-    submissionCount,
+    counts,
     participants,
     teams,
     problemStatements,
@@ -59,9 +57,12 @@ export async function getAdminData() {
     admins,
     auditLogs,
   ] = await Promise.all([
-    sql`SELECT COUNT(*) FROM public.profiles`,
-    sql`SELECT COUNT(*) FROM public.teams`,
-    sql`SELECT COUNT(*) FROM public.submissions`,
+    sql`
+      SELECT 
+        (SELECT COUNT(*) FROM public.profiles)::int as participant_count,
+        (SELECT COUNT(*) FROM public.teams)::int as team_count,
+        (SELECT COUNT(*) FROM public.submissions)::int as submission_count
+    `,
     sql`
       SELECT 
         p.id, 
@@ -134,9 +135,9 @@ export async function getAdminData() {
     currentUserId: user.id,
     isMaster,
     metrics: {
-      totalParticipants: parseInt(participantCount[0].count),
-      totalTeams: parseInt(teamCount[0].count),
-      totalSubmissions: parseInt(submissionCount[0].count),
+      totalParticipants: Number(counts[0]?.participant_count || 0),
+      totalTeams: Number(counts[0]?.team_count || 0),
+      totalSubmissions: Number(counts[0]?.submission_count || 0),
     },
     participants,
     teams,

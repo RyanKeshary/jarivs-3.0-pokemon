@@ -401,19 +401,19 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                   <div className="space-y-2 text-xs font-mono">
                     <div className="flex justify-between p-2 bg-gray-50 rounded border">
                       <span className="text-gray-500">COUNTDOWN TARGET:</span>
-                      <span className="font-bold text-[#EE1515]">
+                      <span className="font-bold text-[#EE1515]" suppressHydrationWarning>
                         {new Date(data.eventSettings.countdown_target).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between p-2 bg-gray-50 rounded border">
                       <span className="text-gray-500">SUBMISSION DEADLINE:</span>
-                      <span className="font-bold text-[#1E232A]">
+                      <span className="font-bold text-[#1E232A]" suppressHydrationWarning>
                         {new Date(data.eventSettings.deadline).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between p-2 bg-gray-50 rounded border">
                       <span className="text-gray-500">REGISTRATION LOCK:</span>
-                      <span className="font-bold text-[#1E232A]">
+                      <span className="font-bold text-[#1E232A]" suppressHydrationWarning>
                         {new Date(data.eventSettings.registration_deadline).toLocaleString()}
                       </span>
                     </div>
@@ -522,7 +522,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                         <td className="p-3 font-mono text-gray-600">
                           {(p.phones || []).join(', ') || 'None'}
                         </td>
-                        <td className="p-3 font-mono text-gray-500 text-[10px]">
+                        <td className="p-3 font-mono text-gray-500 text-[10px]" suppressHydrationWarning>
                           {new Date(p.created_at).toLocaleDateString()}
                         </td>
                       </tr>
@@ -778,7 +778,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-pixel text-xs text-[#1E232A]">{ann.title}</span>
-                      <span className="text-[10px] font-mono text-gray-500">
+                      <span className="text-[10px] font-mono text-gray-500" suppressHydrationWarning>
                         {new Date(ann.created_at).toLocaleString()}
                       </span>
                     </div>
@@ -1092,7 +1092,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                   <tbody className="divide-y font-mono text-[11px]">
                     {data.auditLogs.map((log: any) => (
                       <tr key={log.id} className="hover:bg-gray-50">
-                        <td className="p-2.5 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
+                        <td className="p-2.5 text-gray-500" suppressHydrationWarning>{new Date(log.created_at).toLocaleString()}</td>
                         <td className="p-2.5 font-bold text-gray-800">{log.actor_email || 'SYSTEM'}</td>
                         <td className="p-2.5 text-[#EE1515] font-bold">{log.action}</td>
                         <td className="p-2.5 text-gray-600 truncate max-w-xs">{log.target_type}: {log.target_id}</td>
