@@ -431,17 +431,18 @@ export async function changeUserPassword(newPassword: string) {
 
 // 8. Upload Trainer Avatar / Profile Photo
 export async function uploadTrainerAvatar(formData: FormData) {
-  const { user } = await getAuthUser();
+  const { supabase, user } = await getAuthUser();
   const file = formData.get('file') as File | null;
+  const targetUserId = (formData.get('targetUserId') as string) || user.id;
 
   if (!file) {
     throw new Error('No photo file provided');
   }
 
   // Validate mime type
-  const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+  const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/avif'];
   if (!allowedMimeTypes.includes(file.type)) {
-    throw new Error('Invalid image type. Please upload a PNG, JPEG, WEBP, or GIF image.');
+    throw new Error('Invalid image type. Please upload a PNG, JPEG, WEBP, or AVIF image.');
   }
 
   // Validate size: max 5MB
@@ -449,17 +450,18 @@ export async function uploadTrainerAvatar(formData: FormData) {
     throw new Error('Photo must be less than 5MB.');
   }
 
-  const supabaseAdmin = createAdminClient();
-  const ext = file.name.split('.').pop() || 'png';
+  const rawExt = file.name.split('.').pop()?.toLowerCase() || 'png';
+  const ext = ['png', 'jpg', 'jpeg', 'webp', 'avif'].includes(rawExt) ? rawExt : 'png';
+  // Use authenticated user's id for storage folder path to comply with avatars RLS policy
   const filePath = `${user.id}/avatar-${Date.now()}.${ext}`;
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  const { error: uploadError } = await supabaseAdmin.storage
+  const { error: uploadError } = await supabase.storage
     .from('avatars')
     .upload(filePath, buffer, {
-      contentType: file.type,
+      contentType: file.type || 'image/png',
       upsert: true,
     });
 
@@ -467,13 +469,21 @@ export async function uploadTrainerAvatar(formData: FormData) {
     throw new Error(`Failed to upload avatar: ${uploadError.message}`);
   }
 
-  const { data: urlData } = supabaseAdmin.storage.from('avatars').getPublicUrl(filePath);
+  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
   const publicUrl = urlData.publicUrl;
+
+  const isSelf = targetUserId === user.id;
+  if (!isSelf) {
+    const adminCheck = await sql`SELECT public.is_staff() as staff`;
+    if (!adminCheck[0]?.staff) {
+      throw new Error('Unauthorized to update another trainer photo.');
+    }
+  }
 
   await sql`
     UPDATE public.profiles
     SET avatar_url = ${publicUrl}, updated_at = NOW()
-    WHERE id = ${user.id}::uuid
+    WHERE id = ${targetUserId}::uuid
   `;
 
   revalidatePath('/dashboard');

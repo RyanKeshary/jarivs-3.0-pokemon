@@ -79,6 +79,9 @@ export function TrainerCardModal({
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (profile?.id) {
+        formData.append('targetUserId', profile.id);
+      }
 
       const res = await uploadTrainerAvatar(formData);
       if (res?.success && res.avatar_url) {
