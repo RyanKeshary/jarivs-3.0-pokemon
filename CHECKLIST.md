@@ -63,3 +63,23 @@
 - [x] `QA_REPORT.md` test matrix and verification results
 - [x] Production build validation (`next build`)
 - [x] Git commits & push to `https://github.com/RyanKeshary/jarivs-3.0-pokemon.git`
+
+---
+
+## Phase 5: Supabase Security & Database Linter Hardening
+- [x] **`rls_disabled_in_public` Resolved:**
+  - Enabled RLS on `public._migrations` with strict administrator-only policy.
+  - Hardened `scripts/apply-migrations.mjs` to auto-secure `_migrations` table upon creation.
+- [x] **`function_search_path_mutable` Resolved:**
+  - Explicitly fixed immutable `search_path = public, pg_temp` across all public functions: `is_admin`, `is_master`, `is_staff`, `generate_trainer_id`, `generate_team_id`, `check_max_social_links`, `check_team_size_limit`, `handle_new_auth_user`, and all trigger functions.
+- [x] **`rls_policy_always_true` Resolved:**
+  - Replaced permissive `WITH CHECK (true)` policy on `public.audit_log` with authenticated actor verification: `auth.uid() IS NOT NULL AND (actor_id IS NULL OR actor_id = auth.uid())`.
+- [x] **`rls_enabled_no_policy` Resolved:**
+  - Added authenticated read policy and administrator management policies for `public.registration_policy`.
+- [x] **`anon_security_definer_function_executable` & `authenticated_security_definer_function_executable` Resolved:**
+  - Dropped orphaned/legacy functions with zero dependencies (`create_team`, `join_team`, `leave_team`, `my_team`, `set_user_role`, `is_registration_email_allowed`, `insert_audit_log`, `is_manager`).
+  - Converted policy helper functions (`is_admin`, `is_master`, `is_staff`, `current_user_role`, `is_team_leader`, `is_team_member`) to `SECURITY INVOKER`.
+  - Revoked all execute privileges from `anon` and `PUBLIC` on all internal functions.
+  - Fully revoked execute privileges from client roles (`anon`, `authenticated`) on all database triggers (`handle_new_auth_user`, `guard_*`, `trg_audit_log`, `check_*`).
+- [x] **Linter Verification Suite:** Added `scripts/verify-supabase-linter.mjs` verifying 0 errors and 0 warnings.
+

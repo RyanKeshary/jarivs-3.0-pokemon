@@ -36,6 +36,8 @@ async function run() {
         applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `;
+    await sql`ALTER TABLE public._migrations ENABLE ROW LEVEL SECURITY;`;
+    await sql`REVOKE ALL ON public._migrations FROM anon, authenticated;`;
 
     for (const file of files) {
       const filePath = path.join(migrationsDir, file);
