@@ -22,6 +22,8 @@ import {
   Activity,
   History,
   Lock,
+  Key,
+  Check,
 } from 'lucide-react';
 import {
   upsertProblemStatement,
@@ -34,6 +36,8 @@ import {
   promoteToAdmin,
   demoteAdmin,
   getSubmissionSignedUrl,
+  changeAdminPassword,
+  resetAdminPassword,
 } from '@/app/actions/admin';
 import { playRetroBeep, playVictoryChime } from '@/lib/sound';
 
@@ -68,6 +72,46 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
   // Settings State
   const [settingsForm, setSettingsForm] = useState(data.eventSettings || {});
   const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Password Change State
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (newAdminPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.');
+      playRetroBeep(300, 'sawtooth', 0.1);
+      return;
+    }
+    if (newAdminPassword !== confirmAdminPassword) {
+      setPasswordError('Passwords do not match.');
+      playRetroBeep(300, 'sawtooth', 0.1);
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await changeAdminPassword(newAdminPassword);
+      playVictoryChime();
+      setPasswordSuccess('Password successfully updated and active!');
+      setNewAdminPassword('');
+      setConfirmAdminPassword('');
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to update password');
+      playRetroBeep(300, 'sawtooth', 0.1);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   // Signed URL preview state
   const [signedUrlLoading, setSignedUrlLoading] = useState<string | null>(null);
@@ -756,8 +800,9 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
         {/* TAB 6: EVENT SETTINGS */}
         {activeTab === 'settings' && (
-          <div className="bg-white border-3 border-[#1E232A] rounded-2xl p-6 shadow-[5px_5px_0_#1E232A]">
-            <div className="flex items-center justify-between mb-6">
+          <div className="space-y-6">
+            <div className="bg-white border-3 border-[#1E232A] rounded-2xl p-6 shadow-[5px_5px_0_#1E232A]">
+              <div className="flex items-center justify-between mb-6">
               <h3 className="font-pixel text-xs sm:text-sm text-[#1E232A]">
                 EVENT CONFIGURATION & LANDING CONTENT
               </h3>
@@ -838,6 +883,95 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
               </button>
             </form>
           </div>
+
+          {/* ADMIN CREDENTIALS & PASSWORD MANAGEMENT */}
+          <div className="bg-white border-3 border-[#1E232A] rounded-2xl p-6 shadow-[5px_5px_0_#1E232A] mt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Lock className="text-[#EE1515]" size={20} />
+              <h3 className="font-pixel text-xs sm:text-sm text-[#1E232A]">
+                ADMIN SECURITY & PASSWORD SETTINGS
+              </h3>
+            </div>
+            <p className="text-xs text-gray-600 mb-4 font-sans">
+              Update your administrator credentials. All newly promoted Admins and Masters start with the default password: <code className="bg-amber-100 text-[#1E232A] px-2 py-0.5 rounded font-mono font-bold border border-amber-300">password@67</code>.
+            </p>
+
+            <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-xl flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-pixel text-[9px] text-gray-500">OPERATOR:</span>
+                <span className="font-mono text-xs font-bold text-[#1E232A]">{data.userEmail || 'Active Admin'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-pixel text-[9px] text-gray-500">CLEARANCE:</span>
+                <span className="px-2 py-0.5 bg-[#FFCB05] text-[#1E232A] font-pixel text-[9px] font-bold rounded border border-[#1E232A]">
+                  {data.currentRole?.toUpperCase() || 'ADMIN'}
+                </span>
+              </div>
+            </div>
+
+            {passwordSuccess && (
+              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-400 rounded-xl flex items-center gap-2 text-emerald-800 text-xs font-bold font-sans">
+                <Check size={16} />
+                <span>{passwordSuccess}</span>
+              </div>
+            )}
+
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-400 rounded-xl flex items-center gap-2 text-red-800 text-xs font-bold font-sans">
+                <AlertTriangle size={16} />
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+              <div>
+                <label className="font-pixel text-[9px] text-gray-700 block mb-1">
+                  NEW PASSWORD
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newAdminPassword}
+                    onChange={(e) => setNewAdminPassword(e.target.value)}
+                    placeholder="Enter new password (min. 6 characters)"
+                    required
+                    className="w-full px-3 py-2 pr-10 border-2 border-[#1E232A] rounded-lg text-xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-2.5 text-gray-500 hover:text-gray-800"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-pixel text-[9px] text-gray-700 block mb-1">
+                  CONFIRM NEW PASSWORD
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmAdminPassword}
+                  onChange={(e) => setConfirmAdminPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  required
+                  className="w-full px-3 py-2 border-2 border-[#1E232A] rounded-lg text-xs font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={changingPassword}
+                className="px-6 py-2.5 bg-[#3B4CCA] hover:bg-blue-700 text-white font-pixel text-xs rounded-xl border-2 border-[#1E232A] shadow-[3px_3px_0_black] flex items-center gap-2 disabled:opacity-50"
+              >
+                <Key size={14} />
+                <span>{changingPassword ? 'UPDATING...' : 'UPDATE PASSWORD'}</span>
+              </button>
+            </form>
+          </div>
+        </div>
         )}
 
         {/* TAB 7: MASTER VAULT (Master only) */}
@@ -852,7 +986,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                 </h3>
               </div>
               <p className="text-xs text-gray-600 mb-4 font-sans">
-                Promote any verified @slrtce.in trainer to League Admin role with elevated privileges.
+                Promote any verified @slrtce.in trainer to League Admin role with elevated privileges. New admins will receive default password <code className="bg-amber-100 text-amber-800 px-1 py-0.5 rounded font-mono font-bold">password@67</code>.
               </p>
 
               {promoteMsg && (
@@ -888,7 +1022,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                 {data.admins.map((adm: any) => (
                   <div
                     key={adm.id}
-                    className="p-3 bg-gray-50 border border-gray-300 rounded-lg flex items-center justify-between"
+                    className="p-3 bg-gray-50 border border-gray-300 rounded-lg flex flex-wrap items-center justify-between gap-2"
                   >
                     <div>
                       <span className="font-bold text-xs text-[#1E232A] mr-2">{adm.full_name}</span>
@@ -898,16 +1032,39 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                       </span>
                     </div>
 
-                    {adm.role === 'admin' && (
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={() => {
-                          if (confirm(`Revoke admin privileges for ${adm.full_name}?`)) demoteAdmin(adm.id);
+                        onClick={async () => {
+                          if (confirm(`Reset password to "password@67" for ${adm.full_name}?`)) {
+                            setResettingId(adm.id);
+                            try {
+                              await resetAdminPassword(adm.id);
+                              playVictoryChime();
+                              alert(`Password for ${adm.full_name} (${adm.email}) has been reset to "password@67"!`);
+                            } catch (err: any) {
+                              alert(err.message);
+                            } finally {
+                              setResettingId(null);
+                            }
+                          }
                         }}
-                        className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 font-pixel text-[8px] rounded border border-red-300"
+                        disabled={resettingId === adm.id}
+                        className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-pixel text-[8px] rounded border border-amber-300 disabled:opacity-50"
                       >
-                        REVOKE ADMIN
+                        {resettingId === adm.id ? 'RESETTING...' : 'RESET PWD'}
                       </button>
-                    )}
+
+                      {adm.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Revoke admin privileges for ${adm.full_name}?`)) demoteAdmin(adm.id);
+                          }}
+                          className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 font-pixel text-[8px] rounded border border-red-300"
+                        >
+                          REVOKE ADMIN
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

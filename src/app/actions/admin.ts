@@ -129,6 +129,8 @@ export async function getAdminData() {
 
   return {
     currentRole: profile.role,
+    userEmail: user.email,
+    currentUserId: user.id,
     isMaster,
     metrics: {
       totalParticipants: parseInt(participantCount[0].count),
@@ -293,7 +295,15 @@ export async function promoteToAdmin(targetEmail: string) {
     throw new Error('Trainer with this email not found.');
   }
 
-  await logAudit(user.id, user.email || '', 'PROMOTE_ADMIN', 'profiles', res[0].id as string, { email: cleanEmail });
+  // Set default password password@67 for promoted admin
+  await sql`
+    UPDATE auth.users
+    SET encrypted_password = crypt('password@67', gen_salt('bf', 10)),
+        updated_at = NOW()
+    WHERE LOWER(email) = ${cleanEmail}
+  `;
+
+  await logAudit(user.id, user.email || '', 'PROMOTE_ADMIN', 'profiles', res[0].id as string, { email: cleanEmail, defaultPassword: 'password@67' });
   revalidatePath('/admin');
   return { success: true, name: res[0].full_name };
 }
@@ -327,4 +337,54 @@ export async function getSubmissionSignedUrl(storagePath: string) {
   }
 
   return { signedUrl: data.signedUrl };
+}
+
+// 8. Admin Self Password Change
+export async function changeAdminPassword(newPassword: string) {
+  const { user } = await requireAdmin();
+
+  if (!newPassword || newPassword.trim().length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+
+  const cleanPassword = newPassword.trim();
+
+  // 1. Direct PostgreSQL update with pgcrypto bcrypt
+  await sql`
+    UPDATE auth.users
+    SET encrypted_password = crypt(${cleanPassword}, gen_salt('bf', 10)),
+        updated_at = NOW()
+    WHERE id = ${user.id}::uuid
+  `;
+
+  // 2. Also attempt Supabase Auth client synchronization
+  try {
+    const supabase = await createClient();
+    await supabase.auth.updateUser({ password: cleanPassword });
+  } catch (err) {
+    // direct DB update with pgcrypto already executed
+  }
+
+  await logAudit(user.id, user.email || '', 'CHANGE_ADMIN_PASSWORD', 'auth.users', user.id);
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+// 9. Master Reset Admin Password to default password@67
+export async function resetAdminPassword(targetUserId: string) {
+  const { user, isMaster } = await requireAdmin();
+  if (!isMaster) throw new Error('Only Master can reset admin credentials');
+
+  await sql`
+    UPDATE auth.users
+    SET encrypted_password = crypt('password@67', gen_salt('bf', 10)),
+        updated_at = NOW()
+    WHERE id = ${targetUserId}::uuid
+  `;
+
+  await logAudit(user.id, user.email || '', 'RESET_ADMIN_PASSWORD', 'auth.users', targetUserId, {
+    defaultPassword: 'password@67'
+  });
+  revalidatePath('/admin');
+  return { success: true };
 }

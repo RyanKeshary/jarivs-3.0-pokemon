@@ -355,3 +355,32 @@ export async function uploadSubmission(formData: FormData) {
   revalidatePath('/dashboard');
   return { success: true, version: nextVersion };
 }
+
+// 7. Trainer Password Change
+export async function changeUserPassword(newPassword: string) {
+  const { user } = await getAuthUser();
+
+  if (!newPassword || newPassword.trim().length < 6) {
+    throw new Error('Password must be at least 6 characters long');
+  }
+
+  const cleanPassword = newPassword.trim();
+
+  // 1. Direct PostgreSQL update with pgcrypto bcrypt
+  await sql`
+    UPDATE auth.users
+    SET encrypted_password = crypt(${cleanPassword}, gen_salt('bf', 10)),
+        updated_at = NOW()
+    WHERE id = ${user.id}::uuid
+  `;
+
+  // 2. Also attempt Supabase Auth client synchronization
+  try {
+    const supabase = await createClient();
+    await supabase.auth.updateUser({ password: cleanPassword });
+  } catch (err) {
+    // direct DB update with pgcrypto already executed
+  }
+
+  return { success: true };
+}
