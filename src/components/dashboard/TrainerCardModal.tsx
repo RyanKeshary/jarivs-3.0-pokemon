@@ -83,8 +83,17 @@ export function TrainerCardModal({
         formData.append('targetUserId', profile.id);
       }
 
-      const res = await uploadTrainerAvatar(formData);
-      if (res?.success && res.avatar_url) {
+      const response = await fetch('/api/avatar/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const res = await response.json();
+      if (!response.ok || !res.success) {
+        throw new Error(res.error || 'Failed to upload photo');
+      }
+
+      if (res.avatar_url) {
         setCurrentAvatar(res.avatar_url);
         setStatusMessage({ text: 'Trainer photo updated!', type: 'success' });
         playRetroBeep(880, 'sine', 0.1);

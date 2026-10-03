@@ -69,11 +69,19 @@ export function SubmissionBox({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await uploadSubmission(formData);
-      if (res.success) {
-        playVictoryChime();
-        setSuccessMsg(`Deck uploaded successfully as Version ${res.version}!`);
+
+      const response = await fetch('/api/submissions/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const res = await response.json();
+      if (!response.ok || !res.success) {
+        throw new Error(res.error || 'Upload failed');
       }
+
+      playVictoryChime();
+      setSuccessMsg(`Deck uploaded successfully as Version ${res.version}!`);
     } catch (err: any) {
       playRetroBeep(220, 'sawtooth', 0.15);
       setErrorMsg(err.message || 'Upload failed');
