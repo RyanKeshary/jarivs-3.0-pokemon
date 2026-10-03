@@ -102,7 +102,7 @@ export function AuthForm() {
               setSuccessMsg('Trainer ID recognized! Logging into Pokémon Center...');
               setTimeout(() => {
                 window.location.href = '/dashboard';
-              }, 600);
+              }, 150);
               return;
             }
           }
@@ -120,7 +120,7 @@ export function AuthForm() {
           setSuccessMsg('Trainer ID registered successfully! Redirecting to Pokémon Center...');
           setTimeout(() => {
             window.location.href = '/dashboard';
-          }, 800);
+          }, 150);
         }
       } else if (mode === 'login' || mode === 'master') {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -148,7 +148,7 @@ export function AuthForm() {
 
           setTimeout(() => {
             window.location.href = target;
-          }, 600);
+          }, 150);
         }
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {

@@ -171,7 +171,7 @@ export function PokedexDrawer({
       initial={{ x: '100%', opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
-      transition={{ duration: 0.35, ease: 'easeInOut' }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
       className="w-full lg:w-96 bg-[#EE1515] border-l-4 border-y-4 border-[#1E232A] rounded-l-2xl shadow-[-8px_0px_0px_#1E232A] flex flex-col h-full z-30 shrink-0 text-white overflow-hidden"
     >
       {/* Pokédex Bezel Header */}

@@ -37,95 +37,89 @@ async function logAudit(actorId: string, actorEmail: string, action: string, tar
 export async function getAdminData() {
   const { user, profile, isMaster } = await requireAdmin();
 
-  // Metrics
-  const participantCount = await sql`SELECT COUNT(*) FROM public.profiles`;
-  const teamCount = await sql`SELECT COUNT(*) FROM public.teams`;
-  const submissionCount = await sql`SELECT COUNT(*) FROM public.submissions`;
+  // Run all independent queries concurrently in a single batch
+  const [
+    participantCount,
+    teamCount,
+    submissionCount,
+    participants,
+    teams,
+    problemStatements,
+    announcements,
+    statusUpdates,
+    eventSettingsRows,
+    masterAllowlist,
+    admins,
+    auditLogs,
+  ] = await Promise.all([
+    sql`SELECT COUNT(*) FROM public.profiles`,
+    sql`SELECT COUNT(*) FROM public.teams`,
+    sql`SELECT COUNT(*) FROM public.submissions`,
+    sql`
+      SELECT 
+        p.id, 
+        p.trainer_id, 
+        p.full_name, 
+        p.email, 
+        p.role, 
+        p.phones, 
+        p.avatar_url, 
+        p.created_at,
+        t.id as team_uuid,
+        t.name as team_name,
+        t.team_id as team_code
+      FROM public.profiles p
+      LEFT JOIN public.team_members tm ON p.id = tm.user_id
+      LEFT JOIN public.teams t ON tm.team_id = t.id
+      ORDER BY p.created_at DESC
+    `,
+    sql`
+      SELECT 
+        t.id, 
+        t.team_id, 
+        t.name, 
+        t.join_code, 
+        t.created_at, 
+        t.created_by,
+        p.full_name as leader_name,
+        p.email as leader_email,
+        (SELECT COUNT(*) FROM public.team_members tm WHERE tm.team_id = t.id) as member_count,
+        (
+          SELECT json_agg(json_build_object(
+            'id', sub.id, 
+            'version', sub.version, 
+            'ppt_url', sub.ppt_url, 
+            'submitted_at', sub.submitted_at, 
+            'status', sub.status
+          ))
+          FROM public.submissions sub 
+          WHERE sub.team_id = t.id
+        ) as submissions_list
+      FROM public.teams t
+      JOIN public.profiles p ON t.created_by = p.id
+      ORDER BY t.created_at DESC
+    `,
+    sql`SELECT * FROM public.problem_statements ORDER BY created_at DESC`,
+    sql`SELECT * FROM public.announcements ORDER BY created_at DESC`,
+    sql`
+      SELECT su.*, t.name as team_name, p.full_name as author_name
+      FROM public.status_updates su
+      LEFT JOIN public.teams t ON su.team_id = t.id
+      LEFT JOIN public.profiles p ON su.user_id = p.id
+      ORDER BY su.created_at DESC LIMIT 50
+    `,
+    sql`SELECT * FROM public.event_settings WHERE id = 1`,
+    isMaster ? sql`SELECT * FROM public.master_allowlist ORDER BY created_at DESC` : Promise.resolve([]),
+    sql`
+      SELECT id, trainer_id, full_name, email, role, created_at 
+      FROM public.profiles 
+      WHERE role = 'admin' OR role = 'master'
+      ORDER BY created_at ASC
+    `,
+    sql`SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 100`,
+  ]);
 
-  // Participants with team details
-  const participants = await sql`
-    SELECT 
-      p.id, 
-      p.trainer_id, 
-      p.full_name, 
-      p.email, 
-      p.role, 
-      p.phones, 
-      p.avatar_url, 
-      p.created_at,
-      t.id as team_uuid,
-      t.name as team_name,
-      t.team_id as team_code
-    FROM public.profiles p
-    LEFT JOIN public.team_members tm ON p.id = tm.user_id
-    LEFT JOIN public.teams t ON tm.team_id = t.id
-    ORDER BY p.created_at DESC
-  `;
-
-  // Teams with members and submissions
-  const teams = await sql`
-    SELECT 
-      t.id, 
-      t.team_id, 
-      t.name, 
-      t.join_code, 
-      t.created_at, 
-      t.created_by,
-      p.full_name as leader_name,
-      p.email as leader_email,
-      (SELECT COUNT(*) FROM public.team_members tm WHERE tm.team_id = t.id) as member_count,
-      (
-        SELECT json_agg(json_build_object(
-          'id', sub.id, 
-          'version', sub.version, 
-          'ppt_url', sub.ppt_url, 
-          'submitted_at', sub.submitted_at, 
-          'status', sub.status
-        ))
-        FROM public.submissions sub 
-        WHERE sub.team_id = t.id
-      ) as submissions_list
-    FROM public.teams t
-    JOIN public.profiles p ON t.created_by = p.id
-    ORDER BY t.created_at DESC
-  `;
-
-  // Problem Statements
-  const problemStatements = await sql`
-    SELECT * FROM public.problem_statements ORDER BY created_at DESC
-  `;
-
-  // Announcements
-  const announcements = await sql`
-    SELECT * FROM public.announcements ORDER BY created_at DESC
-  `;
-
-  // Status updates
-  const statusUpdates = await sql`
-    SELECT su.*, t.name as team_name, p.full_name as author_name
-    FROM public.status_updates su
-    LEFT JOIN public.teams t ON su.team_id = t.id
-    LEFT JOIN public.profiles p ON su.user_id = p.id
-    ORDER BY su.created_at DESC LIMIT 50
-  `;
-
-  // Event settings
-  const eventSettingsRows = await sql`SELECT * FROM public.event_settings WHERE id = 1`;
   const eventSettings = eventSettingsRows[0];
-
-  // Master Allowlist & Admins (for Master tab)
-  const masterAllowlist = isMaster ? await sql`SELECT * FROM public.master_allowlist ORDER BY created_at DESC` : [];
-  const admins = await sql`
-    SELECT id, trainer_id, full_name, email, role, created_at 
-    FROM public.profiles 
-    WHERE role = 'admin' OR role = 'master'
-    ORDER BY created_at ASC
-  `;
-
-  // Audit Log
-  const auditLogs = await sql`
-    SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 100
-  `;
 
   return {
     currentRole: profile.role,

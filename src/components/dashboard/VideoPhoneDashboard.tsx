@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Volume2, VolumeX, LogOut, ArrowLeft, Shield, Sparkles } from 'lucide-react';
@@ -40,7 +40,11 @@ export function VideoPhoneDashboard({
   const router = useRouter();
   const [isPokedexOpen, setIsPokedexOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
-  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  const [soundOn, setSoundOn] = useState(false);
+
+  useEffect(() => {
+    setSoundOn(isSoundEnabled());
+  }, []);
 
   const handleSoundToggle = () => {
     const newState = toggleSound();
@@ -52,7 +56,7 @@ export function VideoPhoneDashboard({
     playRetroBeep(330, 'square', 0.08);
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/');
+    window.location.href = '/';
   };
 
   const togglePokedex = () => {

@@ -28,25 +28,26 @@ async function getAuthUser() {
 export async function getDashboardData() {
   const { user } = await getAuthUser();
 
-  // Profile
-  const profileRows = await sql`
-    SELECT * FROM public.profiles WHERE id = ${user.id}
-  `;
+  // Run initial independent queries in parallel
+  const [profileRows, socialLinksRows, memberRows, announcementsRows, problemStatementsRows, settingsRows] = await Promise.all([
+    sql`SELECT * FROM public.profiles WHERE id = ${user.id}`,
+    sql`SELECT * FROM public.social_links WHERE user_id = ${user.id} ORDER BY created_at ASC`,
+    sql`
+      SELECT tm.*, t.team_id as team_code, t.name as team_name, t.join_code, t.created_by, t.created_at, t.updated_at
+      FROM public.team_members tm
+      JOIN public.teams t ON tm.team_id = t.id
+      WHERE tm.user_id = ${user.id}
+    `,
+    sql`SELECT * FROM public.announcements ORDER BY created_at DESC LIMIT 10`,
+    sql`SELECT * FROM public.problem_statements WHERE is_visible = true ORDER BY created_at ASC`,
+    sql`SELECT * FROM public.event_settings WHERE id = 1`,
+  ]);
+
   const profile = (profileRows[0] || null) as unknown as Profile | null;
-
-  // Social Links
-  const socialLinksRows = await sql`
-    SELECT * FROM public.social_links WHERE user_id = ${user.id} ORDER BY created_at ASC
-  `;
   const socialLinks = socialLinksRows as unknown as SocialLink[];
-
-  // Team Membership
-  const memberRows = await sql`
-    SELECT tm.*, t.team_id as team_code, t.name as team_name, t.join_code, t.created_by, t.created_at, t.updated_at
-    FROM public.team_members tm
-    JOIN public.teams t ON tm.team_id = t.id
-    WHERE tm.user_id = ${user.id}
-  `;
+  const announcements = announcementsRows as unknown as Announcement[];
+  const problemStatements = problemStatementsRows as unknown as ProblemStatement[];
+  const eventSettings = (settingsRows[0] || null) as unknown as EventSettings;
 
   let team: Team | null = null;
   let teamMembers: any[] = [];
@@ -63,51 +64,36 @@ export async function getDashboardData() {
       created_at: m.created_at,
       updated_at: m.updated_at,
     };
-
-    // Fetch team members with profiles
-    const tmRows = await sql`
-      SELECT tm.user_id, tm.joined_at, p.trainer_id, p.full_name, p.avatar_url, p.email, p.phones
-      FROM public.team_members tm
-      JOIN public.profiles p ON tm.user_id = p.id
-      WHERE tm.team_id = ${team.id}
-      ORDER BY tm.joined_at ASC
-    `;
-    teamMembers = tmRows as unknown as any[];
-
-    // Fetch team submissions
-    const subRows = await sql`
-      SELECT * FROM public.submissions 
-      WHERE team_id = ${team.id} 
-      ORDER BY version DESC
-    `;
-    submissions = subRows as unknown as Submission[];
   }
 
-  // Announcements
-  const announcementsRows = await sql`
-    SELECT * FROM public.announcements ORDER BY created_at DESC LIMIT 10
-  `;
-  const announcements = announcementsRows as unknown as Announcement[];
+  // Fetch team members, submissions, and status updates in parallel
+  const [tmRows, subRows, statusUpdatesRows] = await Promise.all([
+    team?.id
+      ? sql`
+          SELECT tm.user_id, tm.joined_at, p.trainer_id, p.full_name, p.avatar_url, p.email, p.phones
+          FROM public.team_members tm
+          JOIN public.profiles p ON tm.user_id = p.id
+          WHERE tm.team_id = ${team.id}
+          ORDER BY tm.joined_at ASC
+        `
+      : Promise.resolve([]),
+    team?.id
+      ? sql`
+          SELECT * FROM public.submissions 
+          WHERE team_id = ${team.id} 
+          ORDER BY version DESC
+        `
+      : Promise.resolve([]),
+    sql`
+      SELECT * FROM public.status_updates 
+      WHERE user_id = ${user.id} OR (${team?.id ? sql`team_id = ${team.id}` : sql`false`})
+      ORDER BY created_at DESC LIMIT 10
+    `,
+  ]);
 
-  // Status updates for user or team
-  const statusUpdatesRows = await sql`
-    SELECT * FROM public.status_updates 
-    WHERE user_id = ${user.id} OR (${team?.id ? sql`team_id = ${team.id}` : sql`false`})
-    ORDER BY created_at DESC LIMIT 10
-  `;
+  teamMembers = tmRows as unknown as any[];
+  submissions = subRows as unknown as Submission[];
   const statusUpdates = statusUpdatesRows as unknown as StatusUpdate[];
-
-  // Visible Problem Statements
-  const problemStatementsRows = await sql`
-    SELECT * FROM public.problem_statements WHERE is_visible = true ORDER BY created_at ASC
-  `;
-  const problemStatements = problemStatementsRows as unknown as ProblemStatement[];
-
-  // Event settings
-  const settingsRows = await sql`
-    SELECT * FROM public.event_settings WHERE id = 1
-  `;
-  const eventSettings = (settingsRows[0] || null) as unknown as EventSettings;
 
   return {
     profile,
