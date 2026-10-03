@@ -91,14 +91,36 @@ export function AuthForm() {
         });
 
         if (error) {
+          if (error.message.toLowerCase().includes('already registered')) {
+            // Attempt auto login with provided credentials
+            const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+              email: emailTrimmed,
+              password,
+            });
+            if (!signInErr && signInData?.user) {
+              playVictoryChime();
+              setSuccessMsg('Trainer ID recognized! Logging into Pokémon Center...');
+              setTimeout(() => {
+                window.location.href = '/dashboard';
+              }, 600);
+              return;
+            }
+          }
           setErrorMsg(error.message);
           playRetroBeep(220, 'sawtooth', 0.15);
         } else {
+          // Guarantee session exists in browser cookies
+          if (!data?.session) {
+            await supabase.auth.signInWithPassword({
+              email: emailTrimmed,
+              password,
+            });
+          }
           playVictoryChime();
           setSuccessMsg('Trainer ID registered successfully! Redirecting to Pokémon Center...');
           setTimeout(() => {
-            router.push('/dashboard');
-          }, 1200);
+            window.location.href = '/dashboard';
+          }, 800);
         }
       } else if (mode === 'login' || mode === 'master') {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -112,9 +134,21 @@ export function AuthForm() {
         } else {
           playVictoryChime();
           setSuccessMsg('Login successful! Welcome back, Trainer.');
+
+          let target = '/dashboard';
+          if (data?.user?.id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', data.user.id)
+              .single();
+            if (profile?.role === 'master') target = '/master';
+            else if (profile?.role === 'admin') target = '/admin';
+          }
+
           setTimeout(() => {
-            router.push('/dashboard');
-          }, 800);
+            window.location.href = target;
+          }, 600);
         }
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {
