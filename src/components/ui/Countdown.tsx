@@ -42,14 +42,14 @@ export function Countdown({ targetDate }: CountdownProps) {
   if (!mounted) {
     // Stable initial server render to avoid hydration mismatch
     return (
-      <div className="flex items-center justify-center gap-2 sm:gap-4 my-6">
+      <div className="flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 my-5 sm:my-6">
         {['DAYS', 'HOURS', 'MINS', 'SECS'].map((label) => (
           <div
             key={label}
-            className="flex flex-col items-center bg-[#1E232A] text-white p-3 sm:p-4 rounded-xl border-2 border-[#334155] shadow-[4px_4px_0px_#EE1515] min-w-[70px] sm:min-w-[90px]"
+            className="flex flex-col items-center bg-[#1E232A] text-white p-2 sm:p-3 md:p-4 rounded-xl border-2 sm:border-3 border-[#1E232A] shadow-[3px_3px_0px_#EE1515] sm:shadow-[4px_4px_0px_#EE1515] min-w-[62px] sm:min-w-[80px] md:min-w-[95px]"
           >
-            <span className="font-pixel text-xl sm:text-3xl text-[#FFCB05]">--</span>
-            <span className="font-mono text-[9px] sm:text-[10px] text-gray-400 mt-1 uppercase">
+            <span className="font-pixel text-base sm:text-2xl md:text-3xl text-[#FFCB05]">--</span>
+            <span className="font-mono text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 mt-1 uppercase">
               {label}
             </span>
           </div>
@@ -66,16 +66,16 @@ export function Countdown({ targetDate }: CountdownProps) {
   ];
 
   return (
-    <div className="flex items-center justify-center gap-2 sm:gap-4 my-6">
+    <div className="flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 my-5 sm:my-6">
       {items.map((item) => (
         <div
           key={item.label}
-          className="flex flex-col items-center bg-[#1E232A] text-white p-3 sm:p-4 rounded-xl border-3 border-[#1E232A] shadow-[4px_4px_0px_#EE1515] min-w-[70px] sm:min-w-[95px] transform hover:-translate-y-1 transition-transform"
+          className="flex flex-col items-center bg-[#1E232A] text-white p-2 sm:p-3 md:p-4 rounded-xl border-2 sm:border-3 border-[#1E232A] shadow-[3px_3px_0px_#EE1515] sm:shadow-[4px_4px_0px_#EE1515] min-w-[62px] sm:min-w-[80px] md:min-w-[95px] hover-lift hover:border-[#FFCB05] transition-all cursor-default"
         >
-          <span className="font-pixel text-xl sm:text-3xl text-[#FFCB05] tracking-widest">
+          <span className="font-pixel text-base sm:text-2xl md:text-3xl text-[#FFCB05] tracking-wider">
             {item.value}
           </span>
-          <span className="font-mono text-[9px] sm:text-[10px] text-gray-300 font-bold mt-1 uppercase">
+          <span className="font-mono text-[8px] sm:text-[9px] md:text-[10px] text-gray-300 font-bold mt-1 uppercase">
             {item.label}
           </span>
         </div>

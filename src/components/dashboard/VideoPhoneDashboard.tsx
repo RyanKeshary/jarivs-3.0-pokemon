@@ -38,6 +38,7 @@ export function VideoPhoneDashboard({
   eventSettings,
 }: VideoPhoneDashboardProps) {
   const router = useRouter();
+  const [activeProfile, setActiveProfile] = useState<Profile>(profile);
   const [isPokedexOpen, setIsPokedexOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [selectedCardProfile, setSelectedCardProfile] = useState<Profile>(profile);
@@ -46,9 +47,14 @@ export function VideoPhoneDashboard({
 
   const handleOpenTrainerCard = (targetProfile?: any, targetTeam?: any) => {
     playRetroBeep(520, 'sine', 0.05);
-    setSelectedCardProfile(targetProfile || profile);
+    setSelectedCardProfile(targetProfile || activeProfile);
     setSelectedCardTeam(targetTeam !== undefined ? targetTeam : team);
     setIsCardModalOpen(true);
+  };
+
+  const handleAvatarUpdated = (newUrl: string) => {
+    setActiveProfile((prev) => ({ ...prev, avatar_url: newUrl }));
+    setSelectedCardProfile((prev) => ({ ...prev, avatar_url: newUrl }));
   };
 
   useEffect(() => {
@@ -147,19 +153,19 @@ export function VideoPhoneDashboard({
             {/* Trainer Status Bar inside monitor */}
             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b-2 border-gray-800 text-white font-mono text-xs">
               <div
-                onClick={() => handleOpenTrainerCard(profile, team)}
+                onClick={() => handleOpenTrainerCard(activeProfile, team)}
                 className="flex items-center gap-3 cursor-pointer group"
                 title="Click to view your Official Trainer ID Card"
               >
                 <div className="px-2.5 py-1 bg-[#EE1515] group-hover:bg-[#D01010] rounded text-white font-pixel text-[9px] flex items-center gap-1 shadow-sm transition-colors">
                   <span>🪪</span>
-                  <span>{profile.trainer_id}</span>
+                  <span>{activeProfile.trainer_id}</span>
                 </div>
                 <span className="font-bold text-sm text-gray-100 group-hover:text-[#FFCB05] transition-colors">
-                  {profile.full_name}
+                  {activeProfile.full_name}
                 </span>
                 <span className="text-gray-500 hidden md:inline">|</span>
-                <span className="text-gray-400 text-xs hidden md:inline">{profile.email}</span>
+                <span className="text-gray-400 text-xs hidden md:inline">{activeProfile.email}</span>
                 <span className="text-[8px] font-pixel px-1.5 py-0.5 bg-white/10 group-hover:bg-[#FFCB05] group-hover:text-[#1E232A] rounded border border-white/20 transition-colors">
                   VIEW ID
                 </span>
@@ -242,7 +248,7 @@ export function VideoPhoneDashboard({
           <PokedexDrawer
             isOpen={isPokedexOpen}
             onClose={() => setIsPokedexOpen(false)}
-            profile={profile}
+            profile={activeProfile}
             team={team}
             teamMembers={teamMembers}
             socialLinks={socialLinks}
@@ -257,6 +263,8 @@ export function VideoPhoneDashboard({
         onClose={() => setIsCardModalOpen(false)}
         profile={selectedCardProfile}
         team={selectedCardTeam}
+        canUpload={selectedCardProfile.id === activeProfile.id}
+        onAvatarUpdated={handleAvatarUpdated}
       />
     </div>
   );

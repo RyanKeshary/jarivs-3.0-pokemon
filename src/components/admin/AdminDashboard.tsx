@@ -1174,6 +1174,10 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
           }}
           profile={selectedCardProfile}
           team={selectedCardTeam}
+          canUpload={true}
+          onAvatarUpdated={(newUrl) => {
+            setSelectedCardProfile((prev: any) => (prev ? { ...prev, avatar_url: newUrl } : null));
+          }}
         />
       )}
     </div>

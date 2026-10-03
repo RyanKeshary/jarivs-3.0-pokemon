@@ -70,28 +70,28 @@ export function About({ content }: AboutProps) {
                 {
                   bg: 'bg-gradient-to-b from-amber-100 to-white',
                   border: 'border-[#FFCB05]',
-                  shadow: 'shadow-[6px_6px_0px_#C7A008]',
+                  shadow: 'shadow-[5px_5px_0px_#C7A008] hover:shadow-[7px_7px_0px_#C7A008]',
                   icon: <Trophy size={36} className="text-amber-500 animate-bounce" />,
                   tag: 'CHAMPION',
                 },
                 {
                   bg: 'bg-gradient-to-b from-slate-100 to-white',
                   border: 'border-slate-400',
-                  shadow: 'shadow-[6px_6px_0px_#475569]',
+                  shadow: 'shadow-[5px_5px_0px_#475569] hover:shadow-[7px_7px_0px_#475569]',
                   icon: <Award size={36} className="text-slate-500" />,
                   tag: 'ELITE FOUR',
                 },
                 {
                   bg: 'bg-gradient-to-b from-amber-50 to-white',
                   border: 'border-amber-700',
-                  shadow: 'shadow-[6px_6px_0px_#78350F]',
+                  shadow: 'shadow-[5px_5px_0px_#78350F] hover:shadow-[7px_7px_0px_#78350F]',
                   icon: <Medal size={36} className="text-amber-700" />,
                   tag: 'GYM LEADER',
                 },
               ][idx] || {
                 bg: 'bg-white',
                 border: 'border-[#1E232A]',
-                shadow: 'shadow-[4px_4px_0px_#1E232A]',
+                shadow: 'shadow-[4px_4px_0px_#1E232A] hover:shadow-[6px_6px_0px_#1E232A]',
                 icon: <Trophy size={32} />,
                 tag: 'FINALIST',
               };
@@ -99,10 +99,10 @@ export function About({ content }: AboutProps) {
               return (
                 <div
                   key={prize.place}
-                  className={`${styles.bg} border-3 ${styles.border} ${styles.shadow} rounded-2xl p-6 text-center transform hover:-translate-y-1.5 transition-transform flex flex-col justify-between`}
+                  className={`${styles.bg} border-3 ${styles.border} ${styles.shadow} rounded-2xl p-6 text-center hover-lift flex flex-col justify-between cursor-default`}
                 >
                   <div>
-                    <div className="w-16 h-16 mx-auto rounded-full bg-white border-2 border-[#1E232A] flex items-center justify-center shadow-md mb-4">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-white border-2 border-[#1E232A] flex items-center justify-center shadow-md mb-4 group-hover:rotate-6 transition-transform">
                       {styles.icon}
                     </div>
                     <span className="font-pixel text-[10px] text-gray-500 block uppercase">
@@ -138,15 +138,15 @@ export function About({ content }: AboutProps) {
             {tracks.map((track, i) => (
               <div
                 key={track.name}
-                className="bg-white border-3 border-[#1E232A] rounded-2xl p-6 shadow-[5px_5px_0px_#1E232A] hover:shadow-[7px_7px_0px_#3B4CCA] transition-all"
+                className="bg-white border-3 border-[#1E232A] rounded-2xl p-6 shadow-[5px_5px_0px_#1E232A] hover:shadow-[7px_7px_0px_#3B4CCA] hover-lift transition-all cursor-default group"
               >
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-gray-50 rounded-xl border-2 border-[#1E232A] shrink-0">
+                  <div className="p-3 bg-gray-50 group-hover:bg-red-50/50 rounded-xl border-2 border-[#1E232A] shrink-0 transition-colors">
                     {TRACK_ICONS[i] || <Cpu size={28} />}
                   </div>
                   <div>
                     <span className="font-mono text-xs font-bold text-gray-400">TRACK 0{i + 1}</span>
-                    <h4 className="font-pixel text-sm text-[#1E232A] mt-1">{track.name}</h4>
+                    <h4 className="font-pixel text-sm text-[#1E232A] group-hover:text-[#3B4CCA] mt-1 transition-colors">{track.name}</h4>
                     <p className="text-sm text-gray-600 mt-2 leading-relaxed">{track.desc}</p>
                   </div>
                 </div>
@@ -167,7 +167,7 @@ export function About({ content }: AboutProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {rules.map((rule, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+              <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 hover:bg-red-50/40 rounded-xl border border-gray-200 hover:border-[#EE1515] transition-all">
                 <CheckCircle size={18} className="text-[#EE1515] shrink-0 mt-0.5" />
                 <span className="text-sm text-gray-700 font-medium">{rule}</span>
               </div>

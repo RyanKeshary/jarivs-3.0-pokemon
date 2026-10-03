@@ -428,3 +428,56 @@ export async function changeUserPassword(newPassword: string) {
 
   return { success: true };
 }
+
+// 8. Upload Trainer Avatar / Profile Photo
+export async function uploadTrainerAvatar(formData: FormData) {
+  const { user } = await getAuthUser();
+  const file = formData.get('file') as File | null;
+
+  if (!file) {
+    throw new Error('No photo file provided');
+  }
+
+  // Validate mime type
+  const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+  if (!allowedMimeTypes.includes(file.type)) {
+    throw new Error('Invalid image type. Please upload a PNG, JPEG, WEBP, or GIF image.');
+  }
+
+  // Validate size: max 5MB
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('Photo must be less than 5MB.');
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const ext = file.name.split('.').pop() || 'png';
+  const filePath = `${user.id}/avatar-${Date.now()}.${ext}`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from('avatars')
+    .upload(filePath, buffer, {
+      contentType: file.type,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(`Failed to upload avatar: ${uploadError.message}`);
+  }
+
+  const { data: urlData } = supabaseAdmin.storage.from('avatars').getPublicUrl(filePath);
+  const publicUrl = urlData.publicUrl;
+
+  await sql`
+    UPDATE public.profiles
+    SET avatar_url = ${publicUrl}, updated_at = NOW()
+    WHERE id = ${user.id}::uuid
+  `;
+
+  revalidatePath('/dashboard');
+  revalidatePath('/admin');
+
+  return { success: true, avatar_url: publicUrl };
+}
