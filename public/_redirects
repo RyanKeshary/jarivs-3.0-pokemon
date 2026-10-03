@@ -1,7 +1,0 @@
-# Netlify / Cloudflare Pages
-#
-# This is a single-page app, so any request that is not a real file has to be
-# served index.html. Without this, hitting /auth directly (or refreshing on it)
-# returns a 404 - and that is exactly what happens when someone bookmarks the
-# login page or opens a shared link in a new tab.
-/*    /index.html   200
