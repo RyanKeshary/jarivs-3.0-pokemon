@@ -17,6 +17,7 @@ const pressStart = Press_Start_2P({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://jarivs-3-0-pokemon.vercel.app'),
   title: 'Kento League · Jarvis Hackathon 3.0',
   description: 'Where Code Meets the Pokémon League — Hackathon 3.0 at SLRTCE',
   icons: {

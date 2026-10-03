@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/post-build-sync.mjs",
     "start": "next start",
     "preview": "next start",
     "lint": "next lint",

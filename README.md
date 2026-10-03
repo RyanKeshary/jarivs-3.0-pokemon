@@ -102,17 +102,19 @@ pnpm build
 ---
 
 ## 🚢 Deployment
-
+ 
 ### Vercel Deployment
-Target: Vercel (Project ID: `prj_DLG9sygKVlIDY5R9pZCTQQgtj6TO`)
-1. Connect GitHub repository `RyanKeshary/jarivs-3.0-pokemon`.
-2. Configure environment variables matching `.env.example`.
-3. Build command: `pnpm build` (Package manager: `pnpm`).
+- **Live URL**: [https://jarivs-3-0-pokemon.vercel.app/](https://jarivs-3-0-pokemon.vercel.app/)
+- **Project ID**: `prj_DLG9sygKVlIDY5R9pZCTQQgtj6TO`
+- **Framework Preset**: Next.js
+- **Build Command**: `pnpm build` (outputs to `.next` and synced to `dist` for full compatibility)
+- **Environment Variables**: Configure matching `.env.example` in Vercel Settings -> Environment Variables.
 
 ### Render Deployment
-Target: Render (Service ID: `srv-davvt9nlk1mc73co7670`, [https://jarivs-3-0-pokemon.onrender.com](https://jarivs-3-0-pokemon.onrender.com))
-- Build Command: `pnpm install && pnpm build`
-- Start Command: `pnpm start`
+- **Live URL**: [https://jarivs-3-0-pokemon.onrender.com](https://jarivs-3-0-pokemon.onrender.com)
+- **Service ID**: `srv-davvt9nlk1mc73co7670`
+- **Build Command**: `pnpm install && pnpm build`
+- **Start Command**: `pnpm start`
 
 ---
 
