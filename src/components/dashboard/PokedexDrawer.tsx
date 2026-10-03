@@ -14,7 +14,7 @@ interface PokedexDrawerProps {
   team: Team | null;
   teamMembers: any[];
   socialLinks: SocialLink[];
-  onOpenCardModal: () => void;
+  onOpenCardModal: (member?: any, memberTeam?: any) => void;
 }
 
 export function PokedexDrawer({
@@ -455,11 +455,25 @@ export function PokedexDrawer({
                     {teamMembers.map((m) => (
                       <div
                         key={m.user_id}
-                        className="p-2.5 bg-white rounded-lg border-2 border-gray-200 flex items-center justify-between gap-2"
+                        onClick={() => {
+                          onOpenCardModal({
+                            id: m.user_id,
+                            trainer_id: m.trainer_id,
+                            full_name: m.full_name,
+                            email: m.email,
+                            role: m.role || 'participant',
+                            avatar_url: m.avatar_url || '/assets/placeholders/monitor.png',
+                            phones: m.phones || [],
+                            created_at: m.created_at || new Date().toISOString(),
+                            updated_at: m.created_at || new Date().toISOString(),
+                          }, team);
+                        }}
+                        className="p-2.5 bg-white hover:bg-red-50/70 rounded-lg border-2 border-gray-200 hover:border-[#EE1515] flex items-center justify-between gap-2 cursor-pointer transition-all group"
+                        title={`Click to view ${m.full_name}'s Trainer ID Card`}
                       >
                         <div className="overflow-hidden">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs text-[#1E232A]">
+                            <span className="font-bold text-xs text-[#1E232A] group-hover:text-[#EE1515] transition-colors">
                               {m.full_name}
                             </span>
                             {m.user_id === team.created_by && (
@@ -468,12 +482,13 @@ export function PokedexDrawer({
                               </span>
                             )}
                           </div>
-                          <span className="font-mono text-[9px] text-[#EE1515] block">
-                            {m.trainer_id}
+                          <span className="font-mono text-[9px] text-[#EE1515] flex items-center gap-1">
+                            <span>🪪</span>
+                            <span>{m.trainer_id}</span>
                           </span>
                         </div>
-                        <span className="font-mono text-[9px] text-gray-400 shrink-0">
-                          {m.email}
+                        <span className="font-pixel text-[8px] px-2 py-0.5 bg-gray-100 group-hover:bg-[#EE1515] group-hover:text-white rounded border border-gray-300 transition-colors">
+                          VIEW ID
                         </span>
                       </div>
                     ))}

@@ -40,6 +40,7 @@ import {
   resetAdminPassword,
 } from '@/app/actions/admin';
 import { playRetroBeep, playVictoryChime } from '@/lib/sound';
+import { TrainerCardModal } from '@/components/dashboard/TrainerCardModal';
 
 interface AdminDashboardProps {
   data: any;
@@ -52,6 +53,39 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
   const [participantSearch, setParticipantSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [teamSearch, setTeamSearch] = useState('');
+
+  // Trainer ID Card Modal State
+  const [selectedCardProfile, setSelectedCardProfile] = useState<any | null>(null);
+  const [selectedCardTeam, setSelectedCardTeam] = useState<any | null>(null);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+
+  const handleOpenTrainerCard = (participant: any) => {
+    playRetroBeep(520, 'sine', 0.05);
+    setSelectedCardProfile({
+      id: participant.id,
+      trainer_id: participant.trainer_id,
+      full_name: participant.full_name,
+      email: participant.email,
+      role: participant.role,
+      avatar_url: participant.avatar_url,
+      phones: participant.phones || [],
+      created_at: participant.created_at,
+      updated_at: participant.created_at,
+    });
+    setSelectedCardTeam(
+      participant.team_name
+        ? {
+            id: participant.team_uuid,
+            team_id: participant.team_code,
+            name: participant.team_name,
+            join_code: '',
+            created_by: '',
+            created_at: '',
+          }
+        : null
+    );
+    setIsCardModalOpen(true);
+  };
 
   // Problem Statements Form State
   const [psTitle, setPsTitle] = useState('');
@@ -482,20 +516,31 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                     <th className="p-3">SQUAD</th>
                     <th className="p-3">PHONE</th>
                     <th className="p-3">JOINED</th>
+                    <th className="p-3 text-right">ID CARD</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 font-sans">
                   {filteredParticipants.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-6 text-center text-gray-500 font-mono">
+                      <td colSpan={8} className="p-6 text-center text-gray-500 font-mono">
                         No trainers match the current search filter.
                       </td>
                     </tr>
                   ) : (
                     filteredParticipants.map((p: any) => (
-                      <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-3 font-pixel text-[10px] text-[#EE1515]">{p.trainer_id}</td>
-                        <td className="p-3 font-bold text-[#1E232A]">{p.full_name}</td>
+                      <tr
+                        key={p.id}
+                        onClick={() => handleOpenTrainerCard(p)}
+                        className="hover:bg-red-50/70 transition-colors cursor-pointer group"
+                        title={`Click to view Trainer ID card for ${p.full_name}`}
+                      >
+                        <td className="p-3 font-pixel text-[10px] text-[#EE1515] group-hover:underline flex items-center gap-1.5">
+                          <span className="text-xs">🪪</span>
+                          <span>{p.trainer_id}</span>
+                        </td>
+                        <td className="p-3 font-bold text-[#1E232A] group-hover:text-[#EE1515] transition-colors">
+                          {p.full_name}
+                        </td>
                         <td className="p-3 font-mono text-gray-600">{p.email}</td>
                         <td className="p-3">
                           <span
@@ -524,6 +569,19 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                         </td>
                         <td className="p-3 font-mono text-gray-500 text-[10px]" suppressHydrationWarning>
                           {new Date(p.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenTrainerCard(p);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#EE1515] text-[#1E232A] hover:text-white border-2 border-[#1E232A] rounded-lg font-pixel text-[8px] shadow-[2px_2px_0_#1E232A] active:scale-95 transition-all cursor-pointer font-bold"
+                          >
+                            <span>🪪</span>
+                            <span>VIEW ID</span>
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -1105,6 +1163,19 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
           </div>
         )}
       </main>
+
+      {/* Trainer ID Card Modal */}
+      {selectedCardProfile && (
+        <TrainerCardModal
+          isOpen={isCardModalOpen}
+          onClose={() => {
+            setIsCardModalOpen(false);
+            setSelectedCardProfile(null);
+          }}
+          profile={selectedCardProfile}
+          team={selectedCardTeam}
+        />
+      )}
     </div>
   );
 }
