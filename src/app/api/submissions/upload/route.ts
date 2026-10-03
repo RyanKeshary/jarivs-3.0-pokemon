@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       .replace(/[^a-zA-Z0-9._-]/g, '_')
       .slice(0, 80);
     const cleanFileName = `${baseName}.${ext}`;
-    const storagePath = `${teamId}/v_${Date.now()}_${cleanFileName}`;
+    const storagePath = `${teamId}/deck_${Date.now()}_${cleanFileName}`;
 
     // Upload to submissions bucket
     const fileBytes = await file.arrayBuffer();
@@ -94,28 +94,54 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine current version count
-    const versionRows = await sql`
-      SELECT COALESCE(MAX(version), 0) as max_v FROM public.submissions WHERE team_id = ${teamId}
+    // Insert or update submission record
+    const insertResult = await sql`
+      INSERT INTO public.submissions (
+        team_id,
+        file_path,
+        file_name,
+        ppt_url,
+        deck_mime_type,
+        deck_size_bytes,
+        status,
+        submitted_at,
+        uploaded_at
+      )
+      VALUES (
+        ${teamId},
+        ${storagePath},
+        ${cleanFileName},
+        ${storagePath},
+        ${contentType},
+        ${file.size},
+        'submitted'::submission_status,
+        NOW(),
+        NOW()
+      )
+      ON CONFLICT (team_id) DO UPDATE SET
+        file_path = EXCLUDED.file_path,
+        file_name = EXCLUDED.file_name,
+        ppt_url = EXCLUDED.ppt_url,
+        deck_mime_type = EXCLUDED.deck_mime_type,
+        deck_size_bytes = EXCLUDED.deck_size_bytes,
+        status = 'submitted'::submission_status,
+        submitted_at = NOW(),
+        updated_at = NOW()
+      RETURNING version
     `;
-    const nextVersion = (versionRows[0]?.max_v || 0) + 1;
 
-    // Insert submission record
-    await sql`
-      INSERT INTO public.submissions (team_id, ppt_url, version, status)
-      VALUES (${teamId}, ${storagePath}, ${nextVersion}, 'submitted')
-    `;
+    const finalVersion = insertResult[0]?.version || 1;
 
     // Status update log
     await sql`
       INSERT INTO public.status_updates (team_id, user_id, title, message, status)
-      VALUES (${teamId}, ${user.id}, 'Submission Deck Uploaded', ${'Version ' + nextVersion + ' (' + cleanFileName + ') submitted successfully.'}, 'success')
+      VALUES (${teamId}, ${user.id}, 'Submission Deck Uploaded', ${'Version ' + finalVersion + ' (' + cleanFileName + ') submitted successfully.'}, 'success')
     `;
 
     revalidatePath('/dashboard');
     revalidatePath('/admin');
 
-    return NextResponse.json({ success: true, version: nextVersion });
+    return NextResponse.json({ success: true, version: finalVersion });
   } catch (err: any) {
     console.error('API submission upload error:', err);
     return NextResponse.json(

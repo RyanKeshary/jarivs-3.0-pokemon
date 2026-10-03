@@ -324,7 +324,7 @@ export async function uploadSubmission(formData: FormData) {
     .replace(/[^a-zA-Z0-9._-]/g, '_')
     .slice(0, 80);
   const cleanFileName = `${baseName}.${ext}`;
-  const storagePath = `${teamId}/v_${Date.now()}_${cleanFileName}`;
+  const storagePath = `${teamId}/deck_${Date.now()}_${cleanFileName}`;
 
   // Upload to submissions bucket
   const fileBytes = await file.arrayBuffer();
@@ -340,26 +340,52 @@ export async function uploadSubmission(formData: FormData) {
     throw new Error(`Upload error: ${uploadError.message}`);
   }
 
-  // Determine current version count
-  const versionRows = await sql`
-    SELECT COALESCE(MAX(version), 0) as max_v FROM public.submissions WHERE team_id = ${teamId}
+  // Insert or update submission row
+  const insertResult = await sql`
+    INSERT INTO public.submissions (
+      team_id,
+      file_path,
+      file_name,
+      ppt_url,
+      deck_mime_type,
+      deck_size_bytes,
+      status,
+      submitted_at,
+      uploaded_at
+    )
+    VALUES (
+      ${teamId},
+      ${storagePath},
+      ${cleanFileName},
+      ${storagePath},
+      ${contentType},
+      ${file.size},
+      'submitted'::submission_status,
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (team_id) DO UPDATE SET
+      file_path = EXCLUDED.file_path,
+      file_name = EXCLUDED.file_name,
+      ppt_url = EXCLUDED.ppt_url,
+      deck_mime_type = EXCLUDED.deck_mime_type,
+      deck_size_bytes = EXCLUDED.deck_size_bytes,
+      status = 'submitted'::submission_status,
+      submitted_at = NOW(),
+      updated_at = NOW()
+    RETURNING version
   `;
-  const nextVersion = (versionRows[0].max_v || 0) + 1;
 
-  // Insert submission row
-  await sql`
-    INSERT INTO public.submissions (team_id, ppt_url, version, status)
-    VALUES (${teamId}, ${storagePath}, ${nextVersion}, 'submitted')
-  `;
+  const finalVersion = insertResult[0]?.version || 1;
 
   // Status update
   await sql`
     INSERT INTO public.status_updates (team_id, user_id, title, message, status)
-    VALUES (${teamId}, ${user.id}, 'Submission Deck Uploaded', ${'Version ' + nextVersion + ' (' + cleanFileName + ') submitted successfully.'}, 'success')
+    VALUES (${teamId}, ${user.id}, 'Submission Deck Uploaded', ${'Version ' + finalVersion + ' (' + cleanFileName + ') submitted successfully.'}, 'success')
   `;
 
   revalidatePath('/dashboard');
-  return { success: true, version: nextVersion, fileName: cleanFileName };
+  return { success: true, version: finalVersion, fileName: cleanFileName };
 }
 
 // 9. Get Signed URL for Participant Deck Preview / Download
