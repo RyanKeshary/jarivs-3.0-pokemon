@@ -58,7 +58,11 @@ export interface ProblemStatement {
 export interface Submission {
   id: string;
   team_id: string;
+  file_path?: string;
+  file_name?: string;
   ppt_url: string;
+  deck_mime_type?: string | null;
+  deck_size_bytes?: number | string | null;
   version: number;
   submitted_at: string;
   status: string;

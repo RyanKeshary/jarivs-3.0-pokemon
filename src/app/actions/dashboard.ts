@@ -373,10 +373,11 @@ export async function uploadSubmission(formData: FormData) {
       status = 'submitted'::submission_status,
       submitted_at = NOW(),
       updated_at = NOW()
-    RETURNING version
+    RETURNING *
   `;
 
-  const finalVersion = insertResult[0]?.version || 1;
+  const row = insertResult[0];
+  const finalVersion = row?.version || 1;
 
   // Status update
   await sql`
@@ -385,7 +386,23 @@ export async function uploadSubmission(formData: FormData) {
   `;
 
   revalidatePath('/dashboard');
-  return { success: true, version: finalVersion, fileName: cleanFileName };
+  return {
+    success: true,
+    version: finalVersion,
+    fileName: cleanFileName,
+    submission: {
+      id: row?.id || `${teamId}_${Date.now()}`,
+      team_id: teamId,
+      file_path: row?.file_path || storagePath,
+      file_name: row?.file_name || cleanFileName,
+      ppt_url: row?.ppt_url || storagePath,
+      deck_mime_type: row?.deck_mime_type || contentType,
+      deck_size_bytes: row?.deck_size_bytes ? Number(row.deck_size_bytes) : file.size,
+      version: finalVersion,
+      status: row?.status || 'submitted',
+      submitted_at: row?.submitted_at ? new Date(row.submitted_at).toISOString() : new Date().toISOString(),
+    },
+  };
 }
 
 // 9. Get Signed URL for Participant Deck Preview / Download
