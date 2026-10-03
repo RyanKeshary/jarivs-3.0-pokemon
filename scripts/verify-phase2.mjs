@@ -46,21 +46,47 @@ function check(name, ok, detail = '') {
 const admin = (headers = {}, body, method = 'POST') =>
   fetch(`${BASE}/rest/v1/${headers.table ?? ''}`, { method, headers, body }).catch(() => null);
 
-/** Creates a confirmed user through the admin API (no signup rate limit). */
+/** Creates a confirmed user through direct SQL with identity (bypasses admin HTTP token). */
 async function makeUser(email) {
-  const res = await fetch(`${BASE}/auth/v1/admin/users`, {
-    method: 'POST',
-    headers: { apikey: SECRET, Authorization: `Bearer ${SECRET}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      password: PASSWORD,
-      email_confirm: true,
-      user_metadata: { full_name: `Probe ${email.slice(0, 6)}` },
-    }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (body?.id) created.push(body.id);
-  return { ok: res.ok, status: res.status, id: body?.id, email: body?.email ?? email };
+  try {
+    const existing = await ADMIN`SELECT id, email FROM auth.users WHERE lower(email) = lower(${email}::text)`;
+    if (existing.length > 0) {
+      return { ok: true, status: 200, id: existing[0].id, email: existing[0].email };
+    }
+
+    const userId = (await ADMIN`SELECT gen_random_uuid() as id;`)[0].id;
+    const fullName = `Probe ${email.slice(0, 6)}`;
+    await ADMIN`
+      INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at,
+        raw_app_meta_data, raw_user_meta_data,
+        confirmation_token, recovery_token, email_change_token_new, email_change,
+        created_at, updated_at
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        ${userId}, 'authenticated', 'authenticated', ${email}::text,
+        crypt(${PASSWORD}::text, gen_salt('bf', 10)),
+        now(),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        jsonb_build_object('sub', ${userId}::text, 'email', ${email}::text, 'full_name', ${fullName}::text),
+        '', '', '', '', now(), now()
+      );
+    `;
+    await ADMIN`
+      INSERT INTO auth.identities (
+        id, user_id, provider_id, identity_data, provider, created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(), ${userId}, ${userId},
+        jsonb_build_object('sub', ${userId}::text, 'email', ${email}::text, 'email_verified', true, 'phone_verified', false),
+        'email', now(), now()
+      );
+    `;
+    created.push(userId);
+    return { ok: true, status: 200, id: userId, email };
+  } catch (err) {
+    return { ok: false, status: 500, id: null, email, error: err.message };
+  }
 }
 
 /** A PostgREST client bound to one user's JWT, so RLS applies as it would in the app. */
@@ -104,16 +130,25 @@ async function asUser(token) {
 }
 
 async function signIn(email) {
+  const pwd =
+    email.toLowerCase() === 'ryankeshary@gmail.com' || email.toLowerCase() === 'shrey.sleeps@gmail.com'
+      ? process.env.DEFAULT_ADMIN_PASSWORD || 'password@67'
+      : PASSWORD;
   const res = await fetch(`${BASE}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password: PASSWORD }),
+    body: JSON.stringify({ email, password: pwd }),
   });
   const body = await res.json().catch(() => ({}));
   return body.access_token ?? null;
 }
 
 async function cleanup() {
+  try {
+    await ADMIN`delete from public.teams where name ilike 'Probe Squad%' or name ilike 'Other%'`;
+  } catch {
+    /* best effort */
+  }
   if (created.length === 0) return;
   await ADMIN`delete from auth.users where id = any(${created})`;
   console.log(d(`\ncleaned up ${created.length} throwaway auth user(s)`));
@@ -164,29 +199,40 @@ async function main() {
   // =====================================================================
   console.log('\nprofiles: constraints enforced in the database');
   const admin_ = await ADMIN;
-  const socials3 = JSON.stringify([
+  const socials3 = [
     { platform: 'github', url: 'https://github.com/x' },
     { platform: 'linkedin', url: 'https://linkedin.com/in/x' },
     { platform: 'x', url: 'https://x.com/x' },
-  ]);
-  const socials4 = JSON.stringify([...JSON.parse(socials3), { platform: 'instagram', url: 'https://i.com/x' }]);
+  ];
+  const socials4 = [...socials3, { platform: 'instagram', url: 'https://i.com/x' }];
 
   const threeOk = await admin_`
-    update public.profiles set socials = ${socials3}::jsonb where id = ${trainer.id} returning socials`;
-  check('3 socials accepted', threeOk.length === 1, `jsonb_array_length = ${JSON.parse(threeOk[0]?.socials ?? '[]').length}`);
+    update public.profiles set socials = ${admin_.json(socials3)} where id = ${trainer.id} returning socials`;
+  check('3 socials accepted', threeOk.length === 1, `jsonb_array_length = ${threeOk[0]?.socials?.length ?? 0}`);
 
-  const four = await admin_`
-    update public.profiles set socials = ${socials4}::jsonb where id = ${trainer.id}`;
-  check('4 socials REJECTED by the CHECK constraint', four.length === 0);
+  let fourRejected = false;
+  try {
+    await admin_`update public.profiles set socials = ${admin_.json(socials4)} where id = ${trainer.id}`;
+  } catch {
+    fourRejected = true;
+  }
+  check('4 socials REJECTED by the CHECK constraint', fourRejected);
 
-  const badUrl = await admin_`
-    update public.profiles set socials = '[{"platform":"x","url":"javascript:alert(1)"}]'::jsonb
-    where id = ${trainer.id}`;
-  check('javascript: social URL rejected', badUrl.length === 0);
+  let badUrlRejected = false;
+  try {
+    await admin_`update public.profiles set socials = ${admin_.json([{ platform: 'x', url: 'javascript:alert(1)' }])} where id = ${trainer.id}`;
+  } catch {
+    badUrlRejected = true;
+  }
+  check('javascript: social URL rejected', badUrlRejected);
 
-  const badPhone = await admin_`
-    update public.profiles set mobile = 'call-me-maybe' where id = ${trainer.id}`;
-  check('non-numeric mobile rejected', badPhone.length === 0);
+  let badPhoneRejected = false;
+  try {
+    await admin_`update public.profiles set mobile = 'call-me-maybe' where id = ${trainer.id}`;
+  } catch {
+    badPhoneRejected = true;
+  }
+  check('non-numeric mobile rejected', badPhoneRejected);
 
   const goodPhone = await admin_`
     update public.profiles set mobile = '+919876543210' where id = ${trainer.id} returning mobile`;
@@ -204,7 +250,7 @@ async function main() {
 
   // =====================================================================
   console.log('\nteams: create, join, capacity, one-team-per-user');
-  const createRes = await trainerClient.rpc('create_team', { p_name: 'Probe Squad' });
+  const createRes = await trainerClient.rpc('create_team', { p_name: `Probe Squad ${stamp}` });
   const team = createRes.body;
   check('create_team returns the team row', createRes.status === 200 && !!team?.id, `status ${createRes.status}`);
   check('team_id generated in TEAM-XXXX form', /^TEAM-[A-Z0-9]{4}$/.test(team?.team_id ?? ''), team?.team_id);
@@ -230,11 +276,16 @@ async function main() {
   check('joining with an unknown code fails', badJoin.status >= 400);
 
   // One team per user.
+  const randTeamId = 'TEAM-' + Math.random().toString(36).slice(2, 6).toUpperCase();
   const otherTeam = (await admin_`insert into public.teams (name, team_id, join_code, leader_id, max_members)
-    values ('Other', 'TEAM-XXXX', ${'OTH' + Math.random().toString(36).slice(2, 5).toUpperCase()}, null, 6) returning id`)[0];
-  const dual = await admin_`
-    insert into public.team_members (team_id, user_id) values (${otherTeam.id}, ${trainer.id})`;
-  check('a trainer cannot be in two teams (unique on user_id)', dual.length === 0);
+    values (${'Other ' + stamp}, ${randTeamId}, ${'OTH' + Math.random().toString(36).slice(2, 5).toUpperCase()}, null, 6) returning id`)[0];
+  let dualRejected = false;
+  try {
+    await admin_`insert into public.team_members (team_id, user_id) values (${otherTeam.id}, ${trainer.id})`;
+  } catch {
+    dualRejected = true;
+  }
+  check('a trainer cannot be in two teams (unique on user_id)', dualRejected);
 
   // Capacity: shrink the cap to 2, then try to add a third member.
   await admin_`update public.teams set max_members = 2 where id = ${team.id}`;
@@ -267,10 +318,13 @@ async function main() {
   });
   check('team member uploads a submission row', sub.status === 201, `status ${sub.status}`);
 
-  const escapePath = await admin_`
-    insert into public.submissions (team_id, file_path, file_name)
-    values (${team.id}, 'someone-elses-team/deck.pptx', 'deck.pptx')`;
-  check('file_path outside the team folder is rejected', escapePath.length === 0);
+  let escapePathRejected = false;
+  try {
+    await admin_`insert into public.submissions (team_id, file_path, file_name) values (${team.id}, 'someone-elses-team/deck.pptx', 'deck.pptx')`;
+  } catch {
+    escapePathRejected = true;
+  }
+  check('file_path outside the team folder is rejected', escapePathRejected);
 
   const bump = await admin_`
     update public.submissions set file_path = ${`${team.id}/v2/deck.pptx`}
@@ -295,7 +349,8 @@ async function main() {
   const anonStatements = await fetch(`${BASE}/rest/v1/problem_statements?select=id`, {
     headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
   });
-  check('anon cannot read problem_statements', anonStatements.status !== 200, `status ${anonStatements.status}`);
+  const anonStatementsBody = await anonStatements.json().catch(() => null);
+  check('anon cannot read problem_statements', anonStatements.status !== 200 || (anonStatementsBody?.length ?? 0) === 0, `status ${anonStatements.status}`);
 
   // Staff publish one visible and one hidden statement.
   const managerClient = await asUser(await signIn('ryankeshary@gmail.com'));
@@ -340,7 +395,7 @@ async function main() {
   await admin_`update public.teams set max_members = 6 where id = ${team.id}`;
   const leaveRes = await trainerClient.rpc('leave_team');
   const afterLeave = await admin_`select leader_id from public.teams where id = ${team.id}`;
-  check('leader can leave', leaveRes.status === 200, `status ${leaveRes.status}`);
+  check('leader can leave', leaveRes.status === 200 || leaveRes.status === 204, `status ${leaveRes.status}`);
   check(
     'leadership passes to the longest-standing remaining member',
     afterLeave[0]?.leader_id === mate.id,
@@ -355,13 +410,13 @@ async function main() {
   const subs = buckets.find((b) => b.id === 'submissions');
   check('submissions bucket is private', subs?.public === false);
   check('submissions allows ppt/pptx/pdf', (subs?.allowed_mime_types ?? []).length === 3, JSON.stringify(subs?.allowed_mime_types));
-  check('submissions has a size limit (50MB, [EDIT ME])', subs?.file_size_limit === 52428800, `${subs?.file_size_limit} bytes`);
+  check('submissions has a size limit (50MB, [EDIT ME])', Number(subs?.file_size_limit) === 52428800, `${subs?.file_size_limit} bytes`);
   check('avatars bucket exists and is public', buckets.find((b) => b.id === 'avatars')?.public === true);
   check('problem-statements bucket exists', buckets.some((b) => b.id === 'problem-statements'));
 
   // =====================================================================
   console.log('\nrealtime publication');
-  const pub = await admin`
+  const pub = await admin_`
     select tablename from pg_publication_tables
     where pubname = 'supabase_realtime' and schemaname = 'public' order by tablename`;
   const published = pub.map((p) => p.tablename);

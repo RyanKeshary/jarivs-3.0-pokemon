@@ -212,6 +212,13 @@ export interface Database {
       join_team: { Args: { p_code: string }; Returns: string };
       leave_team: { Args: Record<string, never>; Returns: undefined };
       create_team: { Args: { p_name: string; p_max_members?: number }; Returns: string };
+      my_team: {
+        Args: Record<string, never>;
+        Returns: {
+          team: TeamRow | null;
+          members: (TeamMemberRow & { full_name?: string | null; trainer_id?: string | null; email?: string | null })[];
+        };
+      };
       insert_audit_log: { Args: { p_action: string; p_target_id?: string; p_target_type?: string; p_details?: Json }; Returns: void };
     };
     Enums: {
