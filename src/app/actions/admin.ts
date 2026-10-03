@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { sql } from '@/lib/supabase/admin';
+import { sql, createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 // Helper to verify admin or master authorization

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, Lock, CheckCircle2, History, AlertTriangle } from 'lucide-react';
-import { uploadSubmission } from '@/app/actions/dashboard';
+import { UploadCloud, FileText, Lock, CheckCircle2, History, AlertTriangle, ExternalLink, Download, Loader2 } from 'lucide-react';
+import { uploadSubmission, getDeckDownloadUrl } from '@/app/actions/dashboard';
 import { playRetroBeep, playVictoryChime } from '@/lib/sound';
 import type { Submission } from '@/lib/database.types';
 
@@ -20,6 +20,7 @@ export function SubmissionBox({
   onPokedexRequest,
 }: SubmissionBoxProps) {
   const [uploading, setUploading] = useState(false);
+  const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,12 +28,42 @@ export function SubmissionBox({
   const isLocked = new Date() > new Date(deadline);
   const latestSubmission = submissions[0] || null;
 
+  const handleDownload = async (storagePath: string) => {
+    setDownloadingPath(storagePath);
+    try {
+      const res = await getDeckDownloadUrl(storagePath);
+      if (res.signedUrl) {
+        window.open(res.signedUrl, '_blank');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download deck');
+    } finally {
+      setDownloadingPath(null);
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    // Validate size (50MB)
+    if (file.size > 52428800) {
+      setErrorMsg('File size exceeds the 50MB hackathon limit.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Validate extension
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['pdf', 'ppt', 'pptx'].includes(ext || '')) {
+      setErrorMsg('Invalid format. Only .pdf, .ppt, or .pptx presentation decks are accepted.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setUploading(true);
 
     try {
@@ -108,11 +139,26 @@ export function SubmissionBox({
                     })}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-2 text-xs text-gray-200">
-                  <FileText size={16} className="text-emerald-400 shrink-0" />
-                  <span className="truncate font-mono text-[11px]">
-                    {latestSubmission.ppt_url.split('/').pop()}
-                  </span>
+                <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-700/60">
+                  <div className="flex items-center gap-2 text-xs text-gray-200 min-w-0">
+                    <FileText size={16} className="text-emerald-400 shrink-0" />
+                    <span className="truncate font-mono text-[11px]">
+                      {latestSubmission.ppt_url.split('/').pop()}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(latestSubmission.ppt_url)}
+                    disabled={downloadingPath === latestSubmission.ppt_url}
+                    className="shrink-0 px-2 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/50 rounded font-pixel text-[8px] flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    {downloadingPath === latestSubmission.ppt_url ? (
+                      <Loader2 size={10} className="animate-spin" />
+                    ) : (
+                      <ExternalLink size={10} />
+                    )}
+                    <span>VIEW DECK</span>
+                  </button>
                 </div>
               </div>
             ) : (
@@ -132,12 +178,27 @@ export function SubmissionBox({
                   {submissions.map((sub) => (
                     <div
                       key={sub.id}
-                      className="flex items-center justify-between px-2 py-1 bg-black/30 rounded text-gray-300"
+                      className="flex items-center justify-between px-2 py-1 bg-black/30 hover:bg-black/50 rounded text-gray-300 transition-colors"
                     >
-                      <span>Version {sub.version}</span>
-                      <span className="text-[9px] text-gray-500" suppressHydrationWarning>
-                        {new Date(sub.submitted_at).toLocaleDateString()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span>Version {sub.version}</span>
+                        <span className="text-[9px] text-gray-500" suppressHydrationWarning>
+                          {new Date(sub.submitted_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(sub.ppt_url)}
+                        disabled={downloadingPath === sub.ppt_url}
+                        className="text-[9px] text-cyan-400 hover:text-cyan-300 font-pixel flex items-center gap-1 cursor-pointer"
+                      >
+                        {downloadingPath === sub.ppt_url ? (
+                          <Loader2 size={9} className="animate-spin" />
+                        ) : (
+                          <ExternalLink size={9} />
+                        )}
+                        <span>VIEW</span>
+                      </button>
                     </div>
                   ))}
                 </div>

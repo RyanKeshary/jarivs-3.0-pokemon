@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { sql } from '@/lib/supabase/admin';
+import { sql, createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import type {
   Profile,
@@ -299,20 +299,40 @@ export async function uploadSubmission(formData: FormData) {
     throw new Error('No file provided.');
   }
 
-  const fileName = file.name;
-  const ext = fileName.split('.').pop()?.toLowerCase();
+  // Enforce 50MB max limit
+  if (file.size > 52428800) {
+    throw new Error('File size exceeds the 50MB hackathon limit.');
+  }
+
+  const rawFileName = file.name || 'submission.pdf';
+  const ext = rawFileName.split('.').pop()?.toLowerCase();
   if (!['pdf', 'ppt', 'pptx'].includes(ext || '')) {
     throw new Error('Only PDF, PPT, or PPTX presentation decks are accepted.');
   }
 
-  // Upload to private bucket
+  // Map MIME types precisely to match Supabase storage allowed formats
+  const mimeMap: Record<string, string> = {
+    pdf: 'application/pdf',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ppt: 'application/vnd.ms-powerpoint',
+  };
+  const contentType = mimeMap[ext || ''] || file.type || 'application/octet-stream';
+
+  // Sanitize filename preserving letters, numbers, dashes, underscores
+  const lastDot = rawFileName.lastIndexOf('.');
+  const baseName = (lastDot !== -1 ? rawFileName.substring(0, lastDot) : rawFileName)
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(0, 80);
+  const cleanFileName = `${baseName}.${ext}`;
+  const storagePath = `${teamId}/v_${Date.now()}_${cleanFileName}`;
+
+  // Upload to submissions bucket
   const fileBytes = await file.arrayBuffer();
-  const storagePath = `${teamId}/v_${Date.now()}_${fileName}`;
 
   const { error: uploadError } = await supabase.storage
     .from('submissions')
-    .upload(storagePath, fileBytes, {
-      contentType: file.type,
+    .upload(storagePath, Buffer.from(fileBytes), {
+      contentType,
       upsert: true,
     });
 
@@ -335,11 +355,49 @@ export async function uploadSubmission(formData: FormData) {
   // Status update
   await sql`
     INSERT INTO public.status_updates (team_id, user_id, title, message, status)
-    VALUES (${teamId}, ${user.id}, 'Submission Deck Uploaded', ${'Version ' + nextVersion + ' submitted successfully.'}, 'success')
+    VALUES (${teamId}, ${user.id}, 'Submission Deck Uploaded', ${'Version ' + nextVersion + ' (' + cleanFileName + ') submitted successfully.'}, 'success')
   `;
 
   revalidatePath('/dashboard');
-  return { success: true, version: nextVersion };
+  return { success: true, version: nextVersion, fileName: cleanFileName };
+}
+
+// 9. Get Signed URL for Participant Deck Preview / Download
+export async function getDeckDownloadUrl(storagePath: string) {
+  const { user, supabase } = await getAuthUser();
+
+  const pathTeamId = storagePath.split('/')[0];
+
+  // Verify user is team member or staff
+  const isMember = await sql`
+    SELECT 1 FROM public.team_members 
+    WHERE team_id = ${pathTeamId} AND user_id = ${user.id}
+  `;
+
+  if (isMember.length === 0) {
+    const profileRows = await sql`SELECT role FROM public.profiles WHERE id = ${user.id}`;
+    const role = profileRows[0]?.role;
+    const isStaff =
+      role === 'admin' ||
+      role === 'master' ||
+      role === 'manager' ||
+      user.email === 'ryankeshary@gmail.com' ||
+      user.email === 'shrey.sleeps@gmail.com';
+
+    if (!isStaff) {
+      throw new Error('Unauthorized to view this deck.');
+    }
+  }
+
+  const { data, error } = await supabase.storage
+    .from('submissions')
+    .createSignedUrl(storagePath, 3600);
+
+  if (error || !data?.signedUrl) {
+    throw new Error('Failed to generate download URL: ' + (error?.message || 'Unknown error'));
+  }
+
+  return { signedUrl: data.signedUrl };
 }
 
 // 7. Trainer Password Change
