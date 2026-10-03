@@ -147,26 +147,42 @@ export function AuthForm() {
           playRetroBeep(220, 'sawtooth', 0.15);
         } else {
           playVictoryChime();
-          setSuccessMsg('Login successful! Welcome back, Trainer.');
 
-          // If admin/master email or role, redirect directly to admin panel (/admin)
           let target = '/dashboard';
+          let welcomeMsg = 'Welcome back, Trainer! Entering Pokémon Center...';
+
           if (isMaster) {
             target = '/admin';
+            const staffName = emailTrimmed.includes('ryan')
+              ? 'Ryan'
+              : emailTrimmed.includes('shrey')
+              ? 'Shrey'
+              : 'Commander';
+            welcomeMsg = `Command Staff recognized! Welcome, Master ${staffName}. Redirecting to Admin HQ...`;
           } else if (data?.user?.id) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', data.user.id)
-              .single();
-            if (profile?.role === 'master' || profile?.role === 'admin' || profile?.role === 'manager') {
-              target = '/admin';
+            try {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('role, full_name')
+                .eq('id', data.user.id)
+                .single();
+
+              if (profile?.role === 'master' || profile?.role === 'admin' || profile?.role === 'manager') {
+                target = '/admin';
+                welcomeMsg = `Gym Leader recognized! Welcome, ${profile.full_name || 'Admin'}. Redirecting to Admin HQ...`;
+              } else if (profile?.full_name) {
+                welcomeMsg = `Welcome back, Trainer ${profile.full_name}! Entering Pokémon Center...`;
+              }
+            } catch {
+              // fallback to default
             }
           }
 
+          setSuccessMsg(welcomeMsg);
+
           setTimeout(() => {
             window.location.href = target;
-          }, 150);
+          }, 350);
         }
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {

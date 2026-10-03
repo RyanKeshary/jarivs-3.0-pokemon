@@ -3,11 +3,13 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 const connectionString =
   process.env.DATABASE_URL ||
-  'postgresql://postgres.oqqzzyombtcjvlqbjvla:golumolu1234$@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres';
+  'postgresql://postgres.oqqzzyombtcjvlqbjvla:golumolu1234$@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres';
 
 export const sql = postgres(connectionString, {
   ssl: 'require',
-  max: 10,
+  prepare: false,
+  max: 5,
+  idle_timeout: 10,
 });
 
 export function createAdminClient() {
