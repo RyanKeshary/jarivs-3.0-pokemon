@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { LandingClient } from '@/components/landing/LandingClient';
 import { sql } from '@/lib/supabase/admin';
 import type { EventSettings } from '@/lib/database.types';
@@ -78,7 +79,16 @@ async function getEventSettings(): Promise<EventSettings> {
   };
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  if (params.code && typeof params.code === 'string') {
+    redirect(`/auth/callback?code=${encodeURIComponent(params.code)}&next=/auth?mode=update-password`);
+  }
+
   const settings = await getEventSettings();
   return <LandingClient settings={settings} />;
 }

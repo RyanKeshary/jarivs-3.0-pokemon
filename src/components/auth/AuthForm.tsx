@@ -20,9 +20,17 @@ function isMasterEmail(emailStr: string): boolean {
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
+  const rawMode = searchParams.get('mode');
+  const initialMode =
+    rawMode === 'register'
+      ? 'register'
+      : rawMode === 'update-password'
+      ? 'update-password'
+      : rawMode === 'reset'
+      ? 'reset'
+      : 'login';
 
-  const [mode, setMode] = useState<'register' | 'login' | 'reset'>(initialMode);
+  const [mode, setMode] = useState<'register' | 'login' | 'reset' | 'update-password'>(initialMode);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +48,18 @@ export function AuthForm() {
       router.prefetch('/dashboard');
     } catch {}
   }, [router]);
+
+  // Sync mode with searchParams if it changes
+  useEffect(() => {
+    const m = searchParams.get('mode');
+    if (m === 'update-password' || m === 'register' || m === 'login' || m === 'reset') {
+      setMode(m);
+    }
+    const err = searchParams.get('error');
+    if (err === 'expired_or_invalid_code') {
+      setErrorMsg('This recovery link has expired or has already been used. Please request a new recovery poké-ball.');
+    }
+  }, [searchParams]);
 
   // Real-time domain validation check
   // Until and unless someone puts exactly what the master email is, show college email caution
@@ -74,8 +94,8 @@ export function AuthForm() {
     const emailTrimmed = email.trim().toLowerCase();
     const isMaster = isMasterEmail(emailTrimmed);
 
-    // Enforce @slrtce.in unless exact master email
-    if (!emailTrimmed.endsWith('@slrtce.in') && !isMaster) {
+    // Enforce @slrtce.in unless exact master email (only for register, login, reset)
+    if (mode !== 'update-password' && !emailTrimmed.endsWith('@slrtce.in') && !isMaster) {
       setErrorMsg('Only @slrtce.in trainers may enter! Registration & Login is restricted to SLRTCE college IDs.');
       playRetroBeep(220, 'sawtooth', 0.15);
       return;
@@ -192,14 +212,42 @@ export function AuthForm() {
           }, 100);
         }
       } else if (mode === 'reset') {
+        const redirectUrl = `${window.location.origin}/auth/callback?next=/auth?mode=update-password`;
         const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {
-          redirectTo: `${window.location.origin}/auth?mode=update-password`,
+          redirectTo: redirectUrl,
         });
 
         if (error) {
           setErrorMsg(error.message);
+          playRetroBeep(220, 'sawtooth', 0.15);
         } else {
           setSuccessMsg('Recovery poké-ball signal sent! Check your inbox for the reset link.');
+        }
+      } else if (mode === 'update-password') {
+        if (password.length < 6) {
+          setErrorMsg('Passcode must be at least 6 characters.');
+          setLoading(false);
+          return;
+        }
+        if (password !== confirmPassword) {
+          setErrorMsg('Passcodes do not match.');
+          setLoading(false);
+          return;
+        }
+
+        const { error } = await supabase.auth.updateUser({
+          password: password,
+        });
+
+        if (error) {
+          setErrorMsg(error.message);
+          playRetroBeep(220, 'sawtooth', 0.15);
+        } else {
+          playVictoryChime();
+          setSuccessMsg('Secret passcode updated successfully! Teleporting to Pokémon Center...');
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 1200);
         }
       }
     } catch (err: unknown) {
@@ -243,37 +291,46 @@ export function AuthForm() {
           )}
         </div>
 
-        {/* Tab Selection: Only REGISTER and LOGIN */}
-        <div className="grid grid-cols-2 border-b-2 border-gray-200 bg-gray-50">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('register');
-              setErrorMsg(null);
-            }}
-            className={`py-3.5 font-pixel text-xs transition-all cursor-pointer ${
-              mode === 'register'
-                ? 'bg-white text-[#EE1515] border-b-3 border-[#EE1515] font-bold shadow-sm'
-                : 'text-gray-500 hover:text-black'
-            }`}
-          >
-            REGISTER
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('login');
-              setErrorMsg(null);
-            }}
-            className={`py-3.5 font-pixel text-xs transition-all cursor-pointer ${
-              mode === 'login'
-                ? 'bg-white text-[#EE1515] border-b-3 border-[#EE1515] font-bold shadow-sm'
-                : 'text-gray-500 hover:text-black'
-            }`}
-          >
-            LOGIN
-          </button>
-        </div>
+        {/* Tab Selection: Only REGISTER and LOGIN if not update-password */}
+        {mode === 'update-password' ? (
+          <div className="p-3.5 bg-amber-500/10 border-b-2 border-gray-200 text-center flex items-center justify-center gap-2">
+            <KeyRound size={14} className="text-[#EE1515]" />
+            <span className="font-pixel text-[11px] text-[#EE1515] tracking-wider">
+              RECOVERY PROTOCOL: SET NEW SECRET PASSCODE
+            </span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 border-b-2 border-gray-200 bg-gray-50">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setErrorMsg(null);
+              }}
+              className={`py-3.5 font-pixel text-xs transition-all cursor-pointer ${
+                mode === 'register'
+                  ? 'bg-white text-[#EE1515] border-b-3 border-[#EE1515] font-bold shadow-sm'
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              REGISTER
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setErrorMsg(null);
+              }}
+              className={`py-3.5 font-pixel text-xs transition-all cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-white text-[#EE1515] border-b-3 border-[#EE1515] font-bold shadow-sm'
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              LOGIN
+            </button>
+          </div>
+        )}
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-4">
@@ -328,30 +385,32 @@ export function AuthForm() {
             </div>
           )}
 
-          {/* Email Field */}
-          <div>
-            <label className="font-pixel text-[10px] text-gray-700 block mb-1 flex items-center justify-between">
-              <span>{isMasterActive ? 'STAFF / MASTER EMAIL' : 'COLLEGE EMAIL (@slrtce.in)'}</span>
-              {!isMasterActive && (
-                <span className="text-[9px] text-[#EE1515] font-mono font-bold">REQUIRED</span>
-              )}
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="trainer@slrtce.in"
-              className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] transition-all"
-            />
-          </div>
+          {/* Email Field (Hide if update-password) */}
+          {mode !== 'update-password' && (
+            <div>
+              <label className="font-pixel text-[10px] text-gray-700 block mb-1 flex items-center justify-between">
+                <span>{isMasterActive ? 'STAFF / MASTER EMAIL' : 'COLLEGE EMAIL (@slrtce.in)'}</span>
+                {!isMasterActive && (
+                  <span className="text-[9px] text-[#EE1515] font-mono font-bold">REQUIRED</span>
+                )}
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="trainer@slrtce.in"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] transition-all"
+              />
+            </div>
+          )}
 
           {/* Password Field */}
           {mode !== 'reset' && (
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="font-pixel text-[10px] text-gray-700">
-                  SECRET PASSCODE
+                  {mode === 'update-password' ? 'NEW SECRET PASSCODE' : 'SECRET PASSCODE'}
                 </label>
                 {mode === 'login' && (
                   <button
@@ -374,11 +433,11 @@ export function AuthForm() {
             </div>
           )}
 
-          {/* Confirm Password (Register only) */}
-          {mode === 'register' && (
+          {/* Confirm Password (Register or update-password) */}
+          {(mode === 'register' || mode === 'update-password') && (
             <div>
               <label className="font-pixel text-[10px] text-gray-700 block mb-1">
-                CONFIRM PASSCODE
+                {mode === 'update-password' ? 'CONFIRM NEW SECRET PASSCODE' : 'CONFIRM PASSCODE'}
               </label>
               <input
                 type="password"
@@ -406,6 +465,11 @@ export function AuthForm() {
               </>
             ) : mode === 'reset' ? (
               <span>SEND RECOVERY POKÉ-BALL</span>
+            ) : mode === 'update-password' ? (
+              <>
+                <KeyRound size={14} />
+                <span>SAVE NEW SECRET PASSCODE</span>
+              </>
             ) : isMasterActive ? (
               <>
                 <Shield size={14} />
@@ -420,11 +484,15 @@ export function AuthForm() {
             )}
           </button>
 
-          {mode === 'reset' && (
+          {(mode === 'reset' || mode === 'update-password') && (
             <button
               type="button"
-              onClick={() => setMode('login')}
-              className="w-full text-center text-xs font-mono text-gray-500 hover:text-black py-1"
+              onClick={() => {
+                setMode('login');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+              className="w-full text-center text-xs font-mono text-gray-500 hover:text-black py-1 cursor-pointer"
             >
               Back to Login
             </button>

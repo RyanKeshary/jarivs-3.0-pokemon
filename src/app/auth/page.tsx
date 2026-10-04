@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { AuthForm } from '@/components/auth/AuthForm';
 
@@ -8,7 +9,15 @@ export const metadata = {
   description: 'Enter the arena for Kento League · Jarvis Hackathon 3.0',
 };
 
-export default function AuthPage() {
+export default async function AuthPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  if (params.code && typeof params.code === 'string') {
+    redirect(`/auth/callback?code=${encodeURIComponent(params.code)}&next=/auth?mode=update-password`);
+  }
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col justify-between p-4 sm:p-8">
       {/* Top Bar */}
