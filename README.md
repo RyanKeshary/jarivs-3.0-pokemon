@@ -56,7 +56,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://oqqzzyombtcjvlqbjvla.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_QMmz5ZNtmwnZssxC6KnH1g_zoRZ6FIr
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_ewtYkko7i-hunSbn7A2buw_1PBLpRn2
 DATABASE_URL=postgresql://postgres.oqqzzyombtcjvlqbjvla:golumolu1234$@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=https://jarivs-3-0-pokemon.vercel.app
 ```
 
 ### 4. Database Migrations & Asset Prep

@@ -1,25 +1,36 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+function getDeployedOrigin(request: NextRequest): string {
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost?.includes('jarivs-3-0-pokemon.onrender.com')) {
+    return 'https://jarivs-3-0-pokemon.onrender.com';
+  }
+  if (forwardedHost?.includes('jarivs-3-0-pokemon.vercel.app')) {
+    return 'https://jarivs-3-0-pokemon.vercel.app';
+  }
+  const { origin } = new URL(request.url);
+  if (origin?.includes('jarivs-3-0-pokemon.onrender.com')) {
+    return 'https://jarivs-3-0-pokemon.onrender.com';
+  }
+  if (origin?.includes('jarivs-3-0-pokemon.vercel.app')) {
+    return 'https://jarivs-3-0-pokemon.vercel.app';
+  }
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
+}
+
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const next = searchParams.get('next') || '/auth?mode=update-password';
+  const targetOrigin = getDeployedOrigin(request);
 
   if (code) {
     try {
       const supabase = await createClient();
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error) {
-        const forwardedHost = request.headers.get('x-forwarded-host');
-        const isLocalEnv = process.env.NODE_ENV === 'development';
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${next}`);
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${next}`);
-        } else {
-          return NextResponse.redirect(`${origin}${next}`);
-        }
+        return NextResponse.redirect(`${targetOrigin}${next}`);
       }
     } catch (err) {
       console.error('Error exchanging auth code for session:', err);
@@ -27,5 +38,5 @@ export async function GET(request: NextRequest) {
   }
 
   // If code exchange failed or expired
-  return NextResponse.redirect(`${origin}/auth?error=expired_or_invalid_code`);
+  return NextResponse.redirect(`${targetOrigin}/auth?error=expired_or_invalid_code`);
 }

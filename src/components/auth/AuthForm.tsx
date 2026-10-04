@@ -212,7 +212,20 @@ export function AuthForm() {
           }, 100);
         }
       } else if (mode === 'reset') {
-        const redirectUrl = `${window.location.origin}/auth/callback?next=/auth?mode=update-password`;
+        const getDeployedBaseUrl = () => {
+          if (typeof window !== 'undefined') {
+            const origin = window.location.origin;
+            if (origin.includes('jarivs-3-0-pokemon.onrender.com')) {
+              return 'https://jarivs-3-0-pokemon.onrender.com';
+            }
+            if (origin.includes('jarivs-3-0-pokemon.vercel.app')) {
+              return 'https://jarivs-3-0-pokemon.vercel.app';
+            }
+          }
+          return process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
+        };
+
+        const redirectUrl = `${getDeployedBaseUrl()}/auth/callback?next=/auth?mode=update-password`;
         const { error } = await supabase.auth.resetPasswordForEmail(emailTrimmed, {
           redirectTo: redirectUrl,
         });
