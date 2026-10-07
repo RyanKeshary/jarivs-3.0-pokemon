@@ -13,9 +13,10 @@ if (connectionString.includes('pooler.supabase.com:5432')) {
 export const sql = postgres(connectionString, {
   ssl: 'require',
   prepare: false,
-  max: 10,
-  idle_timeout: 15,
-  connect_timeout: 10,
+  max: 5,
+  idle_timeout: 10,
+  connect_timeout: 3,
+  onnotice: () => {},
 });
 
 export function createAdminClient() {

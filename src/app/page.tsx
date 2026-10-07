@@ -1,35 +1,34 @@
 import { redirect } from 'next/navigation';
 import { LandingClient } from '@/components/landing/LandingClient';
-import { sql } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { EventSettings } from '@/lib/database.types';
 
 export const revalidate = 60; // Revalidate every 60 seconds
 
 async function getEventSettings(): Promise<EventSettings> {
   try {
-    const rows = await sql`
-      SELECT 
-        id, 
-        name, 
-        tagline, 
-        deadline::text as deadline, 
-        countdown_target::text as countdown_target, 
-        registration_deadline::text as registration_deadline, 
-        min_team_size, 
-        max_team_size, 
-        brochure_url, 
-        ppt_template_url, 
-        landing_content, 
-        updated_at::text as updated_at
-      FROM public.event_settings 
-      WHERE id = 1
-    `;
+    const supabase = createAdminClient();
+    const queryPromise = supabase
+      .from('event_settings')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle();
 
-    if (rows && rows.length > 0) {
-      return rows[0] as unknown as EventSettings;
+    // 2-second timeout guard to prevent any server hang
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((_, reject) =>
+      setTimeout(() => reject(new Error('Event settings fetch timeout')), 2000)
+    );
+
+    const result = (await Promise.race([queryPromise, timeoutPromise])) as {
+      data: any;
+      error: any;
+    };
+
+    if (result && result.data) {
+      return result.data as unknown as EventSettings;
     }
   } catch (err) {
-    console.error('Failed to load event settings from DB, using fallback:', err);
+    // Graceful fallback to instant default settings
   }
 
   // Fallback defaults

@@ -1,0 +1,20 @@
+{
+  "name": "Kento League · Jarvis Hackathon 3.0",
+  "short_name": "Kento League",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#EE1515",
+  "background_color": "#0A0D14"
+}

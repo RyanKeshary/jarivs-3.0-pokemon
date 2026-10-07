@@ -122,58 +122,7 @@ export function About({ content }: AboutProps) {
             })}
           </div>
         </div>
-
-        {/* Tracks Section */}
-        <div id="tracks" className="mb-20">
-          <div className="text-center mb-10">
-            <h3 className="font-pixel text-lg sm:text-2xl text-[#3B4CCA]">
-              GYM BATTLE TRACKS
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Choose your battlefield. Each track challenges trainers with unique technical problem statements.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {tracks.map((track, i) => (
-              <div
-                key={track.name}
-                className="bg-white border-3 border-[#1E232A] rounded-2xl p-6 shadow-[5px_5px_0px_#1E232A] hover:shadow-[7px_7px_0px_#3B4CCA] hover-lift transition-all cursor-default group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-gray-50 group-hover:bg-red-50/50 rounded-xl border-2 border-[#1E232A] shrink-0 transition-colors">
-                    {TRACK_ICONS[i] || <Cpu size={28} />}
-                  </div>
-                  <div>
-                    <span className="font-mono text-xs font-bold text-gray-400">TRACK 0{i + 1}</span>
-                    <h4 className="font-pixel text-sm text-[#1E232A] group-hover:text-[#3B4CCA] mt-1 transition-colors">{track.name}</h4>
-                    <p className="text-sm text-gray-600 mt-2 leading-relaxed">{track.desc}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Rules & Guidelines */}
-        <div id="rules" className="bg-white border-3 border-[#1E232A] rounded-2xl p-6 sm:p-8 shadow-[6px_6px_0px_#1E232A]">
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-gray-200">
-            <ShieldAlert className="text-[#EE1515]" size={28} />
-            <div>
-              <h3 className="font-pixel text-base sm:text-lg text-[#1E232A]">TRAINER CODE & LEAGUE RULES</h3>
-              <p className="text-xs text-gray-500 font-mono">Fair play guidelines enforced by the League Committee</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {rules.map((rule, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 hover:bg-red-50/40 rounded-xl border border-gray-200 hover:border-[#EE1515] transition-all">
-                <CheckCircle size={18} className="text-[#EE1515] shrink-0 mt-0.5" />
-                <span className="text-sm text-gray-700 font-medium">{rule}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      
       </div>
     </section>
   );
