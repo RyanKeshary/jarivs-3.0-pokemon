@@ -722,6 +722,212 @@ export async function adminBulkUpdateStatus(ids: string[], status: string) {
   return { success: true };
 }
 
+export async function adminDeleteParticipant(id: string) {
+  const { user } = await requireAdmin();
+
+  // 1. Fetch participant record
+  const participantRows = await sql`
+    SELECT * FROM public.fest_registrations WHERE id = ${id}
+  `;
+  if (participantRows.length === 0) {
+    throw new Error('Candidate registration not found.');
+  }
+
+  const participant = participantRows[0];
+  const participantEmail = (participant.email || '').trim().toLowerCase();
+  const participantPhone = (participant.phone || '').trim();
+  const teamId = participant.team_id;
+  const isLeader = Boolean(participant.is_leader);
+
+  // Safeguard: Protect master administrators from deletion
+  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+  if (MASTER_EMAILS.includes(participantEmail)) {
+    throw new Error('Action Prohibited: Cannot delete a Master Administrator record.');
+  }
+
+  // 2. Delete from public.fest_registrations
+  await sql`DELETE FROM public.fest_registrations WHERE id = ${id}`;
+
+  // 3. Handle squad / team integrity
+  let teamDeleted = false;
+  let newLeaderEmail: string | null = null;
+  if (teamId) {
+    const remainingMembers = await sql`
+      SELECT id, email, full_name, is_leader FROM public.fest_registrations WHERE team_id = ${teamId} ORDER BY created_at ASC
+    `;
+
+    if (remainingMembers.length === 0) {
+      // Team has no remaining members, clean up orphan team
+      await sql`DELETE FROM public.fest_teams WHERE id = ${teamId}`;
+      teamDeleted = true;
+    } else if (isLeader) {
+      // Promote first remaining squad member to squad captain
+      const nextLeader = remainingMembers[0];
+      await sql`UPDATE public.fest_registrations SET is_leader = true WHERE id = ${nextLeader.id}`;
+      await sql`UPDATE public.fest_teams SET leader_email = ${nextLeader.email} WHERE id = ${teamId}`;
+      newLeaderEmail = nextLeader.email;
+    }
+  }
+
+  // 4. Delete Supabase Auth user from auth.users (if any exists)
+  let authUserId: string | null = null;
+  try {
+    const adminClient = createAdminClient();
+    const { data: usersData } = await adminClient.auth.admin.listUsers();
+    const authUser = usersData?.users?.find(
+      (u) => u.email?.toLowerCase().trim() === participantEmail
+    );
+    if (authUser) {
+      authUserId = authUser.id;
+      await adminClient.auth.admin.deleteUser(authUser.id);
+    }
+  } catch (authErr) {
+    console.error('Error deleting auth user via admin client:', authErr);
+  }
+
+  // Fallback SQL deletion from auth.users
+  if (authUserId) {
+    try {
+      await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
+    } catch (e) {}
+  }
+  try {
+    await sql`DELETE FROM auth.users WHERE LOWER(email) = ${participantEmail}`;
+  } catch (e) {}
+
+  // 5. Delete profile record
+  try {
+    if (authUserId) {
+      await sql`DELETE FROM public.profiles WHERE id = ${authUserId}::uuid OR LOWER(email) = ${participantEmail}`;
+    } else {
+      await sql`DELETE FROM public.profiles WHERE LOWER(email) = ${participantEmail}`;
+    }
+  } catch (profErr) {
+    console.error('Error deleting profile:', profErr);
+  }
+
+  // 6. Delete legacy tables entries (registrations, team_members)
+  try {
+    await sql`DELETE FROM public.registrations WHERE LOWER(email) = ${participantEmail}`;
+    if (authUserId) {
+      await sql`DELETE FROM public.team_members WHERE user_id = ${authUserId}::uuid`;
+    }
+  } catch (legacyErr) {
+    // non-fatal
+  }
+
+  // 7. Audit Log
+  await logAudit(
+    user.id,
+    user.email || '',
+    'DELETE_PARTICIPANT_PERMANENT',
+    'fest_registrations',
+    id,
+    {
+      deletedName: participant.full_name,
+      deletedEmail: participantEmail,
+      deletedPhone: participantPhone,
+      teamId,
+      teamCode: participant.team_code,
+      teamDeleted,
+      promotedLeader: newLeaderEmail,
+    }
+  );
+
+  // 8. Cache revalidation
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/register');
+  revalidatePath('/');
+
+  return { success: true };
+}
+
+export async function adminBulkDeleteParticipants(ids: string[]) {
+  const { user } = await requireAdmin();
+  if (!ids || ids.length === 0) return { success: true, count: 0 };
+
+  let count = 0;
+  for (const id of ids) {
+    try {
+      await adminDeleteParticipant(id);
+      count++;
+    } catch (err) {
+      console.error(`Failed to delete candidate ${id}:`, err);
+    }
+  }
+
+  await logAudit(
+    user.id,
+    user.email || '',
+    'BULK_DELETE_PARTICIPANTS',
+    'fest_registrations',
+    'bulk',
+    { requestedCount: ids.length, deletedCount: count }
+  );
+
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/register');
+  revalidatePath('/');
+
+  return { success: true, count };
+}
+
+export async function adminDeleteUserByEmail(email: string) {
+  const { user } = await requireAdmin();
+  const cleanEmail = email.trim().toLowerCase();
+
+  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+  if (MASTER_EMAILS.includes(cleanEmail)) {
+    throw new Error('Action Prohibited: Cannot delete a Master Administrator record.');
+  }
+
+  // Find all fest registrations for this email
+  const regRows = await sql`
+    SELECT id FROM public.fest_registrations WHERE LOWER(email) = ${cleanEmail}
+  `;
+  for (const reg of regRows) {
+    await adminDeleteParticipant(reg.id);
+  }
+
+  // Clean auth and profiles directly
+  let authUserId: string | null = null;
+  try {
+    const adminClient = createAdminClient();
+    const { data: usersData } = await adminClient.auth.admin.listUsers();
+    const authUser = usersData?.users?.find((u) => u.email?.toLowerCase().trim() === cleanEmail);
+    if (authUser) {
+      authUserId = authUser.id;
+      await adminClient.auth.admin.deleteUser(authUser.id);
+    }
+  } catch (err) {}
+
+  if (authUserId) {
+    try {
+      await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
+    } catch (e) {}
+    try {
+      await sql`DELETE FROM public.profiles WHERE id = ${authUserId}::uuid`;
+    } catch (e) {}
+  }
+  try {
+    await sql`DELETE FROM auth.users WHERE LOWER(email) = ${cleanEmail}`;
+    await sql`DELETE FROM public.profiles WHERE LOWER(email) = ${cleanEmail}`;
+    await sql`DELETE FROM public.registrations WHERE LOWER(email) = ${cleanEmail}`;
+  } catch (e) {}
+
+  await logAudit(user.id, user.email || '', 'DELETE_USER_BY_EMAIL', 'profiles', cleanEmail, { email: cleanEmail });
+
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/register');
+  revalidatePath('/');
+
+  return { success: true };
+}
+
+
 export async function adminCreateManualParticipant(data: {
   teamId?: string;
   teamCode?: string;

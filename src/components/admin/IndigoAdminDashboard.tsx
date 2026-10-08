@@ -37,6 +37,8 @@ import {
   adminUpdateParticipantDetails,
   adminCreateManualParticipant,
   adminBulkUpdateStatus,
+  adminDeleteParticipant,
+  adminBulkDeleteParticipants,
   adminUpdateTeam,
   adminDeleteTeam,
   adminChangeTeamLeader,
@@ -189,6 +191,50 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     setFeedbackNotice(`Updated status for ${selectedRegIds.length} participants.`);
     setSelectedRegIds([]);
     if (onRefresh) onRefresh();
+  };
+
+  // Participant Deletion Handlers
+  const handleDeleteParticipant = async (participant: any) => {
+    const confirmMsg = `Are you sure you want to permanently delete candidate "${participant.full_name}" (${participant.email})?\n\nThis will completely purge their registration, squad membership, and authentication account from the database so they can re-register from scratch.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsProcessing(true);
+    try {
+      const res = await adminDeleteParticipant(participant.id);
+      if (res?.success) {
+        setFeedbackNotice(`Successfully purged candidate "${participant.full_name}" (${participant.email}). They can now re-register.`);
+        setSelectedRegIds((prev) => prev.filter((id) => id !== participant.id));
+        if (onRefresh) onRefresh();
+      } else {
+        alert('Failed to delete participant record.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error occurred while deleting candidate.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRegIds.length === 0) return;
+    const confirmMsg = `Are you sure you want to permanently delete all ${selectedRegIds.length} selected participant(s)?\n\nTheir registrations, squad memberships, and authentication accounts will be completely wiped from the database so they can re-register.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsProcessing(true);
+    try {
+      const res = await adminBulkDeleteParticipants(selectedRegIds);
+      if (res?.success) {
+        setFeedbackNotice(`Successfully deleted ${res.count || selectedRegIds.length} candidate(s).`);
+        setSelectedRegIds([]);
+        if (onRefresh) onRefresh();
+      } else {
+        alert('Failed to delete selected participants.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error during bulk deletion.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Side Export Drawer State
@@ -881,6 +927,15 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                       Mark Day 2
                     </button>
                     <button
+                      onClick={handleBulkDelete}
+                      disabled={isProcessing}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded shadow-2xs cursor-pointer transition-colors"
+                      title="Permanently delete selected candidates so they can re-register"
+                    >
+                      <Trash2 size={12} />
+                      <span>Delete Selected ({selectedRegIds.length})</span>
+                    </button>
+                    <button
                       onClick={() => setSelectedRegIds([])}
                       className="px-2.5 py-1 text-slate-600 hover:text-slate-900"
                     >
@@ -951,13 +1006,25 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                           {renderStatusBadge(reg.status)}
                         </td>
                         <td className="p-3.5 text-right">
-                          <button
-                            onClick={() => setEditingParticipant(reg)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded border border-slate-300 transition-colors cursor-pointer"
-                          >
-                            <Edit size={12} />
-                            <span>Edit</span>
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setEditingParticipant(reg)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded border border-slate-300 transition-colors cursor-pointer"
+                              title="Edit candidate details"
+                            >
+                              <Edit size={12} />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteParticipant(reg)}
+                              disabled={isProcessing}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 font-bold text-xs rounded border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
+                              title="Permanently delete candidate so they can re-register"
+                            >
+                              <Trash2 size={12} />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1721,32 +1788,49 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
               <button
-                onClick={() => setEditingParticipant(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  await adminUpdateParticipantDetails(editingParticipant.id, {
-                    fullName: editingParticipant.full_name,
-                    email: editingParticipant.email,
-                    phone: editingParticipant.phone,
-                    college: editingParticipant.college,
-                    department: editingParticipant.department || '',
-                    yearOfStudy: editingParticipant.year_of_study || '',
-                    collegeId: editingParticipant.college_id,
-                    status: editingParticipant.status
-                  });
+                type="button"
+                onClick={() => {
+                  const target = editingParticipant;
                   setEditingParticipant(null);
-                  if (onRefresh) onRefresh();
+                  handleDeleteParticipant(target);
                 }}
-                className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                disabled={isProcessing}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
+                title="Permanently delete candidate so they can re-register"
               >
-                Save Details
+                <Trash2 size={13} />
+                <span>Delete Candidate</span>
               </button>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setEditingParticipant(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await adminUpdateParticipantDetails(editingParticipant.id, {
+                      fullName: editingParticipant.full_name,
+                      email: editingParticipant.email,
+                      phone: editingParticipant.phone,
+                      college: editingParticipant.college,
+                      department: editingParticipant.department || '',
+                      yearOfStudy: editingParticipant.year_of_study || '',
+                      collegeId: editingParticipant.college_id,
+                      status: editingParticipant.status
+                    });
+                    setEditingParticipant(null);
+                    if (onRefresh) onRefresh();
+                  }}
+                  className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  Save Details
+                </button>
+              </div>
             </div>
           </div>
         </div>
