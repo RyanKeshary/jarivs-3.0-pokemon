@@ -69,9 +69,20 @@ export function VideoPhoneDashboard({
 
   const handleLogout = async () => {
     playRetroBeep(330, 'square', 0.08);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = '/';
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {}
+
+    try {
+      localStorage.setItem('indigo_logged_out', 'true');
+      localStorage.removeItem('indigo_logged_in');
+      localStorage.removeItem('indigo_user_registered');
+      localStorage.removeItem('indigo_user_events_count');
+      window.dispatchEvent(new Event('auth_state_change'));
+    } catch {}
+
+    window.location.href = '/auth?mode=login';
   };
 
   const togglePokedex = () => {
@@ -127,13 +138,13 @@ export function VideoPhoneDashboard({
             </Link>
 
             {(profile.role === 'admin' || profile.role === 'master') && (
-              <Link
+              <a
                 href="/admin"
                 className="flex items-center gap-1 px-2.5 py-1 bg-[#EE1515] hover:bg-[#D01010] text-white text-xs rounded-lg border border-white font-pixel text-[9px]"
               >
                 <Shield size={12} />
                 <span>ADMIN</span>
-              </Link>
+              </a>
             )}
 
             <button

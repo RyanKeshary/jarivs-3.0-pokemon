@@ -1,6 +1,6 @@
 'use server';
 
-import { sql } from '@/lib/supabase/admin';
+import { sql, createAdminClient } from '@/lib/supabase/admin';
 import crypto from 'crypto';
 
 // Character set excluding confusing 0, O, 1, I, L
@@ -65,6 +65,20 @@ export async function createFestTeam(payload: CreateTeamPayload) {
 
     if (phone.length < 10) {
       throw new Error('Please enter a valid contact phone or WhatsApp number.');
+    }
+
+    // 1. Strict duplicate account check: prevent registering twice with the same email
+    const existingWithEmail = await sql`
+      SELECT fr.email, ft.name as team_name, ft.code as team_code
+      FROM public.fest_registrations fr
+      JOIN public.fest_teams ft ON fr.team_id = ft.id
+      WHERE LOWER(fr.email) = ${email}
+    `;
+
+    if (existingWithEmail.length > 0) {
+      throw new Error(
+        `Account already exists! A registration with email "${email}" is already enrolled under squad "${existingWithEmail[0].team_name}" (Code: ${existingWithEmail[0].team_code}). Please sign in to your dashboard.`
+      );
     }
 
     // Duplicate check and max 2 events per candidate rule across teams
@@ -172,6 +186,33 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       // non-fatal
     }
 
+    // Provision user in auth & profiles for dashboard access
+    const defaultPassword = 'TrainerPass2026!';
+    try {
+      const admin = createAdminClient();
+      const { data: authUser } = await admin.auth.admin.createUser({
+        email,
+        password: defaultPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: leader.fullName.trim(),
+          phone,
+        },
+      });
+
+      const uid = authUser?.user?.id;
+      if (uid) {
+        const trainerId = 'TR-' + newTeam.code.replace('JRV-', '');
+        await sql`
+          INSERT INTO public.profiles (id, trainer_id, full_name, email, role)
+          VALUES (${uid}, ${trainerId}, ${leader.fullName.trim()}, ${email}, 'participant')
+          ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name
+        `;
+      }
+    } catch {
+      // non-fatal if user already exists in auth
+    }
+
     return {
       success: true,
       team: {
@@ -180,6 +221,10 @@ export async function createFestTeam(payload: CreateTeamPayload) {
         name: newTeam.name,
         eventIds: newTeam.event_ids,
         leaderToken: newTeam.leader_token,
+      },
+      credentials: {
+        email,
+        password: defaultPassword,
       },
     };
   } catch (err: any) {
@@ -278,6 +323,20 @@ export async function joinFestTeam(payload: {
       throw new Error('Please enter a valid phone or WhatsApp number.');
     }
 
+    // 1. Strict duplicate account check: prevent registering twice with the same email
+    const existingWithEmail = await sql`
+      SELECT fr.email, ft.name as team_name, ft.code as team_code
+      FROM public.fest_registrations fr
+      JOIN public.fest_teams ft ON fr.team_id = ft.id
+      WHERE LOWER(fr.email) = ${email}
+    `;
+
+    if (existingWithEmail.length > 0) {
+      throw new Error(
+        `Account already exists! A registration with email "${email}" is already enrolled under squad "${existingWithEmail[0].team_name}" (Code: ${existingWithEmail[0].team_code}). Please sign in to your dashboard.`
+      );
+    }
+
     // Capacity verification
     const currentMembers = await sql`
       SELECT COUNT(*)::int as count FROM public.fest_registrations WHERE team_id = ${team.id}
@@ -297,12 +356,12 @@ export async function joinFestTeam(payload: {
       throw new Error('This team has already reached its maximum allowed roster capacity.');
     }
 
-    // Duplicate check for this member
+    // Duplicate check for this member across phone or event overlaps
     const existing = await sql`
       SELECT fr.email, fr.phone, ft.name as team_name, ft.code as team_code, ft.event_ids
       FROM public.fest_registrations fr
       JOIN public.fest_teams ft ON fr.team_id = ft.id
-      WHERE (LOWER(fr.email) = ${email} OR fr.phone = ${phone})
+      WHERE fr.phone = ${phone}
     `;
 
     const existingMemberEvents = new Set<string>();
@@ -358,10 +417,41 @@ export async function joinFestTeam(payload: {
       await sql`UPDATE public.fest_teams SET is_locked = TRUE WHERE id = ${team.id}`;
     }
 
+    // Provision user in auth & profiles for dashboard access
+    const defaultPassword = 'TrainerPass2026!';
+    try {
+      const admin = createAdminClient();
+      const { data: authUser } = await admin.auth.admin.createUser({
+        email,
+        password: defaultPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: member.fullName.trim(),
+          phone,
+        },
+      });
+
+      const uid = authUser?.user?.id;
+      if (uid) {
+        const trainerId = 'TR-' + team.code.replace('JRV-', '') + '-' + (memberCount + 1);
+        await sql`
+          INSERT INTO public.profiles (id, trainer_id, full_name, email, role)
+          VALUES (${uid}, ${trainerId}, ${member.fullName.trim()}, ${email}, 'participant')
+          ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name
+        `;
+      }
+    } catch {
+      // non-fatal
+    }
+
     return {
       success: true,
       teamName: team.name,
       teamCode: team.code,
+      credentials: {
+        email,
+        password: defaultPassword,
+      },
     };
   } catch (err: any) {
     return {
@@ -378,14 +468,15 @@ export async function getLeaderTeamData(token: string) {
     const teamRows = await sql`
       SELECT id, code, name, event_ids, leader_email, leader_token, is_locked, is_waitlist, status, created_at
       FROM public.fest_teams
-      WHERE leader_token = ${cleanToken}
+      WHERE leader_token = ${cleanToken} OR UPPER(code) = ${cleanToken.toUpperCase()}
     `;
 
     if (teamRows.length === 0) {
-      return { success: false, error: 'Invalid or expired management link.' };
+      return { success: false, error: 'Invalid or expired squad management link.' };
     }
 
     const team = teamRows[0];
+    const isLeader = team.leader_token === cleanToken;
 
     const members = await sql`
       SELECT id, full_name, email, phone, college, department, year_of_study, college_id, is_leader, status, created_at
@@ -398,6 +489,7 @@ export async function getLeaderTeamData(token: string) {
       success: true,
       team,
       members,
+      isLeader,
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to load team data.' };

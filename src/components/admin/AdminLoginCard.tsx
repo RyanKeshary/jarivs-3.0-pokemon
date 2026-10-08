@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
 import { EngravedPhoenix } from '@/components/illustrations/EngravedPokemon';
 
-export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: () => void }) {
+export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any) => void }) {
   const [email, setEmail] = useState('shrey.sleeps@gmail.com');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('password@67');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -16,6 +18,14 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: () => void 
     setErrorMsg(null);
 
     try {
+      // 1. Authenticate via Server Action to establish session cookies
+      const res = await adminLoginAction(email, password);
+      if (res.success && res.data) {
+        onLoginSuccess(res.data);
+        return;
+      }
+
+      // If server action reported an auth failure, try client auth fallback
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
@@ -23,7 +33,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: () => void 
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(res.error || error.message);
       }
 
       onLoginSuccess();
@@ -34,29 +44,34 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: () => void 
     }
   };
 
+  const fillDefaultCredentials = () => {
+    setEmail('shrey.sleeps@gmail.com');
+    setPassword('password@67');
+  };
+
   return (
-    <div className="min-h-screen bg-[#1B1E4A] flex items-center justify-center p-4 select-none">
-      <div className="w-full max-w-md bg-[#121435] border border-[#AFAEA2] p-8 shadow-[4px_4px_0px_#0E1026] text-[#E9E6DA]">
+    <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-4 select-none">
+      <div className="w-full max-w-md bg-white border-2 border-black p-6 sm:p-8 shadow-[8px_8px_0px_#000] text-black">
         
         {/* Phoenix Crown Header */}
         <div className="flex justify-center mb-4">
-          <EngravedPhoenix size={100} className="w-20" />
+          <EngravedPhoenix size={90} className="w-20" />
         </div>
 
-        <div className="border-b border-[#AFAEA2]/40 pb-4 mb-6 text-center">
-          <span className="label-editorial text-[9px] block">
-            INDIGO PLATEAU CONVOCATION · CODEX MMXXVI
+        <div className="border-b-2 border-black pb-4 mb-5 text-center">
+          <span className="font-mono text-[9px] uppercase tracking-widest text-neutral-600 font-bold block">
+            INDIGO TECH FEST · JARVIS 3.0
           </span>
-          <h1 className="font-serif text-2xl sm:text-3xl text-[#D21319] uppercase font-bold tracking-tight mt-1">
-            ADMINISTRATIVE PORTAL
+          <h1 className="font-sans text-2xl sm:text-3xl font-black uppercase tracking-tight text-black mt-1">
+            Curator & Admin Portal
           </h1>
-          <p className="font-grotesk text-xs text-[#AFAEA2] mt-1">
-            Restricted to fest organizers and master adjudicators.
+          <p className="font-sans text-xs text-neutral-600 mt-1">
+            Restricted to fest organizers, coordinators, and master adjudicators.
           </p>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 bg-[#D21319]/20 border border-[#D21319] text-xs font-grotesk">
+          <div className="mb-4 p-3 bg-red-100 border-2 border-[#D21319] text-xs font-mono text-[#991b1b]">
             <span className="font-bold text-[#D21319]">[ ERROR ]: </span>
             {errorMsg}
           </div>
@@ -64,25 +79,38 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: () => void 
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="label-editorial text-[8px] block mb-1">ADMINISTRATOR EMAIL</label>
+            <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-black block mb-1">
+              ADMINISTRATOR EMAIL
+            </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2.5 text-xs text-[#E9E6DA] font-mono focus:border-[#D21319] focus:outline-none"
+              className="w-full bg-white border-2 border-black p-2.5 text-xs text-black font-mono focus:border-[#D21319] focus:outline-none shadow-[2px_2px_0px_#000]"
             />
           </div>
 
           <div>
-            <label className="label-editorial text-[8px] block mb-1">PASSWORD</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-black block">
+                MASTER PASSWORD
+              </label>
+              <button
+                type="button"
+                onClick={fillDefaultCredentials}
+                className="font-mono text-[9px] text-[#0284c7] hover:underline cursor-pointer"
+              >
+                [ Auto-Fill Default ]
+              </button>
+            </div>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter master password"
-              className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2.5 text-xs text-[#E9E6DA] font-mono focus:border-[#D21319] focus:outline-none"
+              placeholder="Enter administrator password"
+              className="w-full bg-white border-2 border-black p-2.5 text-xs text-black font-mono focus:border-[#D21319] focus:outline-none shadow-[2px_2px_0px_#000]"
             />
           </div>
 
@@ -90,16 +118,18 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: () => void 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-[#D21319] text-[#E9E6DA] font-grotesk font-bold text-xs uppercase tracking-wider border border-[#D21319] shadow-[3px_3px_0px_#0E1026] hover:bg-[#A80D12] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#0E1026] cursor-pointer"
+              className="w-full py-3 bg-[#D21319] hover:bg-[#b00f14] text-white font-sans font-bold text-xs uppercase tracking-wider border-2 border-black shadow-[4px_4px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] cursor-pointer transition-all flex items-center justify-center gap-2"
             >
-              {loading ? 'AUTHENTICATING...' : "ENTER MASTER CONSOLE [ -> ]"}
+              {loading ? 'AUTHENTICATING...' : 'ENTER MASTER CONSOLE [ ➔ ]'}
             </button>
           </div>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-[#AFAEA2]/30 flex justify-between items-center text-[10px] font-mono text-[#AFAEA2]">
-          <span>PROTECTED ROUTE</span>
-          <a href="/" className="hover:text-[#E9E6DA]">[ BACK TO HOME ]</a>
+        <div className="mt-6 pt-4 border-t-2 border-black flex justify-between items-center text-[10px] font-mono text-neutral-600">
+          <span>SECURED CONSOLE</span>
+          <Link href="/" className="hover:text-black font-bold">
+            [ ➔ BACK TO FESTIVAL ]
+          </Link>
         </div>
 
       </div>

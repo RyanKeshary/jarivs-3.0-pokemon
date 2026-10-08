@@ -43,7 +43,23 @@ export async function getDashboardData() {
     sql`SELECT * FROM public.event_settings WHERE id = 1`,
   ]);
 
-  const profile = (profileRows[0] || null) as unknown as Profile | null;
+  let profile = (profileRows[0] || null) as unknown as Profile | null;
+  if (!profile && user) {
+    const trainerId = 'TR-' + user.id.slice(0, 4).toUpperCase();
+    const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trainer';
+    try {
+      await sql`
+        INSERT INTO public.profiles (id, trainer_id, full_name, email, role)
+        VALUES (${user.id}, ${trainerId}, ${fullName}, ${user.email || ''}, 'participant')
+        ON CONFLICT (id) DO NOTHING
+      `;
+      const refreshed = await sql`SELECT * FROM public.profiles WHERE id = ${user.id}`;
+      profile = (refreshed[0] || null) as unknown as Profile | null;
+    } catch {
+      // non-fatal
+    }
+  }
+
   const socialLinks = socialLinksRows as unknown as SocialLink[];
   const announcements = announcementsRows as unknown as Announcement[];
   const problemStatements = problemStatementsRows as unknown as ProblemStatement[];
@@ -64,6 +80,49 @@ export async function getDashboardData() {
       created_at: m.created_at,
       updated_at: m.updated_at,
     };
+  } else if (user.email) {
+    // Check fest_teams and fest_registrations
+    try {
+      const festReg = await sql`
+        SELECT fr.*, ft.code as team_code, ft.name as team_name
+        FROM public.fest_registrations fr
+        JOIN public.fest_teams ft ON fr.team_id = ft.id
+        WHERE LOWER(fr.email) = ${user.email.toLowerCase()}
+        LIMIT 1
+      `;
+      if (festReg.length > 0) {
+        const f = festReg[0];
+        team = {
+          id: f.team_id,
+          team_id: f.team_code,
+          name: f.team_name,
+          join_code: f.team_code,
+          created_by: f.is_leader ? user.id : 'leader',
+          created_at: f.created_at,
+          updated_at: f.created_at,
+        };
+
+        const festMembers = await sql`
+          SELECT fr.id, fr.full_name, fr.email, fr.is_leader, fr.created_at
+          FROM public.fest_registrations fr
+          WHERE fr.team_id = ${f.team_id}
+        `;
+        teamMembers = festMembers.map(fm => ({
+          team_id: f.team_id,
+          user_id: fm.id,
+          joined_at: fm.created_at,
+          profile: {
+            id: fm.id,
+            trainer_id: 'TR-' + String(fm.id).slice(0, 4),
+            full_name: fm.full_name,
+            email: fm.email,
+            role: fm.is_leader ? 'admin' : 'participant',
+          }
+        }));
+      }
+    } catch {
+      // non-fatal
+    }
   }
 
   // Fetch team members, submissions, and status updates in parallel

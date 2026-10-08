@@ -3,6 +3,35 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
+  Users,
+  Shield,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Download,
+  Search,
+  Plus,
+  RefreshCw,
+  LogOut,
+  Settings,
+  Bell,
+  FileText,
+  KeyRound,
+  Edit,
+  Trash2,
+  Lock,
+  Unlock,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Check,
+  X,
+  ExternalLink,
+  Layers,
+  Sparkles,
+  UserCheck
+} from 'lucide-react';
+import {
   adminUpdateParticipantStatus,
   adminUpdateParticipantDetails,
   adminCreateManualParticipant,
@@ -14,7 +43,8 @@ import {
   adminUpdateEvent,
   adminPostFestAnnouncement,
   adminDeleteFestAnnouncement,
-  changeAdminPassword
+  changeAdminPassword,
+  adminLogoutAction
 } from '@/app/actions/admin';
 
 interface IndigoAdminDashboardProps {
@@ -30,9 +60,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   // Registrations Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [eventFilter, setEventFilter] = useState('ALL');
-  const [dayFilter, setDayFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [completionFilter, setCompletionFilter] = useState('ALL');
   const [selectedRegIds, setSelectedRegIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
@@ -76,7 +104,6 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
     return (registrations || []).filter((reg: any) => {
-      // Search query
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -89,12 +116,10 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
       if (!matchesSearch) return false;
 
-      // Event filter
       if (eventFilter !== 'ALL' && !(reg.event_ids || []).includes(eventFilter)) {
         return false;
       }
 
-      // Status filter
       if (statusFilter !== 'ALL' && reg.status !== statusFilter) {
         return false;
       }
@@ -144,8 +169,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     if (onRefresh) onRefresh();
   };
 
-  // CSV Export
-  const exportToCSV = (filterType: 'all' | 'checkedin' | 'day1' | 'day2' = 'all') => {
+  // Side Export Drawer State
+  const [sideExportOpen, setSideExportOpen] = useState(false);
+
+  // Checked-In Count memo
+  const checkedInCount = useMemo(() => {
+    return (registrations || []).filter((r: any) => r.status === 'Checked In').length;
+  }, [registrations]);
+
+  // CSV Export: All Registrations or Checked-In Attendees
+  const exportRegistrationsCSV = (filterType: 'all' | 'checkedin' = 'all') => {
     let rows = registrations || [];
     if (filterType === 'checkedin') {
       rows = rows.filter((r: any) => r.status === 'Checked In');
@@ -158,11 +191,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       'Phone',
       'College',
       'Department',
-      'Year',
+      'Year of Study',
       'College ID',
       'Team Name',
       'Team Code',
-      'Events',
+      'Is Captain',
+      'Enlisted Disciplines',
       'Status',
       'Registered At'
     ];
@@ -172,15 +206,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       ...rows.map((r: any) =>
         [
           r.id,
-          `"${r.full_name}"`,
+          `"${(r.full_name || '').replace(/"/g, '""')}"`,
           r.email,
           r.phone,
-          `"${r.college}"`,
-          `"${r.department}"`,
+          `"${(r.college || '').replace(/"/g, '""')}"`,
+          `"${(r.department || '').replace(/"/g, '""')}"`,
           r.year_of_study,
           `"${r.college_id || ''}"`,
-          `"${r.team_name}"`,
+          `"${(r.team_name || '').replace(/"/g, '""')}"`,
           r.team_code,
+          r.is_leader ? 'Yes' : 'No',
           `"${(r.event_ids || []).join('; ')}"`,
           r.status,
           r.created_at
@@ -192,15 +227,62 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `indigo_tech_fest_${filterType}_${new Date().toISOString().slice(0, 10)}.csv`);
+    const filename =
+      filterType === 'checkedin'
+        ? `indigo_checkins_${new Date().toISOString().slice(0, 10)}.csv`
+        : `indigo_all_registrations_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Print Check-In Sheet
-  const handlePrintSheet = (eventId?: string) => {
-    window.print();
+  // CSV Export: Team / Squad Registrations
+  const exportTeamsCSV = () => {
+    const rows = teams || [];
+    const headers = [
+      'Team ID',
+      'Squad Code',
+      'Squad Name',
+      'Captain Name',
+      'Captain Email',
+      'Captain Phone',
+      'Member Count',
+      'Enlisted Disciplines',
+      'Is Locked',
+      'Is Waitlist',
+      'Manage Token',
+      'Created At'
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((t: any) =>
+        [
+          t.id,
+          t.code,
+          `"${(t.name || '').replace(/"/g, '""')}"`,
+          `"${(t.leader_name || '').replace(/"/g, '""')}"`,
+          t.leader_email || '',
+          t.leader_phone || '',
+          t.member_count || 0,
+          `"${(t.event_ids || []).join('; ')}"`,
+          t.is_locked ? 'Locked' : 'Open',
+          t.is_waitlist ? 'Waitlist' : 'Active',
+          t.manage_token || '',
+          t.created_at
+        ].join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `indigo_team_registrations_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Password Change
@@ -230,113 +312,275 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     if (onRefresh) onRefresh();
   };
 
+  // Status Badge Helper
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Checked In':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+            <UserCheck size={11} /> Checked In
+          </span>
+        );
+      case 'Confirmed':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <CheckCircle2 size={11} /> Confirmed
+          </span>
+        );
+      case 'Qualified for Day 2':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+            <Sparkles size={11} /> Day 2 Qualified
+          </span>
+        );
+      case 'Disqualified':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+            <AlertCircle size={11} /> Disqualified
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+            <Clock size={11} /> {status || 'Pending'}
+          </span>
+        );
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#1B1E4A] text-[#E9E6DA] flex flex-col select-none">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col antialiased">
       
-      {/* Top Admin Navigation Header */}
-      <header className="sticky top-0 z-30 bg-[#121435] border-b border-[#AFAEA2] px-4 sm:px-8 py-3">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* 1. TOP EXECUTIVE MASTHEAD (LIGHT THEMED) */}
+      <header className="bg-white border-b border-slate-200 shadow-xs sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
           
-          <div className="flex items-center gap-4">
-            <Link href="/" className="font-serif text-xl sm:text-2xl text-[#D21319] font-bold uppercase tracking-tight">
-              INDIGO TECH FEST
-            </Link>
-            <span className="label-editorial text-[9px] border border-[#AFAEA2]/40 px-2 py-0.5">
-              ADMINISTRATIVE MASTHEAD · {currentUser?.email}
-            </span>
+          {/* Brand & Identity */}
+          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 bg-[#D21319] rounded-sm shadow-sm" />
+              <Link href="/" className="font-serif text-xl sm:text-2xl font-black text-[#D21319] tracking-tight hover:opacity-90">
+                INDIGO TECH FEST
+              </Link>
+              <span className="hidden sm:inline-block text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                ADMIN CONSOLE
+              </span>
+            </div>
+
+            {/* User pill & Logout button on mobile */}
+            <div className="flex items-center gap-2 md:hidden">
+              <button
+                onClick={async () => {
+                  await adminLogoutAction();
+                  window.location.href = '/';
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
+                title="Logout"
+              >
+                <LogOut size={12} />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
 
-          {/* Action Tabs */}
-          <nav className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-            {(
-              [
-                { id: 'dashboard', label: 'DASHBOARD' },
-                { id: 'registrations', label: 'REGISTRATIONS' },
-                { id: 'teams', label: 'TEAMS' },
-                { id: 'checkin', label: 'CHECK-IN' },
-                { id: 'events', label: 'EVENT SETTINGS' },
-                { id: 'announcements', label: 'NOTICES' },
-                { id: 'audit', label: 'AUDIT LOG' },
-                { id: 'password', label: 'SECURITY' }
-              ] as const
-            ).map((tab) => {
+          {/* User profile & Quick action links (Desktop) */}
+          <div className="hidden md:flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
+              <Shield size={13} className="text-[#D21319]" />
+              <span className="font-semibold">{currentUser?.email || 'Administrator'}</span>
+            </div>
+
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                title="Refresh latest data"
+              >
+                <RefreshCw size={15} />
+              </button>
+            )}
+
+            <button
+              onClick={() => setSideExportOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Open CSV Export Center"
+            >
+              <Download size={13} className="text-[#D21319]" />
+              <span>EXPORT CSV</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                await adminLogoutAction();
+                window.location.href = '/';
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Sign out from Administrator Console"
+            >
+              <LogOut size={13} />
+              <span>LOGOUT</span>
+            </button>
+          </div>
+
+        </div>
+
+        {/* Action Tabs Bar */}
+        <div className="border-t border-slate-100 bg-slate-50/80 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-none">
+            {[
+              { id: 'dashboard', label: 'Overview', icon: Layers },
+              { id: 'registrations', label: 'Registrations', icon: Users },
+              { id: 'teams', label: 'Squads', icon: Shield },
+              { id: 'checkin', label: 'Rapid Check-In', icon: CheckCircle2 },
+              { id: 'events', label: 'Disciplines', icon: Settings },
+              { id: 'announcements', label: 'Notices', icon: Bell },
+              { id: 'audit', label: 'Audit Log', icon: FileText },
+              { id: 'password', label: 'Security', icon: KeyRound },
+            ].map((tab) => {
+              const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1 text-xs font-grotesk font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                     isActive
-                      ? 'bg-[#D21319] text-[#E9E6DA] border border-[#D21319] shadow-[2px_2px_0px_#0E1026]'
-                      : 'bg-[#AFAEA2] text-[#1B1E4A] border border-[#AFAEA2] shadow-[2px_2px_0px_#0E1026] hover:bg-[#E9E6DA]'
+                      ? 'bg-[#D21319] text-white shadow-xs'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
-                  {tab.label}
+                  <Icon size={14} />
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
-          </nav>
-
+          </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8">
+      {/* 2. MAIN CONTENT BODY */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         {/* Global Feedback Banner */}
         {feedbackNotice && (
-          <div className="mb-6 p-3 bg-[#121435] border border-[#E9E6DA] text-xs font-mono flex items-center justify-between">
-            <span>[ SYSTEM ]: {feedbackNotice}</span>
-            <button onClick={() => setFeedbackNotice(null)} className="underline ml-4">[ DISMISS ]</button>
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-mono flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600" />
+              <span>{feedbackNotice}</span>
+            </div>
+            <button
+              onClick={() => setFeedbackNotice(null)}
+              className="text-emerald-700 hover:text-emerald-900 font-bold underline ml-4 cursor-pointer"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
-        {/* 1. DASHBOARD TAB */}
+        {/* ========================================================
+            TAB 1: DASHBOARD OVERVIEW
+           ======================================================== */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             
-            {/* Top Metric Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-5 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026]">
-                <span className="label-editorial text-[9px] block">TOTAL REGISTRANTS</span>
-                <span className="font-serif text-3xl sm:text-5xl font-bold text-[#E9E6DA] block mt-1">
-                  {metrics.totalParticipants}
-                </span>
-                <span className="text-[10px] font-mono text-[#AFAEA2] mt-1 block">CONFIRMED CANDIDATES</span>
+            {/* Quick Actions Header Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">Festival Overview</h1>
+                <p className="text-xs text-slate-500">Live operational telemetry & enrollment status</p>
               </div>
 
-              <div className="p-5 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026]">
-                <span className="label-editorial text-[9px] block">REGISTERED SQUADS</span>
-                <span className="font-serif text-3xl sm:text-5xl font-bold text-[#E9E6DA] block mt-1">
-                  {metrics.totalTeams}
-                </span>
-                <span className="text-[10px] font-mono text-[#AFAEA2] mt-1 block">ACTIVE TEAM ROSTERS</span>
-              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setManualModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#D21319] hover:bg-[#b00f14] text-white rounded-lg shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>On-Spot Register</span>
+                </button>
 
-              <div className="p-5 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026]">
-                <span className="label-editorial text-[9px] block text-[#D21319]">INCOMPLETE SQUADS</span>
-                <span className="font-serif text-3xl sm:text-5xl font-bold text-[#D21319] block mt-1">
-                  {metrics.incompleteTeamsCount}
-                </span>
-                <span className="text-[10px] font-mono text-[#AFAEA2] mt-1 block">BELOW MINIMUM ROSTER SIZE</span>
-              </div>
+                <button
+                  onClick={() => setActiveTab('checkin')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-xs transition-colors cursor-pointer"
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Rapid Check-In</span>
+                </button>
 
-              <div className="p-5 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026]">
-                <span className="label-editorial text-[9px] block">WAITLIST ROSTERS</span>
-                <span className="font-serif text-3xl sm:text-5xl font-bold text-[#AFAEA2] block mt-1">
-                  {metrics.waitlistCount}
-                </span>
-                <span className="text-[10px] font-mono text-[#AFAEA2] mt-1 block">OVER-CAPACITY QUEUE</span>
+                <button
+                  onClick={() => setSideExportOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition-colors cursor-pointer"
+                  title="Open CSV Export Hub"
+                >
+                  <Download size={14} className="text-[#D21319]" />
+                  <span>Export Center</span>
+                </button>
               </div>
             </div>
 
-            {/* Registrations Over Time Line Chart in Theme Colors */}
-            <div className="p-6 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026]">
-              <div className="flex items-center justify-between mb-4 border-b border-[#AFAEA2]/30 pb-2">
-                <span className="label-editorial text-xs">
-                  REGISTRATIONS OVER TIME · CHRONOLOGICAL INFLUX
+            {/* 4 Primary Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* Total Registrants */}
+              <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-blue-400 transition-colors">
+                <div className="flex items-center justify-between text-blue-600 mb-2">
+                  <span className="text-xs font-bold tracking-wider uppercase text-slate-500">Total Candidates</span>
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <Users size={18} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-slate-900">{metrics.totalParticipants}</div>
+                <div className="text-[11px] text-slate-500 font-medium mt-1">Confirmed Enrolled Candidates</div>
+              </div>
+
+              {/* Registered Squads */}
+              <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-emerald-400 transition-colors">
+                <div className="flex items-center justify-between text-emerald-600 mb-2">
+                  <span className="text-xs font-bold tracking-wider uppercase text-slate-500">Registered Squads</span>
+                  <div className="p-2 bg-emerald-50 rounded-lg">
+                    <Shield size={18} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-slate-900">{metrics.totalTeams}</div>
+                <div className="text-[11px] text-slate-500 font-medium mt-1">Active Team Rosters</div>
+              </div>
+
+              {/* Incomplete Squads */}
+              <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-amber-400 transition-colors">
+                <div className="flex items-center justify-between text-amber-600 mb-2">
+                  <span className="text-xs font-bold tracking-wider uppercase text-slate-500">Pending Slots</span>
+                  <div className="p-2 bg-amber-50 rounded-lg">
+                    <AlertCircle size={18} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-amber-700">{metrics.incompleteTeamsCount}</div>
+                <div className="text-[11px] text-slate-500 font-medium mt-1">Below Minimum Roster Size</div>
+              </div>
+
+              {/* Waitlist */}
+              <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-purple-400 transition-colors">
+                <div className="flex items-center justify-between text-purple-600 mb-2">
+                  <span className="text-xs font-bold tracking-wider uppercase text-slate-500">Waitlist Queue</span>
+                  <div className="p-2 bg-purple-50 rounded-lg">
+                    <Clock size={18} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-slate-900">{metrics.waitlistCount}</div>
+                <div className="text-[11px] text-slate-500 font-medium mt-1">Over-Capacity Standby Teams</div>
+              </div>
+
+            </div>
+
+            {/* Registrations Influx Timeline */}
+            <div className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Registrations Timeline</h2>
+                  <p className="text-xs text-slate-500">Chronological influx of participants</p>
+                </div>
+                <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                  Daily Volume
                 </span>
-                <span className="text-xs font-mono text-[#AFAEA2]">THEME COLOR SPECTRUM</span>
               </div>
 
               {timelineData && timelineData.length > 0 ? (
@@ -347,331 +591,388 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
                     return (
                       <div key={idx} className="flex-1 min-w-[50px] flex flex-col items-center gap-2">
-                        <span className="font-mono text-xs text-[#E9E6DA] font-bold">{d.count}</span>
-                        <div
-                          className="w-full bg-[#D21319] border-t-2 border-[#E9E6DA] transition-all"
-                          style={{ height: `${heightPercent}%` }}
-                        />
-                        <span className="text-[10px] font-mono text-[#AFAEA2] truncate w-full text-center">
-                          {d.date}
-                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-800">{d.count}</span>
+                        <div className="w-full bg-slate-100 rounded-t-md h-32 flex items-end p-0.5">
+                          <div
+                            className="w-full bg-[#D21319] hover:bg-[#b00f14] transition-all rounded-t-xs"
+                            style={{ height: `${heightPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-600 font-medium whitespace-nowrap">{d.date}</span>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="py-12 text-center text-xs font-mono text-[#AFAEA2]">
-                  AWAITING INITIAL REGISTRATION FLUX...
+                <div className="p-8 text-center text-xs font-mono text-slate-500 bg-slate-50 rounded-lg">
+                  No timeline telemetry recorded yet.
                 </div>
               )}
             </div>
 
-            {/* Per-Event Counts vs Capacity */}
-            <div className="p-6 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026]">
-              <div className="border-b border-[#AFAEA2]/30 pb-2 mb-4 flex justify-between items-center">
-                <span className="label-editorial text-xs">
-                  DISCIPLINE ALLOCATION VS CAPACITY LIMITS
+            {/* Per-Event Capacities */}
+            <div className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs">
+              <div className="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Discipline Capacity Tracker</h2>
+                  <p className="text-xs text-slate-500">Live team allocations across the 6 tournament events</p>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                  {perEventStats.length} Disciplines
                 </span>
-                <span className="text-xs font-mono text-[#AFAEA2]">6 DISCIPLINES</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {perEventStats.map((ev: any) => (
-                  <div key={ev.id} className="p-4 bg-[#1B1E4A] border border-[#AFAEA2]/40">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-serif text-base font-bold text-[#E9E6DA]">
-                          {ev.name}
-                        </h4>
-                        <span className="text-[10px] font-mono text-[#AFAEA2]">
-                          {ev.day} · {ev.teamCount} Teams ({ev.participantCount} Participants)
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {perEventStats.map((ev: any) => {
+                  const isFull = ev.percentage >= 100;
+                  const isHigh = ev.percentage >= 80;
+
+                  return (
+                    <div key={ev.id} className="p-4 bg-slate-50/70 border border-slate-200 rounded-xl">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900">{ev.name}</h4>
+                          <span className="text-[11px] font-mono text-slate-500 block mt-0.5">
+                            {ev.day} · {ev.teamCount} Teams ({ev.participantCount} Participants)
+                          </span>
+                        </div>
+                        <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                          isFull
+                            ? 'bg-rose-100 text-rose-800'
+                            : isHigh
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {ev.percentage}%
                         </span>
                       </div>
-                      <span className="text-xs font-mono font-bold text-[#D21319]">
-                        {ev.teamCount} / {ev.capacity} ({ev.percentage}%)
-                      </span>
-                    </div>
 
-                    <div className="w-full h-2.5 bg-[#121435] border border-[#AFAEA2]/30">
-                      <div
-                        className="h-full bg-[#D21319]"
-                        style={{ width: `${ev.percentage}%` }}
-                      />
+                      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mt-3">
+                        <div
+                          className={`h-full transition-all ${
+                            isFull ? 'bg-rose-600' : isHigh ? 'bg-amber-500' : 'bg-emerald-600'
+                          }`}
+                          style={{ width: `${Math.min(100, ev.percentage)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                        <span>{ev.teamCount} enrolled</span>
+                        <span>Cap: {ev.capacity} teams</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
           </div>
         )}
 
-        {/* 2. REGISTRATIONS TAB */}
+        {/* ========================================================
+            TAB 2: REGISTRATIONS MANAGEMENT
+           ======================================================== */}
         {activeTab === 'registrations' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             
             {/* Control Bar: Search, Filters, Bulk Actions */}
-            <div className="p-4 bg-[#121435] border border-[#AFAEA2] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-[3px_3px_0px_#0E1026]">
-              
-              {/* Search */}
-              <input
-                type="text"
-                placeholder="Search by name, email, phone, team code, college..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="flex-1 bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-1.5 text-xs text-[#E9E6DA] font-mono focus:border-[#D21319] focus:outline-none"
-              />
+            <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs space-y-3">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search candidate name, email, phone, JRV code, college..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg text-xs font-mono focus:border-[#D21319] focus:ring-1 focus:ring-[#D21319] focus:outline-none"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
 
-              {/* Event Filter */}
-              <select
-                value={eventFilter}
-                onChange={(e) => {
-                  setEventFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-1.5 text-xs text-[#E9E6DA] font-mono"
-              >
-                <option value="ALL">All Disciplines</option>
-                {events.map((ev: any) => (
-                  <option key={ev.id} value={ev.id}>{ev.name.split(':')[0]}</option>
-                ))}
-              </select>
+                {/* Filters & Actions */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  
+                  {/* Event Filter */}
+                  <select
+                    value={eventFilter}
+                    onChange={(e) => {
+                      setEventFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-700 focus:border-[#D21319] focus:outline-none"
+                  >
+                    <option value="ALL">All Disciplines</option>
+                    {events.map((ev: any) => (
+                      <option key={ev.id} value={ev.id}>{ev.name.split(':')[0]}</option>
+                    ))}
+                  </select>
 
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-1.5 text-xs text-[#E9E6DA] font-mono"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Checked In">Checked In</option>
-                <option value="Qualified for Day 2">Qualified for Day 2</option>
-                <option value="Pending">Pending</option>
-                <option value="Disqualified">Disqualified</option>
-              </select>
+                  {/* Status Filter */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-700 focus:border-[#D21319] focus:outline-none"
+                  >
+                    <option value="ALL">All Statuses</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Checked In">Checked In</option>
+                    <option value="Qualified for Day 2">Qualified for Day 2</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Disqualified">Disqualified</option>
+                  </select>
 
-              {/* Export & On-Spot Registration Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setManualModalOpen(true)}
-                  className="px-3 py-1.5 bg-[#D21319] text-[#E9E6DA] font-bold text-xs uppercase border border-[#D21319] shadow-[2px_2px_0px_#0E1026]"
-                >
-                  + ON-SPOT REG.
-                </button>
+                  {/* Add Manual Participant */}
+                  <button
+                    onClick={() => setManualModalOpen(true)}
+                    className="inline-flex items-center gap-1 px-3 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>On-Spot Reg</span>
+                  </button>
 
-                <button
-                  onClick={() => exportToCSV('all')}
-                  className="px-3 py-1.5 bg-[#AFAEA2] text-[#1B1E4A] font-bold text-xs uppercase border border-[#AFAEA2] shadow-[2px_2px_0px_#0E1026] hover:bg-[#E9E6DA]"
-                >
-                  CSV EXPORT
-                </button>
+                  {/* Export CSV */}
+                  <button
+                    onClick={() => setSideExportOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                    title="Export all or filtered CSV"
+                  >
+                    <Download size={14} className="text-[#D21319]" />
+                    <span>Export CSV</span>
+                  </button>
+
+                </div>
               </div>
 
+              {/* Bulk Actions (If items selected) */}
+              {selectedRegIds.length > 0 && (
+                <div className="flex items-center justify-between p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{selectedRegIds.length} candidate(s) selected</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleBulkStatus('Checked In')}
+                      disabled={isProcessing}
+                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow-2xs"
+                    >
+                      Mark Checked In
+                    </button>
+                    <button
+                      onClick={() => handleBulkStatus('Confirmed')}
+                      disabled={isProcessing}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-2xs"
+                    >
+                      Mark Confirmed
+                    </button>
+                    <button
+                      onClick={() => handleBulkStatus('Qualified for Day 2')}
+                      disabled={isProcessing}
+                      className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-2xs"
+                    >
+                      Mark Day 2
+                    </button>
+                    <button
+                      onClick={() => setSelectedRegIds([])}
+                      className="px-2.5 py-1 text-slate-600 hover:text-slate-900"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Bulk Selection Actions */}
-            {selectedRegIds.length > 0 && (
-              <div className="p-3 bg-[#121435] border border-[#D21319] flex items-center justify-between text-xs font-mono">
-                <span>{selectedRegIds.length} PARTICIPANTS SELECTED</span>
+            {/* Registrations Table (Light, High-Contrast) */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="p-3.5 w-10">
+                        <input
+                          type="checkbox"
+                          checked={
+                            paginatedRegistrations.length > 0 &&
+                            selectedRegIds.length === paginatedRegistrations.length
+                          }
+                          onChange={toggleSelectAll}
+                          className="rounded border-slate-300 text-[#D21319] focus:ring-[#D21319]"
+                        />
+                      </th>
+                      <th className="p-3.5">Candidate Details</th>
+                      <th className="p-3.5">Squad & Code</th>
+                      <th className="p-3.5">Contact</th>
+                      <th className="p-3.5">College & Dept</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedRegistrations.map((reg: any) => (
+                      <tr key={reg.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3.5">
+                          <input
+                            type="checkbox"
+                            checked={selectedRegIds.includes(reg.id)}
+                            onChange={() => toggleSelectOne(reg.id)}
+                            className="rounded border-slate-300 text-[#D21319] focus:ring-[#D21319]"
+                          />
+                        </td>
+                        <td className="p-3.5">
+                          <div className="font-bold text-slate-900 text-sm">{reg.full_name}</div>
+                          <div className="text-[11px] font-mono text-slate-500">{reg.email}</div>
+                          {reg.is_leader && (
+                            <span className="inline-block mt-0.5 px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[9px] font-bold">
+                              CAPTAIN
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5">
+                          <div className="font-semibold text-slate-800">{reg.team_name}</div>
+                          <div className="font-mono text-xs text-[#D21319] font-bold">[{reg.team_code}]</div>
+                        </td>
+                        <td className="p-3.5 font-mono text-slate-700">
+                          <div>{reg.phone}</div>
+                        </td>
+                        <td className="p-3.5 text-slate-600">
+                          <div className="font-medium text-slate-800">{reg.college}</div>
+                          <div className="text-[11px] text-slate-500">{reg.department || 'General'} · {reg.year_of_study || 'N/A'}</div>
+                        </td>
+                        <td className="p-3.5">
+                          {renderStatusBadge(reg.status)}
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <button
+                            onClick={() => setEditingParticipant(reg)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded border border-slate-300 transition-colors cursor-pointer"
+                          >
+                            <Edit size={12} />
+                            <span>Edit</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {paginatedRegistrations.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-500 font-mono">
+                          No matching registration records found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+                <span className="font-mono">
+                  Showing {filteredRegistrations.length} total candidates (Page {currentPage} of {totalPages})
+                </span>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleBulkStatus('Checked In')}
-                    className="px-2.5 py-1 bg-[#E9E6DA] text-[#1B1E4A] font-bold"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded font-semibold disabled:opacity-40 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
-                    MARK CHECKED IN
+                    <ChevronLeft size={13} />
+                    <span>Previous</span>
                   </button>
                   <button
-                    onClick={() => handleBulkStatus('Qualified for Day 2')}
-                    className="px-2.5 py-1 bg-[#D21319] text-[#E9E6DA] font-bold"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded font-semibold disabled:opacity-40 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
-                    MARK QUALIFIED DAY 2
-                  </button>
-                  <button
-                    onClick={() => handleBulkStatus('Disqualified')}
-                    className="px-2.5 py-1 bg-[#AFAEA2] text-[#1B1E4A] font-bold"
-                  >
-                    DISQUALIFY
+                    <span>Next</span>
+                    <ChevronRight size={13} />
                   </button>
                 </div>
               </div>
-            )}
-
-            {/* Registrations Table */}
-            <div className="border border-[#AFAEA2] bg-[#121435] overflow-x-auto shadow-[3px_3px_0px_#0E1026]">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-[#1B1E4A] border-b border-[#AFAEA2]/40 text-[#AFAEA2]">
-                  <tr>
-                    <th className="p-3 w-8">
-                      <input
-                        type="checkbox"
-                        checked={selectedRegIds.length === paginatedRegistrations.length && paginatedRegistrations.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="p-3">PARTICIPANT</th>
-                    <th className="p-3">CONTACT</th>
-                    <th className="p-3">SQUAD / CODE</th>
-                    <th className="p-3">COLLEGE</th>
-                    <th className="p-3">STATUS</th>
-                    <th className="p-3 text-right">ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#AFAEA2]/20">
-                  {paginatedRegistrations.map((reg: any) => (
-                    <tr key={reg.id} className="hover:bg-[#1B1E4A]/60">
-                      <td className="p-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedRegIds.includes(reg.id)}
-                          onChange={() => toggleSelectOne(reg.id)}
-                        />
-                      </td>
-                      <td className="p-3">
-                        <div className="font-bold text-[#E9E6DA] font-serif text-sm">
-                          {reg.full_name}
-                        </div>
-                        {reg.is_leader && (
-                          <span className="text-[9px] px-1 bg-[#D21319] text-[#E9E6DA] font-bold">
-                            LEADER
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3 text-[#AFAEA2]">
-                        <div>{reg.email}</div>
-                        <div>{reg.phone}</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="text-[#E9E6DA] font-bold">{reg.team_name}</div>
-                        <div className="text-[#D21319] tracking-wider">{reg.team_code}</div>
-                      </td>
-                      <td className="p-3 text-[#AFAEA2]">
-                        <div>{reg.college}</div>
-                        <div className="text-[10px]">{reg.department} ({reg.year_of_study})</div>
-                      </td>
-                      <td className="p-3">
-                        <select
-                          value={reg.status}
-                          onChange={(e) => handleStatusChange(reg.id, e.target.value)}
-                          className={`text-[11px] px-2 py-0.5 border bg-[#1B1E4A] ${
-                            reg.status === 'Checked In'
-                              ? 'border-[#E9E6DA] text-[#E9E6DA]'
-                              : reg.status === 'Qualified for Day 2'
-                              ? 'border-[#D21319] text-[#D21319]'
-                              : 'border-[#AFAEA2] text-[#AFAEA2]'
-                          }`}
-                        >
-                          <option value="Confirmed">Confirmed</option>
-                          <option value="Checked In">Checked In</option>
-                          <option value="Qualified for Day 2">Qualified for Day 2</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Disqualified">Disqualified</option>
-                        </select>
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => setEditingParticipant(reg)}
-                          className="px-2 py-1 bg-[#AFAEA2] text-[#1B1E4A] font-bold text-[10px] uppercase hover:bg-[#E9E6DA]"
-                        >
-                          EDIT
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {paginatedRegistrations.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-[#AFAEA2]">
-                        NO MATCHING REGISTRATION RECORDS FOUND.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between text-xs font-mono pt-2">
-              <span className="text-[#AFAEA2]">
-                SHOWING {filteredRegistrations.length} RESULTS (PAGE {currentPage} OF {totalPages})
-              </span>
-              <div className="flex gap-2">
-                <button
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1 bg-[#121435] border border-[#AFAEA2] disabled:opacity-30"
-                >
-                  PREVIOUS
-                </button>
-                <button
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-3 py-1 bg-[#121435] border border-[#AFAEA2] disabled:opacity-30"
-                >
-                  NEXT
-                </button>
-              </div>
             </div>
 
           </div>
         )}
 
-        {/* 3. TEAMS MANAGEMENT TAB */}
+        {/* ========================================================
+            TAB 3: TEAMS & SQUADS ARCHIVE
+           ======================================================== */}
         {activeTab === 'teams' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center border-b border-[#AFAEA2]/30 pb-3">
-              <span className="label-editorial text-xs">
-                SQUAD ROSTER ARCHIVE ({teams.length} TEAMS)
-              </span>
+          <div className="space-y-4">
+            
+            <div className="flex justify-between items-center bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Registered Squads Archive</h2>
+                <p className="text-xs text-slate-500">{teams.length} total teams formed across the tournament</p>
+              </div>
               <button
-                onClick={() => exportToCSV('all')}
-                className="px-3 py-1 bg-[#AFAEA2] text-[#1B1E4A] font-bold text-xs uppercase"
+                onClick={exportTeamsCSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                title="Download team registrations CSV"
               >
-                EXPORT TEAMS
+                <Download size={14} className="text-[#D21319]" />
+                <span>Export Teams (.csv)</span>
               </button>
             </div>
 
-            <div className="border border-[#AFAEA2] bg-[#121435] divide-y divide-[#AFAEA2]/25 shadow-[3px_3px_0px_#0E1026]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {teams.map((t: any) => (
-                <div key={t.id} className="p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-[#1B1E4A]/60">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-serif text-lg font-bold text-[#E9E6DA]">
-                        {t.name}
-                      </span>
-                      <span className="font-mono text-xs font-bold text-[#D21319] tracking-wider">
-                        [{t.code}]
-                      </span>
+                <div key={t.id} className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-slate-300 transition-colors space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-slate-900">{t.name}</h3>
+                        <span className="font-mono text-xs font-bold text-[#D21319] bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+                          [{t.code}]
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Captain: <strong className="text-slate-800">{t.leader_name || t.leader_email}</strong> · Roster: <strong className="text-slate-800">{t.member_count} Members</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
                       {t.is_waitlist && (
-                        <span className="text-[9px] px-1.5 py-0.5 border border-[#AFAEA2] text-[#AFAEA2]">
-                          WAITLIST
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          Waitlist
                         </span>
                       )}
                       {t.is_locked && (
-                        <span className="text-[9px] px-1.5 py-0.5 border border-[#D21319] text-[#D21319]">
-                          LOCKED
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                          Locked
                         </span>
                       )}
                     </div>
-                    <div className="text-xs font-mono text-[#AFAEA2] mt-1">
-                      LEADER: {t.leader_name || t.leader_email} · ROSTER: {t.member_count} MEMBERS · EVENTS: {(t.event_ids || []).join(', ')}
-                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-xs font-mono text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <span className="text-[10px] text-slate-400 block uppercase font-bold">Enlisted Disciplines:</span>
+                    <span>{(t.event_ids || []).join(', ') || 'No disciplines'}</span>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                     <button
                       onClick={async () => {
                         await adminUpdateTeam(t.id, { isLocked: !t.is_locked });
                         if (onRefresh) onRefresh();
                       }}
-                      className="px-2.5 py-1 border border-[#AFAEA2] text-[10px] font-mono hover:bg-[#E9E6DA] hover:text-[#1B1E4A]"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium rounded transition-colors cursor-pointer"
                     >
-                      {t.is_locked ? 'UNLOCK' : 'LOCK'}
+                      {t.is_locked ? <Unlock size={12} /> : <Lock size={12} />}
+                      <span>{t.is_locked ? 'Unlock' : 'Lock'}</span>
                     </button>
 
                     <button
@@ -679,9 +980,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                         await adminUpdateTeam(t.id, { isWaitlist: !t.is_waitlist });
                         if (onRefresh) onRefresh();
                       }}
-                      className="px-2.5 py-1 border border-[#AFAEA2] text-[10px] font-mono hover:bg-[#E9E6DA] hover:text-[#1B1E4A]"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium rounded transition-colors cursor-pointer"
                     >
-                      {t.is_waitlist ? 'REMOVE WAITLIST' : 'WAITLIST'}
+                      <span>{t.is_waitlist ? 'Off Waitlist' : 'Waitlist'}</span>
                     </button>
 
                     <button
@@ -691,39 +992,63 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                           if (onRefresh) onRefresh();
                         }
                       }}
-                      className="px-2.5 py-1 bg-[#D21319]/20 border border-[#D21319] text-[#D21319] hover:bg-[#D21319] hover:text-[#E9E6DA] text-[10px] font-mono"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded transition-colors cursor-pointer"
                     >
-                      DELETE
+                      <Trash2 size={12} />
+                      <span>Delete</span>
                     </button>
                   </div>
                 </div>
               ))}
             </div>
+
           </div>
         )}
 
-        {/* 4. CHECK-IN MODE (PHONE-FRIENDLY ONSITE DESK) */}
+        {/* ========================================================
+            TAB 4: RAPID CHECK-IN SCANNER
+           ======================================================== */}
         {activeTab === 'checkin' && (
           <div className="max-w-2xl mx-auto space-y-6">
-            <div className="p-6 bg-[#121435] border border-[#AFAEA2] text-center shadow-[4px_4px_0px_#0E1026]">
-              <span className="label-editorial text-[10px] block mb-1">
-                ONSITE REGISTRATION DESK · PHONE-OPTIMIZED
-              </span>
-              <h2 className="font-serif text-3xl text-[#E9E6DA] font-bold uppercase mb-4">
-                RAPID CHECK-IN SCANNER
-              </h2>
+            
+            <div className="p-8 bg-white border border-slate-200 rounded-2xl shadow-sm text-center space-y-3">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl mx-auto flex items-center justify-center">
+                <CheckCircle2 size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Rapid Attendee Check-In</h2>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Search candidate name, unique JRV squad token, or phone number to register immediate festival admission.
+              </p>
 
-              <input
-                type="text"
-                autoFocus
-                placeholder="Type Attendee Name, JRV-Code, or Phone..."
-                value={checkinQuery}
-                onChange={(e) => setCheckinQuery(e.target.value)}
-                className="w-full bg-[#1B1E4A] border-2 border-[#AFAEA2] p-4 text-base sm:text-lg text-[#E9E6DA] font-mono text-center focus:border-[#D21319] focus:outline-none"
-              />
+              {/* Progress & Quick Export Button */}
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-mono font-bold">
+                  <UserCheck size={13} /> {checkedInCount} of {registrations?.length || 0} Checked In
+                </span>
+                <button
+                  onClick={() => exportRegistrationsCSV('checkedin')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  title="Download CSV of all currently checked-in attendees"
+                >
+                  <Download size={13} className="text-[#D21319]" />
+                  <span>Export Check-Ins CSV</span>
+                </button>
+              </div>
+
+              <div className="relative mt-4">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Type attendee name, JRV-Code, or phone number..."
+                  value={checkinQuery}
+                  onChange={(e) => setCheckinQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-blue-600 rounded-xl text-base font-mono text-slate-900 focus:outline-none transition-all"
+                />
+              </div>
             </div>
 
-            {/* Matching Check-in Candidates */}
+            {/* Results list */}
             <div className="space-y-3">
               {(registrations || [])
                 .filter((r: any) => {
@@ -737,73 +1062,84 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   );
                 })
                 .slice(0, 10)
-                .map((r: any) => (
-                  <div
-                    key={r.id}
-                    className="p-5 bg-[#121435] border border-[#AFAEA2] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[3px_3px_0px_#0E1026]"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-serif text-xl font-bold text-[#E9E6DA]">
-                          {r.full_name}
-                        </span>
-                        <span className="font-mono text-xs font-bold text-[#D21319]">
-                          [{r.team_code}]
-                        </span>
-                      </div>
-                      <div className="text-xs font-mono text-[#AFAEA2] mt-1">
-                        TEAM: {r.team_name} · {r.phone} · {r.college}
-                      </div>
-                      <div className="text-xs font-mono text-[#E9E6DA] mt-0.5">
-                        STATUS: <span className="font-bold">{r.status}</span>
-                      </div>
-                    </div>
+                .map((r: any) => {
+                  const isChecked = r.status === 'Checked In';
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={async () => {
-                          await adminUpdateParticipantStatus(r.id, 'Checked In');
-                          setFeedbackNotice(`${r.full_name} CHECKED IN.`);
-                          if (onRefresh) onRefresh();
-                        }}
-                        className="px-6 py-3 bg-[#E9E6DA] text-[#1B1E4A] font-grotesk font-bold text-sm tracking-wider uppercase border border-[#E9E6DA] shadow-[2px_2px_0px_#0E1026]"
-                      >
-                        CHECK IN [ OK ]
-                      </button>
+                  return (
+                    <div
+                      key={r.id}
+                      className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-slate-900">{r.full_name}</span>
+                          <span className="font-mono text-xs font-bold text-[#D21319]">[{r.team_code}]</span>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          Squad: <strong className="text-slate-700">{r.team_name}</strong> · {r.phone} · {r.college}
+                        </div>
+                        <div className="mt-1.5">{renderStatusBadge(r.status)}</div>
+                      </div>
+
+                      <div>
+                        {isChecked ? (
+                          <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-lg border border-emerald-200">
+                            <Check size={14} /> Checked In
+                          </div>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              await adminUpdateParticipantStatus(r.id, 'Checked In');
+                              setFeedbackNotice(`${r.full_name} successfully checked in.`);
+                              if (onRefresh) onRefresh();
+                            }}
+                            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Check size={14} />
+                            <span>CHECK IN</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  );
+                })}
+
+              {checkinQuery &&
+                (registrations || []).filter((r: any) => {
+                  const q = checkinQuery.trim().toLowerCase();
+                  return (
+                    r.full_name?.toLowerCase().includes(q) ||
+                    r.team_code?.toLowerCase().includes(q) ||
+                    r.phone?.includes(q)
+                  );
+                }).length === 0 && (
+                  <div className="p-8 text-center text-xs font-mono text-slate-500 bg-white border border-slate-200 rounded-xl">
+                    No registered candidate found matching &quot;{checkinQuery}&quot;.
                   </div>
-                ))}
-
-              {checkinQuery && (registrations || []).filter((r: any) => {
-                const q = checkinQuery.trim().toLowerCase();
-                return r.full_name?.toLowerCase().includes(q) || r.team_code?.toLowerCase().includes(q) || r.phone?.includes(q);
-              }).length === 0 && (
-                <div className="p-8 text-center text-xs font-mono text-[#AFAEA2] bg-[#121435] border border-[#AFAEA2]/30">
-                  NO MATCHING CANDIDATES FOUND FOR "{checkinQuery}".
-                </div>
-              )}
+                )}
             </div>
+
           </div>
         )}
 
-        {/* 5. EVENT SETTINGS TAB */}
+        {/* ========================================================
+            TAB 5: EVENT SETTINGS & CONFIG
+           ======================================================== */}
         {activeTab === 'events' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center border-b border-[#AFAEA2]/30 pb-3">
-              <span className="label-editorial text-xs">
-                EVENT DISCIPLINE ARCHITECT & CAPACITY LIMITS
-              </span>
+          <div className="space-y-4">
+            
+            <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
+              <h2 className="text-base font-bold text-slate-900">Event Discipline Capacity Controls</h2>
+              <p className="text-xs text-slate-500">Configure team limits, registration portal status, and team size boundaries</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {events.map((ev: any) => (
-                <div key={ev.id} className="p-6 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026] space-y-4">
-                  <div className="flex justify-between items-start">
+                <div key={ev.id} className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
+                  <div className="flex justify-between items-start gap-2">
                     <div>
-                      <h3 className="font-serif text-xl font-bold text-[#E9E6DA]">
-                        {ev.name}
-                      </h3>
-                      <span className="label-editorial text-[9px] text-[#AFAEA2]">
+                      <h3 className="text-base font-bold text-slate-900">{ev.name}</h3>
+                      <span className="text-xs font-mono text-slate-500 block mt-0.5">
                         {ev.day_label} · {ev.slot_time}
                       </span>
                     </div>
@@ -813,98 +1149,107 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                         await adminUpdateEvent(ev.id, { is_open: !ev.is_open });
                         if (onRefresh) onRefresh();
                       }}
-                      className={`text-[10px] font-mono px-2 py-0.5 border ${
-                        ev.is_open ? 'border-[#E9E6DA] text-[#E9E6DA]' : 'border-[#D21319] text-[#D21319]'
+                      className={`text-xs font-bold px-3 py-1 rounded-full border transition-colors cursor-pointer ${
+                        ev.is_open
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                          : 'bg-rose-50 text-rose-700 border-rose-300'
                       }`}
                     >
-                      {ev.is_open ? 'PORTAL OPEN' : 'PORTAL CLOSED'}
+                      {ev.is_open ? '● Portal Open' : '○ Closed'}
                     </button>
                   </div>
 
-                  <p className="font-grotesk text-xs text-[#AFAEA2]">
+                  <p className="text-xs text-slate-600 leading-relaxed">
                     {ev.description}
                   </p>
 
-                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#AFAEA2]/20 text-xs font-mono text-[#AFAEA2]">
-                    <div>
-                      <span className="block text-[8px] uppercase">CAPACITY</span>
-                      <span className="text-[#E9E6DA] font-bold">{ev.capacity} TEAMS</span>
+                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 text-xs font-mono">
+                    <div className="bg-slate-50 p-2 rounded">
+                      <span className="block text-[9px] uppercase text-slate-400 font-bold">Capacity</span>
+                      <strong className="text-slate-800">{ev.capacity} Teams</strong>
                     </div>
-                    <div>
-                      <span className="block text-[8px] uppercase">TEAM SIZE</span>
-                      <span className="text-[#E9E6DA] font-bold">{ev.min_team_size} - {ev.max_team_size}</span>
+                    <div className="bg-slate-50 p-2 rounded">
+                      <span className="block text-[9px] uppercase text-slate-400 font-bold">Team Size</span>
+                      <strong className="text-slate-800">{ev.min_team_size} - {ev.max_team_size}</strong>
                     </div>
-                    <div>
-                      <span className="block text-[8px] uppercase">FEE</span>
-                      <span className="text-[#E9E6DA] font-bold">{ev.fee}</span>
+                    <div className="bg-slate-50 p-2 rounded">
+                      <span className="block text-[9px] uppercase text-slate-400 font-bold">Tariff</span>
+                      <strong className="text-slate-800">{ev.fee || 'Free'}</strong>
                     </div>
                   </div>
 
                   <div className="pt-2 text-right">
                     <button
                       onClick={() => setEditingEvent(ev)}
-                      className="px-3 py-1 bg-[#AFAEA2] text-[#1B1E4A] font-bold text-xs uppercase"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded border border-slate-300 transition-colors cursor-pointer"
                     >
-                      EDIT CONFIG
+                      <Edit size={12} />
+                      <span>Edit Parameters</span>
                     </button>
                   </div>
                 </div>
               ))}
             </div>
+
           </div>
         )}
 
-        {/* 6. ANNOUNCEMENTS TAB */}
+        {/* ========================================================
+            TAB 6: ANNOUNCEMENTS & NOTICES
+           ======================================================== */}
         {activeTab === 'announcements' && (
-          <div className="max-w-3xl mx-auto space-y-8">
+          <div className="max-w-3xl mx-auto space-y-6">
+            
             {/* Post Notice Form */}
-            <form onSubmit={handlePostAnnouncement} className="p-6 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026] space-y-4">
-              <span className="label-editorial text-xs block text-[#D21319]">
-                PUBLISH FEST NOTICE / BANNER BULLETIN
-              </span>
+            <form onSubmit={handlePostAnnouncement} className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Publish Festival Bulletin</h2>
+                <p className="text-xs text-slate-500">Post announcements that appear on the participant dashboard & banner</p>
+              </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">NOTICE HEADLINE</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Headline</label>
                 <input
                   type="text"
                   required
                   value={announcementTitle}
                   onChange={(e) => setAnnouncementTitle(e.target.value)}
-                  placeholder="e.g. Schedule Update for Day 2 Technical Quiz"
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2.5 text-xs text-[#E9E6DA] font-grotesk focus:border-[#D21319] focus:outline-none"
+                  placeholder="e.g. Schedule Update for Day 2 Cad-Mander Round"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">BULLETIN CONTENT</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Message Content</label>
                 <textarea
                   required
                   rows={3}
                   value={announcementContent}
                   onChange={(e) => setAnnouncementContent(e.target.value)}
-                  placeholder="Detailed instructions or venue update..."
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2.5 text-xs text-[#E9E6DA] font-grotesk focus:border-[#D21319] focus:outline-none"
+                  placeholder="Enter detailed room instructions, timing reminders, or protocol notices..."
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
                 />
               </div>
 
               <div className="text-right">
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#D21319] text-[#E9E6DA] font-grotesk font-bold text-xs uppercase border border-[#D21319] shadow-[2px_2px_0px_#0E1026]"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
                 >
-                  DISPATCH NOTICE {'[ -> ]'}
+                  <Bell size={13} />
+                  <span>Dispatch Announcement</span>
                 </button>
               </div>
             </form>
 
             {/* List Existing Announcements */}
-            <div className="border border-[#AFAEA2] bg-[#121435] divide-y divide-[#AFAEA2]/20">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs divide-y divide-slate-100 overflow-hidden">
               {announcements.map((a: any) => (
-                <div key={a.id} className="p-4 flex justify-between items-start gap-4">
+                <div key={a.id} className="p-5 flex justify-between items-start gap-4 hover:bg-slate-50/60 transition-colors">
                   <div>
-                    <h4 className="font-serif text-base font-bold text-[#E9E6DA]">{a.title}</h4>
-                    <p className="font-grotesk text-xs text-[#AFAEA2] mt-1">{a.content}</p>
-                    <span className="text-[10px] font-mono text-[#AFAEA2] block mt-2">
+                    <h4 className="text-sm font-bold text-slate-900">{a.title}</h4>
+                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">{a.content}</p>
+                    <span className="text-[10px] font-mono text-slate-400 block mt-2">
                       {new Date(a.created_at).toLocaleString()}
                     </span>
                   </div>
@@ -913,74 +1258,89 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                       await adminDeleteFestAnnouncement(a.id);
                       if (onRefresh) onRefresh();
                     }}
-                    className="text-[10px] font-mono text-[#D21319] underline"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-800 p-1 cursor-pointer"
+                    title="Delete notice"
                   >
-                    [ DELETE ]
+                    <Trash2 size={13} />
                   </button>
                 </div>
               ))}
+              {announcements.length === 0 && (
+                <div className="p-8 text-center text-xs font-mono text-slate-500">
+                  No bulletins posted yet.
+                </div>
+              )}
             </div>
+
           </div>
         )}
 
-        {/* 7. AUDIT LOG TAB */}
+        {/* ========================================================
+            TAB 7: AUDIT LOGS
+           ======================================================== */}
         {activeTab === 'audit' && (
           <div className="space-y-4">
-            <span className="label-editorial text-xs block">
-              CHRONICLE OF ADMINISTRATIVE ACTIONS & AUDIT LOG
-            </span>
+            <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
+              <h2 className="text-base font-bold text-slate-900">Administrative Audit Trail</h2>
+              <p className="text-xs text-slate-500">Chronological history of status updates, deletions, and overrides</p>
+            </div>
 
-            <div className="border border-[#AFAEA2] bg-[#121435] divide-y divide-[#AFAEA2]/20 font-mono text-xs">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs divide-y divide-slate-100 font-mono text-xs overflow-hidden">
               {auditLogs.map((log: any) => (
-                <div key={log.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <span className="text-[#D21319] font-bold mr-2">[{log.action}]</span>
-                    <span className="text-[#E9E6DA]">{log.actor_email || 'System'}</span>
-                    <span className="text-[#AFAEA2] ml-2">{'->'} {log.target_type} ({log.target_id || ''})</span>
+                <div key={log.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[#D21319] font-bold">[{log.action}]</span>
+                    <span className="text-slate-800">{log.actor_email || 'System'}</span>
+                    <span className="text-slate-500">➔ {log.target_type} ({log.target_id || ''})</span>
                   </div>
-                  <span className="text-[10px] text-[#AFAEA2]">
+                  <span className="text-[10px] text-slate-400">
                     {new Date(log.created_at).toLocaleString()}
                   </span>
                 </div>
               ))}
+              {auditLogs.length === 0 && (
+                <div className="p-8 text-center text-xs font-mono text-slate-500">
+                  No audit entries recorded yet.
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* 8. PASSWORD / SECURITY TAB */}
+        {/* ========================================================
+            TAB 8: SECURITY & PASSWORD
+           ======================================================== */}
         {activeTab === 'password' && (
-          <div className="max-w-md mx-auto p-6 bg-[#121435] border border-[#AFAEA2] shadow-[3px_3px_0px_#0E1026] space-y-4">
-            <span className="label-editorial text-xs block text-[#D21319]">
-              CHANGE ADMINISTRATOR PASSWORD
-            </span>
-            <p className="font-grotesk text-xs text-[#AFAEA2]">
-              Logged in as {currentUser?.email}. Update your secret master credentials below.
-            </p>
+          <div className="max-w-md mx-auto p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Change Admin Master Password</h2>
+              <p className="text-xs text-slate-500">Logged in as {currentUser?.email}. Update master credentials below.</p>
+            </div>
 
             {passwordMsg && (
-              <div className="p-3 bg-[#1B1E4A] border border-[#AFAEA2] text-xs font-mono">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs font-mono text-blue-800">
                 {passwordMsg}
               </div>
             )}
 
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
-                <label className="label-editorial text-[8px] block mb-1">NEW PASSWORD</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">New Secret Passcode</label>
                 <input
                   type="password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new master password"
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2.5 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
+                  placeholder="Enter at least 6 characters"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#D21319] text-[#E9E6DA] font-grotesk font-bold text-xs uppercase border border-[#D21319] shadow-[2px_2px_0px_#0E1026]"
+                className="w-full py-2.5 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
               >
-                UPDATE PASSWORD {'[ -> ]'}
+                Update Password
               </button>
             </form>
           </div>
@@ -988,62 +1348,66 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
       </main>
 
-      {/* EDIT PARTICIPANT MODAL */}
+      {/* ========================================================
+          MODAL: EDIT PARTICIPANT DETAILS
+         ======================================================== */}
       {editingParticipant && (
-        <div className="fixed inset-0 z-50 bg-[#0E1026]/90 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#121435] border border-[#AFAEA2] p-6 shadow-[4px_4px_0px_#0E1026] space-y-4">
-            <div className="flex justify-between items-center border-b border-[#AFAEA2]/30 pb-2">
-              <span className="label-editorial text-xs">EDIT PARTICIPANT RECORD</span>
-              <button onClick={() => setEditingParticipant(null)} className="font-mono text-xs text-[#AFAEA2]">[ CLOSE ]</button>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Edit Participant Record</h3>
+              <button onClick={() => setEditingParticipant(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <label className="label-editorial text-[8px] block mb-1">FULL NAME</label>
+                <label className="text-slate-600 font-bold block mb-1">Full Name</label>
                 <input
                   type="text"
                   value={editingParticipant.full_name}
                   onChange={(e) => setEditingParticipant({ ...editingParticipant, full_name: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">EMAIL</label>
+                <label className="text-slate-600 font-bold block mb-1">Email</label>
                 <input
                   type="email"
                   value={editingParticipant.email}
                   onChange={(e) => setEditingParticipant({ ...editingParticipant, email: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">PHONE</label>
+                <label className="text-slate-600 font-bold block mb-1">Phone</label>
                 <input
                   type="tel"
                   value={editingParticipant.phone}
                   onChange={(e) => setEditingParticipant({ ...editingParticipant, phone: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">COLLEGE</label>
+                <label className="text-slate-600 font-bold block mb-1">College</label>
                 <input
                   type="text"
                   value={editingParticipant.college}
                   onChange={(e) => setEditingParticipant({ ...editingParticipant, college: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">STATUS</label>
+                <label className="text-slate-600 font-bold block mb-1">Status</label>
                 <select
                   value={editingParticipant.status}
                   onChange={(e) => setEditingParticipant({ ...editingParticipant, status: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 >
                   <option value="Confirmed">Confirmed</option>
                   <option value="Checked In">Checked In</option>
@@ -1054,22 +1418,22 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">YEAR</label>
+                <label className="text-slate-600 font-bold block mb-1">Year of Study</label>
                 <input
                   type="text"
                   value={editingParticipant.year_of_study}
                   onChange={(e) => setEditingParticipant({ ...editingParticipant, year_of_study: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#AFAEA2]/30">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setEditingParticipant(null)}
-                className="px-4 py-2 bg-[#AFAEA2] text-[#1B1E4A] text-xs font-bold"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
               >
-                CANCEL
+                Cancel
               </button>
               <button
                 onClick={async () => {
@@ -1086,31 +1450,35 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   setEditingParticipant(null);
                   if (onRefresh) onRefresh();
                 }}
-                className="px-5 py-2 bg-[#D21319] text-[#E9E6DA] text-xs font-bold"
+                className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                SAVE DETAILS
+                Save Details
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MANUAL ON-SPOT REGISTRATION MODAL */}
+      {/* ========================================================
+          MODAL: MANUAL ON-SPOT REGISTRATION
+         ======================================================== */}
       {manualModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#0E1026]/90 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#121435] border border-[#AFAEA2] p-6 shadow-[4px_4px_0px_#0E1026] space-y-4">
-            <div className="flex justify-between items-center border-b border-[#AFAEA2]/30 pb-2">
-              <span className="label-editorial text-xs">MANUAL / ON-SPOT REGISTRATION</span>
-              <button onClick={() => setManualModalOpen(false)} className="font-mono text-xs text-[#AFAEA2]">[ CLOSE ]</button>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Manual / On-Spot Participant Enrollment</h3>
+              <button onClick={() => setManualModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="col-span-2">
-                <label className="label-editorial text-[8px] block mb-1">TARGET TEAM (OPTIONAL)</label>
+                <label className="text-slate-600 font-bold block mb-1">Target Squad (Optional)</label>
                 <select
                   value={manualForm.teamId}
                   onChange={(e) => setManualForm({ ...manualForm, teamId: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 >
                   <option value="">Create Independent On-Spot Squad</option>
                   {teams.map((t: any) => (
@@ -1120,65 +1488,65 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">FULL NAME</label>
+                <label className="text-slate-600 font-bold block mb-1">Full Name</label>
                 <input
                   type="text"
                   required
                   value={manualForm.fullName}
                   onChange={(e) => setManualForm({ ...manualForm, fullName: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">EMAIL</label>
+                <label className="text-slate-600 font-bold block mb-1">Email</label>
                 <input
                   type="email"
                   required
                   value={manualForm.email}
                   onChange={(e) => setManualForm({ ...manualForm, email: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">PHONE</label>
+                <label className="text-slate-600 font-bold block mb-1">Phone</label>
                 <input
                   type="tel"
                   required
                   value={manualForm.phone}
                   onChange={(e) => setManualForm({ ...manualForm, phone: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">COLLEGE</label>
+                <label className="text-slate-600 font-bold block mb-1">College</label>
                 <input
                   type="text"
                   required
                   value={manualForm.college}
                   onChange={(e) => setManualForm({ ...manualForm, college: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">DEPARTMENT</label>
+                <label className="text-slate-600 font-bold block mb-1">Department</label>
                 <input
                   type="text"
                   value={manualForm.department}
                   onChange={(e) => setManualForm({ ...manualForm, department: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">STATUS</label>
+                <label className="text-slate-600 font-bold block mb-1">Status</label>
                 <select
                   value={manualForm.status}
                   onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 >
                   <option value="Confirmed">Confirmed</option>
                   <option value="Checked In">Checked In</option>
@@ -1186,12 +1554,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#AFAEA2]/30">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setManualModalOpen(false)}
-                className="px-4 py-2 bg-[#AFAEA2] text-[#1B1E4A] text-xs font-bold"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
               >
-                CANCEL
+                Cancel
               </button>
               <button
                 onClick={async () => {
@@ -1210,72 +1578,76 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   setManualModalOpen(false);
                   if (onRefresh) onRefresh();
                 }}
-                className="px-5 py-2 bg-[#D21319] text-[#E9E6DA] text-xs font-bold"
+                className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                REGISTER ON-SPOT
+                Register On-Spot
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* EDIT EVENT CONFIG MODAL */}
+      {/* ========================================================
+          MODAL: EDIT EVENT CONFIG
+         ======================================================== */}
       {editingEvent && (
-        <div className="fixed inset-0 z-50 bg-[#0E1026]/90 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#121435] border border-[#AFAEA2] p-6 shadow-[4px_4px_0px_#0E1026] space-y-4">
-            <div className="flex justify-between items-center border-b border-[#AFAEA2]/30 pb-2">
-              <span className="label-editorial text-xs">EDIT EVENT SETTINGS · {editingEvent.name}</span>
-              <button onClick={() => setEditingEvent(null)} className="font-mono text-xs text-[#AFAEA2]">[ CLOSE ]</button>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Edit Settings · {editingEvent.name}</h3>
+              <button onClick={() => setEditingEvent(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <label className="label-editorial text-[8px] block mb-1">CAPACITY (TEAMS)</label>
+                <label className="text-slate-600 font-bold block mb-1">Capacity (Teams)</label>
                 <input
                   type="number"
                   value={editingEvent.capacity}
                   onChange={(e) => setEditingEvent({ ...editingEvent, capacity: parseInt(e.target.value) || 50 })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">SLOT TIME</label>
+                <label className="text-slate-600 font-bold block mb-1">Slot Timing</label>
                 <input
                   type="text"
                   value={editingEvent.slot_time}
                   onChange={(e) => setEditingEvent({ ...editingEvent, slot_time: e.target.value })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">MIN TEAM SIZE</label>
+                <label className="text-slate-600 font-bold block mb-1">Min Team Size</label>
                 <input
                   type="number"
                   value={editingEvent.min_team_size}
                   onChange={(e) => setEditingEvent({ ...editingEvent, min_team_size: parseInt(e.target.value) || 1 })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
 
               <div>
-                <label className="label-editorial text-[8px] block mb-1">MAX TEAM SIZE</label>
+                <label className="text-slate-600 font-bold block mb-1">Max Team Size</label>
                 <input
                   type="number"
                   value={editingEvent.max_team_size}
                   onChange={(e) => setEditingEvent({ ...editingEvent, max_team_size: parseInt(e.target.value) || 4 })}
-                  className="w-full bg-[#1B1E4A] border border-[#AFAEA2] p-2 text-[#E9E6DA]"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#AFAEA2]/30">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setEditingEvent(null)}
-                className="px-4 py-2 bg-[#AFAEA2] text-[#1B1E4A] text-xs font-bold"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
               >
-                CANCEL
+                Cancel
               </button>
               <button
                 onClick={async () => {
@@ -1288,10 +1660,180 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   setEditingEvent(null);
                   if (onRefresh) onRefresh();
                 }}
-                className="px-5 py-2 bg-[#D21319] text-[#E9E6DA] text-xs font-bold"
+                className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                SAVE CONFIG
+                Save Settings
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          FLOATING PERSISTENT SIDE EXPORT BUTTON
+         ======================================================== */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40">
+        <button
+          onClick={() => setSideExportOpen(true)}
+          className="group flex items-center gap-2.5 py-3 px-3 bg-white hover:bg-slate-50 text-slate-900 border-l-4 border-l-[#D21319] border-y border-slate-300 shadow-xl rounded-l-2xl transition-all duration-200 hover:-translate-x-1 cursor-pointer"
+          title="Open CSV Export Hub (Check-ins, All Registrations, Squads)"
+        >
+          <div className="p-2 bg-rose-50 text-[#D21319] rounded-xl group-hover:bg-[#D21319] group-hover:text-white transition-colors shadow-2xs">
+            <Download size={18} />
+          </div>
+          <div className="text-left hidden sm:flex sm:flex-col pr-1">
+            <span className="text-xs font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
+              EXPORT CSV
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </span>
+            <span className="text-[10px] font-mono text-slate-500">Check-ins & Squads</span>
+          </div>
+        </button>
+      </div>
+
+      {/* ========================================================
+          SLIDE-OVER DRAWER: CSV EXPORT CENTER
+         ======================================================== */}
+      {sideExportOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div
+            onClick={() => setSideExportOpen(false)}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity cursor-pointer"
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col">
+              
+              {/* Drawer Header */}
+              <div className="p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-[#D21319] text-white rounded-xl shadow-xs">
+                    <Download size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 tracking-tight">CSV Export Center</h2>
+                    <p className="text-xs text-slate-500">Instant spreadsheet exports for festival operations</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSideExportOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                  title="Close export center"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Drawer Content */}
+              <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Export complete or filtered real-time records into standard UTF-8 CSV formats, suitable for Microsoft Excel, Google Sheets, and attendance verification desks.
+                </p>
+
+                {/* Option 1: Checked-In Attendees Only */}
+                <div className="p-4 bg-white border-2 border-blue-200 rounded-xl hover:border-blue-500 transition-colors shadow-2xs space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                        <UserCheck size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Check-Ins Report</h3>
+                        <span className="text-[11px] font-mono text-blue-600 font-bold">
+                          {checkedInCount} Attendees Admitted
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-bold">
+                      .CSV
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Exports verified candidates admitted through the Rapid Check-In desk with timestamps, contact numbers, and squad affiliations.
+                  </p>
+                  <button
+                    onClick={() => exportRegistrationsCSV('checkedin')}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Download size={14} />
+                    <span>Download Check-Ins (.csv)</span>
+                  </button>
+                </div>
+
+                {/* Option 2: All Registrations */}
+                <div className="p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-[#D21319] transition-colors shadow-2xs space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-rose-50 text-[#D21319] rounded-lg">
+                        <Users size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">All Registrations</h3>
+                        <span className="text-[11px] font-mono text-slate-600 font-bold">
+                          {registrations?.length || 0} Total Candidates
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold">
+                      .CSV
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Comprehensive census of all individual candidate profiles, college affiliations, contact emails, phone numbers, and enrolled events.
+                  </p>
+                  <button
+                    onClick={() => exportRegistrationsCSV('all')}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Download size={14} />
+                    <span>Download All Registrations (.csv)</span>
+                  </button>
+                </div>
+
+                {/* Option 3: Team / Squad Registrations */}
+                <div className="p-4 bg-white border-2 border-emerald-200 rounded-xl hover:border-emerald-500 transition-colors shadow-2xs space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                        <Shield size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Team / Squad Registrations</h3>
+                        <span className="text-[11px] font-mono text-emerald-700 font-bold">
+                          {teams?.length || 0} Registered Squads
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-bold">
+                      .CSV
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    All created squads with JRV squad codes, team captains, roster sizes, discipline tracks, lock status, and token keys.
+                  </p>
+                  <button
+                    onClick={exportTeamsCSV}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Download size={14} />
+                    <span>Download Team Registrations (.csv)</span>
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
+                <span>UTF-8 Comma-Separated Values</span>
+                <button
+                  onClick={() => setSideExportOpen(false)}
+                  className="px-3 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-semibold transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
             </div>
           </div>
         </div>

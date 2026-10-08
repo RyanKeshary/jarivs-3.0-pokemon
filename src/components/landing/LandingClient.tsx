@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { VideoIntroScene } from '@/components/intro/VideoIntroScene';
+import dynamic from 'next/dynamic';
 import { Navbar } from '@/components/layout/Navbar';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { DynamicStage } from '@/components/landing/DynamicStage';
@@ -10,7 +10,17 @@ import { DaysTimeline } from '@/components/sections/DaysTimeline';
 import { HowToJoin } from '@/components/sections/HowToJoin';
 import { FaqAndCta } from '@/components/sections/FaqAndCta';
 import { Footer } from '@/components/layout/Footer';
-import { RegistrationModal } from '@/components/registration/RegistrationModal';
+
+// Lazy load heavy interactive components for instantaneous initial page load
+const VideoIntroScene = dynamic(
+  () => import('@/components/intro/VideoIntroScene').then((mod) => mod.VideoIntroScene),
+  { ssr: false }
+);
+
+const RegistrationModal = dynamic(
+  () => import('@/components/registration/RegistrationModal').then((mod) => mod.RegistrationModal),
+  { ssr: false }
+);
 
 interface LandingClientProps {
   settings?: any;
@@ -19,14 +29,13 @@ interface LandingClientProps {
 export function LandingClient({ settings }: LandingClientProps) {
   const [showVideoIntro, setShowVideoIntro] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
 
   // Registration Modal State
   const [regModalOpen, setRegModalOpen] = useState(false);
   const [preselectedEventId, setPreselectedEventId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user has already seen the 1008.mp4 intro video in this session
+    // Check if user has already seen the intro video in this session
     try {
       const hasSeen = sessionStorage.getItem('indigo_vid_intro_seen') === 'true';
       if (!hasSeen) {
@@ -37,9 +46,27 @@ export function LandingClient({ settings }: LandingClientProps) {
     }
     setIsReady(true);
 
+    // Highly performant 60/120fps scroll listener using rAF without triggering React re-renders
+    let ticking = false;
+    const overlayEl = document.getElementById('scroll-blur-overlay');
+
     const handleScroll = () => {
-      setScrollY(window.scrollY);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const sy = window.scrollY;
+          const progress = Math.min(1, Math.max(0, (sy - 20) / 300));
+          if (overlayEl) {
+            overlayEl.style.opacity = String(progress);
+            overlayEl.style.backgroundColor = `rgba(255, 255, 255, ${progress * 0.85})`;
+            overlayEl.style.backdropFilter = progress > 0.05 ? `blur(${progress * 18}px)` : 'none';
+            (overlayEl.style as any).webkitBackdropFilter = progress > 0.05 ? `blur(${progress * 18}px)` : 'none';
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -64,13 +91,6 @@ export function LandingClient({ settings }: LandingClientProps) {
     setShowVideoIntro(true);
   };
 
-  if (!isReady) {
-    return <div className="min-h-screen bg-[#161A35]" />;
-  }
-
-  // Scroll ratio for overlay animation (0 at top, 1 around 320px scroll)
-  const scrollProgress = Math.min(1, Math.max(0, (scrollY - 20) / 300));
-
   return (
     <div className="min-h-screen flex flex-col bg-[#161A35] text-black relative">
       
@@ -87,12 +107,13 @@ export function LandingClient({ settings }: LandingClientProps) {
 
       {/* 2. SCROLL-DRIVEN TRANSLUCENT WHITE OVERSHADOWING SCREEN WITH BLUR */}
       <div
-        className="fixed inset-0 z-[1] pointer-events-none transition-all duration-300"
+        id="scroll-blur-overlay"
+        className="fixed inset-0 z-[1] pointer-events-none transition-all duration-150"
         style={{
-          opacity: scrollProgress,
-          backgroundColor: `rgba(255, 255, 255, ${scrollProgress * 0.85})`,
-          backdropFilter: scrollProgress > 0.05 ? `blur(${scrollProgress * 18}px)` : 'none',
-          WebkitBackdropFilter: scrollProgress > 0.05 ? `blur(${scrollProgress * 18}px)` : 'none',
+          opacity: 0,
+          backgroundColor: 'rgba(255, 255, 255, 0)',
+          backdropFilter: 'none',
+          WebkitBackdropFilter: 'none',
         }}
       />
 

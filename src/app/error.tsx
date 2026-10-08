@@ -57,11 +57,11 @@ export default function ErrorBoundary({
             </button>
 
             <Link
-              href="/dashboard"
+              href="/"
               className="w-full flex items-center justify-center gap-2 py-3 bg-white hover:bg-gray-50 active:scale-95 text-[#1E232A] font-pixel text-xs rounded-xl border-2 border-[#1E232A] shadow-[3px_3px_0px_#1E232A] transition-all cursor-pointer"
             >
               <Home size={14} />
-              <span>RETURN TO DASHBOARD</span>
+              <span>RETURN TO HOME</span>
             </Link>
           </div>
         </div>

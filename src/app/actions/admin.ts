@@ -13,20 +13,59 @@ async function requireAdmin() {
   }
 
   const profileRows = await sql`SELECT * FROM public.profiles WHERE id = ${user.id}`;
-  const profile = profileRows[0];
+  let profile = profileRows[0];
+  const isMasterEmail =
+    user.email === 'ryankeshary@gmail.com' ||
+    user.email === 'shrey.sleeps@gmail.com';
+
+  if (!profile && isMasterEmail && user.email) {
+    const byEmail = await sql`SELECT * FROM public.profiles WHERE email = ${user.email as string}`;
+    profile = byEmail[0] || { id: user.id, email: user.email, role: 'master', full_name: 'Master Organizer' };
+  }
+
   const isMasterUser =
     profile?.role === 'master' ||
     profile?.role === 'manager' ||
-    user.email === 'ryankeshary@gmail.com' ||
-    user.email === 'shrey.sleeps@gmail.com';
+    isMasterEmail;
   const isAdminUser = isMasterUser || profile?.role === 'admin';
 
-  if (!profile || !isAdminUser) {
+  if (!isAdminUser) {
     throw new Error('Forbidden: Admin access required');
   }
 
-  return { user, profile, isMaster: isMasterUser };
+  return { user, profile: profile || { id: user.id, email: user.email, role: 'master' }, isMaster: isMasterUser };
 }
+
+// Dedicated server actions for admin auth
+export async function adminLoginAction(email: string, password: string) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: password.trim(),
+    });
+
+    if (error || !data.user) {
+      return { success: false, error: error?.message || 'Authentication failed' };
+    }
+
+    const festData = await getFestAdminData();
+    return { success: true, data: festData };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Authentication error' };
+  }
+}
+
+export async function adminLogoutAction() {
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  } catch (err) {
+    // ignore
+  }
+  return { success: true };
+}
+
 
 // Log action to audit_log
 async function logAudit(actorId: string, actorEmail: string, action: string, targetType: string, targetId: string, details: any = {}) {
@@ -562,6 +601,22 @@ export async function adminCreateManualParticipant(data: {
   status: string;
 }) {
   const { user } = await requireAdmin();
+  const cleanEmail = data.email.trim().toLowerCase();
+  const cleanPhone = data.phone.trim().replace(/[^0-9+]/g, '');
+
+  // Enforce Max 2 Events Rule across all enrollments
+  const existingRecords = await sql`
+    SELECT ft.event_ids
+    FROM public.fest_registrations fr
+    JOIN public.fest_teams ft ON fr.team_id = ft.id
+    WHERE (LOWER(fr.email) = ${cleanEmail} OR fr.phone = ${cleanPhone})
+  `;
+  const enrolledEvents = new Set<string>();
+  existingRecords.forEach((r: any) => (r.event_ids || []).forEach((e: string) => enrolledEvents.add(e)));
+  if (enrolledEvents.size >= 2) {
+    throw new Error('Disqualification Rule: This participant is already enrolled in 2 events (maximum limit reached).');
+  }
+
   let targetTeamId = data.teamId;
   let targetTeamCode = data.teamCode || 'ON-SPOT';
 

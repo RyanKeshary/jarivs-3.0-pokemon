@@ -13,9 +13,13 @@ export function AdminClient({ initialData, isAuthenticated }: AdminClientProps) 
   const [data, setData] = useState(initialData);
   const [authed, setAuthed] = useState(isAuthenticated);
 
-  const handleLoginSuccess = () => {
-    // Reload page to re-trigger server action and cookies
-    window.location.reload();
+  const handleLoginSuccess = (newData?: any) => {
+    if (newData) {
+      setData(newData);
+      setAuthed(true);
+    } else {
+      window.location.reload();
+    }
   };
 
   const handleRefresh = () => {

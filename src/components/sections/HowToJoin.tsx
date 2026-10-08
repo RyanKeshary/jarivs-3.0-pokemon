@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const STEPS = [
   {
@@ -24,6 +24,26 @@ const STEPS = [
 ];
 
 export function HowToJoin({ onRegisterClick }: { onRegisterClick: () => void }) {
+  const [hasMaxEvents, setHasMaxEvents] = useState(false);
+
+  useEffect(() => {
+    const checkStatus = () => {
+      if (typeof window !== 'undefined') {
+        const isLoggedOut = localStorage.getItem('indigo_logged_out') === 'true';
+        const isReg = !isLoggedOut && localStorage.getItem('indigo_user_registered') === 'true';
+        const eventsCount = parseInt(localStorage.getItem('indigo_user_events_count') || '0', 10);
+        setHasMaxEvents(isReg || eventsCount >= 2);
+      }
+    };
+
+    checkStatus();
+    window.addEventListener('storage', checkStatus);
+    window.addEventListener('auth_state_change', checkStatus);
+    return () => {
+      window.removeEventListener('storage', checkStatus);
+      window.removeEventListener('auth_state_change', checkStatus);
+    };
+  }, []);
   return (
     <section id="join" className="relative w-full py-20 sm:py-28 bg-white/30 backdrop-blur-sm select-none border-b border-black/10">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -84,13 +104,19 @@ export function HowToJoin({ onRegisterClick }: { onRegisterClick: () => void }) 
 
         {/* CTA Bar */}
         <div className="mt-10 text-center">
-          <button
-            onClick={onRegisterClick}
-            className="px-8 py-3.5 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-widest border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-2"
-          >
-            <span>COMMENCE SQUAD ENLISTMENT</span>
-            <span>→</span>
-          </button>
+          {hasMaxEvents ? (
+            <div className="inline-block px-8 py-3.5 bg-neutral-100 text-neutral-800 font-sans font-black text-xs uppercase tracking-widest border-2 border-black shadow-[4px_4px_0px_#000]">
+              <span>EVENT REGISTRATION COMPLETE (2/2 ENROLLED)</span>
+            </div>
+          ) : (
+            <button
+              onClick={onRegisterClick}
+              className="px-8 py-3.5 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-widest border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-2"
+            >
+              <span>COMMENCE SQUAD ENLISTMENT</span>
+              <span>→</span>
+            </button>
+          )}
         </div>
 
       </div>

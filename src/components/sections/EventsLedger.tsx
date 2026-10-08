@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { EventThemedModal } from '@/components/events/EventThemedModal';
 
 export interface FestEventItem {
   id: string;
@@ -315,15 +316,11 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
 
                 {/* Overlaid Badges Top Left */}
                 <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
-                  <span className="bg-white text-black font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
-                    CSI · TCET
-                  </span>
-                  {event.isMultiDay && (
+                  {event.isMultiDay ? (
                     <span className="bg-[#D21319] text-white font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
                       DAY 1 & 2
                     </span>
-                  )}
-                  {!event.isMultiDay && (
+                  ) : (
                     <span className="bg-white text-black font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
                       {event.dayTag}
                     </span>
@@ -432,92 +429,17 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
 
       </div>
 
-      {/* DETAILED EVENT RULES MODAL */}
+      {/* UNIQUE THEMED EVENT LIGHTBOX MODAL */}
       <AnimatePresence>
         {activeModalEvent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white text-black border-2 border-black shadow-[10px_10px_0px_#000] max-w-xl w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto"
-            >
-              {/* Close Button */}
-              <button
-                onClick={() => setActiveModalEvent(null)}
-                className="absolute top-4 right-4 w-8 h-8 bg-black text-white font-mono font-bold flex items-center justify-center hover:bg-[#D21319] transition-colors cursor-pointer shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px]"
-              >
-                ✕
-              </button>
-
-              <div className="flex items-center gap-2 mb-2">
-                <span className="bg-black text-white px-2 py-0.5 font-mono text-xs font-bold">
-                  {activeModalEvent.dayTag}
-                </span>
-                <span className="border-2 border-black px-2 py-0.5 font-mono text-xs font-bold">
-                  {activeModalEvent.category}
-                </span>
-              </div>
-
-              <h2 className="font-sans text-2xl sm:text-3xl font-black uppercase text-black">
-                {activeModalEvent.name}
-              </h2>
-              <p className="font-sans text-xs text-neutral-600 mt-1">
-                {activeModalEvent.subtitle}
-              </p>
-
-              <div className="my-4 p-3 bg-neutral-100 border border-neutral-300 font-mono text-xs space-y-1">
-                <div>TEAM SIZE: <span className="font-bold">{activeModalEvent.teamSize}</span></div>
-                <div>TIMING: <span className="font-bold">{activeModalEvent.slotTime}</span></div>
-                <div>STATUS: <span className="font-bold text-green-700">OPEN FOR REGISTRATION</span></div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-mono text-xs font-bold uppercase text-black border-b-2 border-black pb-1 mb-2">
-                    RULES OF ENGAGEMENT
-                  </h4>
-                  <ul className="space-y-1.5 text-xs text-neutral-800 font-sans">
-                    {activeModalEvent.rules.map((rule, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="font-bold text-[#D21319]">•</span>
-                        <span>{rule}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-mono text-xs font-bold uppercase text-black border-b-2 border-black pb-1 mb-2">
-                    ROUNDS & STAGES
-                  </h4>
-                  <ul className="space-y-1.5 text-xs text-neutral-800 font-sans">
-                    {activeModalEvent.rounds.map((round, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="font-bold">0{idx + 1}.</span>
-                        <span>{round}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t-2 border-black flex items-center justify-between">
-                <span className="font-mono text-xs font-bold">{activeModalEvent.fee}</span>
-                <button
-                  onClick={() => {
-                    const id = activeModalEvent.id;
-                    setActiveModalEvent(null);
-                    onSelectEventForRegistration(id);
-                  }}
-                  className="px-6 py-2.5 bg-black hover:bg-[#D21319] text-white font-sans font-black text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px]"
-                >
-                  ENLIST IN EVENT [ ↗ ]
-                </button>
-              </div>
-
-            </motion.div>
-          </div>
+          <EventThemedModal
+            event={activeModalEvent}
+            onClose={() => setActiveModalEvent(null)}
+            onRegister={(id) => {
+              setActiveModalEvent(null);
+              onSelectEventForRegistration(id);
+            }}
+          />
         )}
       </AnimatePresence>
 

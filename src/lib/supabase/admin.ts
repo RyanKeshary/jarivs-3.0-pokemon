@@ -14,8 +14,8 @@ export const sql = postgres(connectionString, {
   ssl: 'require',
   prepare: false,
   max: 10,
-  idle_timeout: 15,
-  connect_timeout: 10,
+  idle_timeout: 30,
+  connect_timeout: 20,
 });
 
 export function createAdminClient() {

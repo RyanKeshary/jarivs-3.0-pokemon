@@ -194,46 +194,6 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
           <div className="grain" />
         </div>
       </div>
-
-      {/* Floating Tactical Action Dock at Base of Viewport */}
-      {!hideActionDock && (
-        <div className="absolute bottom-8 left-0 right-0 z-30 flex flex-col items-center justify-center gap-3 pointer-events-none px-4">
-          
-          {/* Punchy, Premium Action Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pointer-events-auto">
-            <a
-              href="#events"
-              onClick={(e) => {
-                if (onEnterClick) {
-                  e.preventDefault();
-                  onEnterClick();
-                }
-              }}
-              className="px-8 py-3.5 bg-[#121435]/90 hover:bg-[#D21319] text-[#E9E6DA] hover:text-white font-serif font-bold text-xs uppercase tracking-[0.35em] border border-[#AFAEA2]/40 hover:border-[#D21319] shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-md transition-all duration-200 cursor-pointer flex items-center gap-2 group active:scale-95"
-            >
-              <span>ENTER FESTIVAL</span>
-              <span className="text-[#D21319] group-hover:text-white transition-colors">↓</span>
-            </a>
-
-            {onRegisterClick && (
-              <button
-                onClick={onRegisterClick}
-                className="px-8 py-3.5 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-[0.25em] border border-[#D21319] shadow-[0_0_25px_rgba(210,19,25,0.6)] hover:shadow-[0_0_40px_rgba(210,19,25,0.9)] backdrop-blur-md transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-95"
-              >
-                <span>ENLIST SQUAD</span>
-                <span>→</span>
-              </button>
-            )}
-          </div>
-
-          {/* Clean Curatorial Caption */}
-          <div className="pointer-events-auto text-[10px] tracking-[0.25em] font-mono text-[#E9E6DA]/75 uppercase bg-[#0E1026]/80 px-4 py-1 border border-[#AFAEA2]/20 backdrop-blur-md">
-            PLATE I · THE PHOENIX & THE SEVEN AUTOMATA · INTERACTIVE 3D
-          </div>
-
-        </div>
-      )}
-
     </div>
   );
 }

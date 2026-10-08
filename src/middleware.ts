@@ -42,40 +42,14 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Protect /dashboard
-  if (pathname.startsWith('/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/auth?mode=login', request.url));
+  // Redirect /dashboard to /
+  if (pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Protect /admin and /master
-  if (pathname.startsWith('/admin') || pathname.startsWith('/master')) {
-    if (user) {
-      const isMasterEmail =
-        user.email === 'ryankeshary@gmail.com' ||
-        user.email === 'shrey.sleeps@gmail.com';
-
-      let role = isMasterEmail ? 'master' : null;
-
-      if (!isMasterEmail) {
-        // Check user role in profiles
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        role = profile?.role;
-      }
-
-      const isStaff =
-        isMasterEmail ||
-        role === 'admin' ||
-        role === 'master' ||
-        role === 'manager';
-
-      if (!isStaff) {
-        return NextResponse.redirect(new URL('/', request.url));
-      }
-    }
+  // Redirect legacy /master to /admin
+  if (pathname.startsWith('/master')) {
+    return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   return response;
@@ -84,7 +58,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/admin',
     '/admin/:path*',
+    '/master',
     '/master/:path*',
   ],
 };

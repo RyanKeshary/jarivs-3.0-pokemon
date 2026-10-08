@@ -34,6 +34,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Form controls high contrast text fix */
+input, textarea, select {
+  color: #111827;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+/* Chrome/Edge/Safari autofill override to ensure dark text remains clearly readable */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: #111827 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Typography tokens */
 .font-didone,
 .font-serif {

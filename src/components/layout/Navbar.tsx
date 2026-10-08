@@ -12,6 +12,43 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   const [activeSection, setActiveSection] = useState<'home' | 'events' | 'schedule' | 'join'>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [hasMaxEvents, setHasMaxEvents] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkStatus = async () => {
+      const isLoggedOut =
+        typeof window !== 'undefined' &&
+        localStorage.getItem('indigo_logged_out') === 'true';
+
+      const isReg =
+        typeof window !== 'undefined' &&
+        localStorage.getItem('indigo_user_registered') === 'true';
+      const eventsCount =
+        typeof window !== 'undefined'
+          ? parseInt(localStorage.getItem('indigo_user_events_count') || '0', 10)
+          : 0;
+
+      const isMaxReached = !isLoggedOut && (isReg || eventsCount >= 2);
+
+      if (isMounted) {
+        setHasMaxEvents(isMaxReached);
+      }
+    };
+
+    checkStatus();
+
+    const handleCustomEvent = () => checkStatus();
+    window.addEventListener('storage', handleCustomEvent);
+    window.addEventListener('auth_state_change', handleCustomEvent);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('storage', handleCustomEvent);
+      window.removeEventListener('auth_state_change', handleCustomEvent);
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -111,17 +148,19 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
             </button>
           )}
 
-          <button
-            onClick={onRegisterClick}
-            className="px-5 py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <span>ENLIST SQUAD</span>
-            <span>→</span>
-          </button>
+          {!hasMaxEvents && (
+            <button
+              onClick={onRegisterClick}
+              className="px-5 py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <span>ENLIST SQUAD</span>
+              <span>→</span>
+            </button>
+          )}
 
           <Link
             href="/admin"
-            className="hidden lg:inline-block px-3 py-1.5 text-xs font-mono font-bold text-[#AFAEA2] hover:text-[#E9E6DA] border border-[#AFAEA2]/30 hover:border-[#AFAEA2] ml-1 transition-colors"
+            className="hidden sm:inline-flex items-center px-3.5 py-2 text-xs font-mono font-bold text-[#AFAEA2] hover:text-[#E9E6DA] border border-[#AFAEA2]/30 hover:border-[#AFAEA2] transition-colors cursor-pointer"
             title="Curator & Admin Panel"
           >
             [ ADMIN ]

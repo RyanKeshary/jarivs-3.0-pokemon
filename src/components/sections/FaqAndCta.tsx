@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EngravedPhoenix } from '@/components/illustrations/EngravedPokemon';
 
@@ -29,6 +29,26 @@ const FAQS = [
 
 export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const [hasMaxEvents, setHasMaxEvents] = useState(false);
+
+  useEffect(() => {
+    const checkStatus = () => {
+      if (typeof window !== 'undefined') {
+        const isLoggedOut = localStorage.getItem('indigo_logged_out') === 'true';
+        const isReg = !isLoggedOut && localStorage.getItem('indigo_user_registered') === 'true';
+        const eventsCount = parseInt(localStorage.getItem('indigo_user_events_count') || '0', 10);
+        setHasMaxEvents(isReg || eventsCount >= 2);
+      }
+    };
+
+    checkStatus();
+    window.addEventListener('storage', checkStatus);
+    window.addEventListener('auth_state_change', checkStatus);
+    return () => {
+      window.removeEventListener('storage', checkStatus);
+      window.removeEventListener('auth_state_change', checkStatus);
+    };
+  }, []);
 
   const toggle = (idx: number) => {
     setOpenIdx((prev) => (prev === idx ? null : idx));
@@ -109,13 +129,19 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              onClick={onRegisterClick}
-              className="w-full sm:w-auto px-10 py-4 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs tracking-widest uppercase border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center justify-center gap-2"
-            >
-              <span>ENROLL YOUR SQUAD NOW</span>
-              <span>→</span>
-            </button>
+            {hasMaxEvents ? (
+              <div className="w-full sm:w-auto px-10 py-4 bg-neutral-900 text-[#E9E6DA] font-sans font-black text-xs tracking-widest uppercase border-2 border-[#AFAEA2]/40 shadow-[4px_4px_0px_#000]">
+                <span>REGISTRATION COMPLETE (2/2 EVENTS ENROLLED)</span>
+              </div>
+            ) : (
+              <button
+                onClick={onRegisterClick}
+                className="w-full sm:w-auto px-10 py-4 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs tracking-widest uppercase border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center justify-center gap-2"
+              >
+                <span>ENROLL YOUR SQUAD NOW</span>
+                <span>→</span>
+              </button>
+            )}
           </div>
 
           <div className="mt-8 pt-4 border-t border-[#AFAEA2]/20 text-xs text-[#AFAEA2] font-mono">

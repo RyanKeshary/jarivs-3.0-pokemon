@@ -284,11 +284,11 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
-              href="/dashboard"
+              href="/"
               className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 font-mono text-xs flex items-center gap-1 border border-gray-600"
             >
               <ArrowLeft size={14} />
-              <span>Trainer Terminal</span>
+              <span>Return to Arena</span>
             </Link>
             <div className="flex items-center gap-2">
               <span className="font-pixel text-xs sm:text-sm text-[#FFCB05] tracking-wider">

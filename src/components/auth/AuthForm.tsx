@@ -42,13 +42,6 @@ export function AuthForm() {
 
   const supabase = createClient();
 
-  // Prefetch dashboard so login redirects are instantaneous
-  useEffect(() => {
-    try {
-      router.prefetch('/dashboard');
-    } catch {}
-  }, [router]);
-
   // Sync mode with searchParams if it changes
   useEffect(() => {
     const m = searchParams.get('mode');
@@ -141,8 +134,14 @@ export function AuthForm() {
             if (!signInErr && signInData?.user) {
               playVictoryChime();
               setSuccessMsg('Trainer ID recognized! Logging into Pokémon Center...');
+              try {
+                localStorage.removeItem('indigo_logged_out');
+                localStorage.setItem('indigo_user_registered', 'true');
+                localStorage.setItem('indigo_logged_in', 'true');
+                window.dispatchEvent(new Event('auth_state_change'));
+              } catch {}
               setTimeout(() => {
-                window.location.href = isMaster ? '/admin' : '/dashboard';
+                window.location.href = isMaster ? '/admin' : '/';
               }, 150);
               return;
             }
@@ -159,8 +158,14 @@ export function AuthForm() {
           }
           playVictoryChime();
           setSuccessMsg('Trainer ID registered successfully! Redirecting to Pokémon Center...');
+          try {
+            localStorage.removeItem('indigo_logged_out');
+            localStorage.setItem('indigo_user_registered', 'true');
+            localStorage.setItem('indigo_logged_in', 'true');
+            window.dispatchEvent(new Event('auth_state_change'));
+          } catch {}
           setTimeout(() => {
-            window.location.href = isMaster ? '/admin' : '/dashboard';
+            window.location.href = isMaster ? '/admin' : '/';
           }, 150);
         }
       } else if (mode === 'login') {
@@ -175,8 +180,15 @@ export function AuthForm() {
         } else {
           playVictoryChime();
 
-          let target = '/dashboard';
-          let welcomeMsg = 'Welcome back, Trainer! Entering Pokémon Center...';
+          let target = '/';
+          let welcomeMsg = 'Welcome back, Trainer!';
+
+          try {
+            localStorage.removeItem('indigo_logged_out');
+            localStorage.setItem('indigo_user_registered', 'true');
+            localStorage.setItem('indigo_logged_in', 'true');
+            window.dispatchEvent(new Event('auth_state_change'));
+          } catch {}
 
           if (isMaster) {
             target = '/admin';
@@ -198,7 +210,7 @@ export function AuthForm() {
                 target = '/admin';
                 welcomeMsg = `Gym Leader recognized! Welcome, ${profile.full_name || 'Admin'}. Redirecting to Admin HQ...`;
               } else if (profile?.full_name) {
-                welcomeMsg = `Welcome back, Trainer ${profile.full_name}! Entering Pokémon Center...`;
+                welcomeMsg = `Welcome back, Trainer ${profile.full_name}!`;
               }
             } catch {
               // fallback to default
@@ -257,9 +269,9 @@ export function AuthForm() {
           playRetroBeep(220, 'sawtooth', 0.15);
         } else {
           playVictoryChime();
-          setSuccessMsg('Secret passcode updated successfully! Teleporting to Pokémon Center...');
+          setSuccessMsg('Secret passcode updated successfully! Returning to arena...');
           setTimeout(() => {
-            window.location.href = '/dashboard';
+            window.location.href = '/';
           }, 1200);
         }
       }
@@ -393,7 +405,7 @@ export function AuthForm() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Ash Ketchum"
-                className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] transition-all"
+                className="w-full px-3.5 py-2.5 bg-white text-gray-950 font-medium placeholder:text-gray-400 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] focus:ring-1 focus:ring-[#EE1515] transition-all"
               />
             </div>
           )}
@@ -413,7 +425,7 @@ export function AuthForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="trainer@slrtce.in"
-                className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] transition-all"
+                className="w-full px-3.5 py-2.5 bg-white text-gray-950 font-medium placeholder:text-gray-400 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] focus:ring-1 focus:ring-[#EE1515] transition-all"
               />
             </div>
           )}
@@ -441,7 +453,7 @@ export function AuthForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] transition-all"
+                className="w-full px-3.5 py-2.5 bg-white text-gray-950 font-medium placeholder:text-gray-400 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] focus:ring-1 focus:ring-[#EE1515] transition-all"
               />
             </div>
           )}
@@ -458,7 +470,7 @@ export function AuthForm() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] transition-all"
+                className="w-full px-3.5 py-2.5 bg-white text-gray-950 font-medium placeholder:text-gray-400 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] focus:ring-1 focus:ring-[#EE1515] transition-all"
               />
             </div>
           )}

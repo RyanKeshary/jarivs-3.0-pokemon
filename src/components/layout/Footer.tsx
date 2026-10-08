@@ -85,9 +85,9 @@ export function Footer() {
               <a href="https://discord.com" target="_blank" rel="noreferrer" className="hover:text-[#D21319]">
                 [ DISCORD COUNCIL ]
               </a>
-              <Link href="/admin" className="hover:text-[#D21319] pt-2 border-t border-[#AFAEA2]/20 text-[#AFAEA2]">
+              <a href="/admin" className="hover:text-[#D21319] pt-2 border-t border-[#AFAEA2]/20 text-[#AFAEA2]">
                 [ MASTER CONSOLE / ADMIN ]
-              </Link>
+              </a>
             </div>
           </div>
 

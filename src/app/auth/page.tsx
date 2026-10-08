@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { AuthForm } from '@/components/auth/AuthForm';
 
+import { createClient } from '@/lib/supabase/server';
+
 export const metadata = {
   title: 'Trainer Registration & Login | Kento League 3.0',
   description: 'Enter the arena for Kento League · Jarvis Hackathon 3.0',
@@ -17,6 +19,21 @@ export default async function AuthPage({
   const params = searchParams ? await searchParams : {};
   if (params.code && typeof params.code === 'string') {
     redirect(`/auth/callback?code=${encodeURIComponent(params.code)}&next=/auth?mode=update-password`);
+  }
+
+  let shouldRedirect = false;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && !params.code && params.mode !== 'update-password') {
+      shouldRedirect = true;
+    }
+  } catch {
+    // ignore
+  }
+
+  if (shouldRedirect) {
+    redirect('/');
   }
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col justify-between p-4 sm:p-8">
