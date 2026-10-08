@@ -11,7 +11,7 @@ interface NavbarProps {
   onReplayIntro?: () => void;
 }
 
-type NavAnimationPhase = 'closed' | 'opening' | 'open' | 'closing';
+type NavAnimationPhase = 'closed' | 'rotating' | 'splitting' | 'open' | 'closing';
 
 export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   const [activeSection, setActiveSection] = useState<'home' | 'events' | 'schedule' | 'join'>('home');
@@ -27,7 +27,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   const leaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sequenceTimersRef = useRef<NodeJS.Timeout[]>([]);
 
-  const isExpanded = phase === 'opening' || phase === 'open' || mobileMenuOpen;
+  const isExpanded = phase === 'splitting' || phase === 'open' || mobileMenuOpen;
 
   // Clear all pending transition timers
   const clearSequenceTimers = () => {
@@ -112,23 +112,28 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
       leaveTimerRef.current = null;
     }
 
-    if (phase === 'open' || phase === 'opening') return;
+    if (phase === 'open' || phase === 'splitting' || phase === 'rotating') return;
 
     clearSequenceTimers();
-    setPhase('opening');
+
+    // STEP 1: ROTATE ONCE (360° spin while Pokéball stays completely closed)
+    setPhase('rotating');
 
     try {
       playRetroBeep(780, 'square', 0.04);
     } catch {}
 
-    // Phase 1 (0-120ms): Rotation
-    // Phase 2 (120-270ms): Split top/bottom halves
-    // Phase 3 (200-450ms): Emergence of navbar & disappearance of Pokéball
+    // STEP 2: SPLIT SEAM & EMERGE NAVBAR AFTER ROTATION FINISHES (230ms)
+    const tSplit = setTimeout(() => {
+      setPhase('splitting');
+    }, 230);
+
+    // STEP 3: REACH FULLY EXPANDED STABLE STATE (480ms)
     const tOpen = setTimeout(() => {
       setPhase('open');
-    }, 450);
+    }, 480);
 
-    sequenceTimersRef.current.push(tOpen);
+    sequenceTimersRef.current.push(tSplit, tOpen);
   };
 
   const handleCollapse = () => {
@@ -261,36 +266,39 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
             {/* The Rotating Pokéball Core Wrapper */}
             <motion.div
               animate={
-                phase === 'opening'
+                phase === 'rotating'
                   ? {
-                      rotateY: [0, 360],
-                      scale: [1, 1.05, 1],
-                      transition: { duration: 0.14, ease: [0.4, 0, 0.2, 1] },
+                      rotate: [0, 360],
+                      scale: [1, 1.15, 1],
+                      transition: { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] },
+                    }
+                  : phase === 'splitting'
+                  ? {
+                      rotate: 360,
+                      scale: 1,
                     }
                   : phase === 'closing'
                   ? {
-                      rotateY: [360, 0],
+                      rotate: [360, 0],
                       scale: [1, 1],
-                      transition: { duration: 0.12, ease: 'easeOut', delay: 0.14 },
+                      transition: { duration: 0.16, ease: 'easeOut', delay: 0.14 },
                     }
-                  : { rotateY: 0, scale: 1 }
+                  : { rotate: 0, scale: 1 }
               }
-              className="relative w-[48px] h-[48px] flex flex-col items-center justify-center"
+              className="relative w-[48px] h-[48px] flex flex-col items-center justify-center origin-center"
             >
-              {/* TOP HALF: Slides UP symmetrically immediately after rotation */}
+              {/* TOP HALF: Stays closed during rotation; Slides UP when splitting */}
               <motion.img
                 src="/assets/pokeball-top.png"
                 alt="Pokéball Top Half"
                 animate={
-                  phase === 'opening'
+                  phase === 'rotating'
+                    ? { y: 0, opacity: 1 }
+                    : phase === 'splitting'
                     ? {
-                        y: [0, 0, -38, -48],
-                        opacity: [1, 1, 1, 0],
-                        transition: {
-                          times: [0, 0.28, 0.65, 1],
-                          duration: 0.44,
-                          ease: [0.16, 1, 0.3, 1],
-                        },
+                        y: [-2, -38, -48],
+                        opacity: [1, 1, 0],
+                        transition: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
                       }
                     : phase === 'closing'
                     ? {
@@ -304,20 +312,18 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 style={{ imageRendering: 'pixelated' }}
               />
 
-              {/* BOTTOM HALF: Slides DOWN symmetrically immediately after rotation */}
+              {/* BOTTOM HALF: Stays closed during rotation; Slides DOWN when splitting */}
               <motion.img
                 src="/assets/pokeball-bottom.png"
                 alt="Pokéball Bottom Half"
                 animate={
-                  phase === 'opening'
+                  phase === 'rotating'
+                    ? { y: 0, opacity: 1 }
+                    : phase === 'splitting'
                     ? {
-                        y: [0, 0, 38, 48],
-                        opacity: [1, 1, 1, 0],
-                        transition: {
-                          times: [0, 0.28, 0.65, 1],
-                          duration: 0.44,
-                          ease: [0.16, 1, 0.3, 1],
-                        },
+                        y: [2, 38, 48],
+                        opacity: [1, 1, 0],
+                        transition: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
                       }
                     : phase === 'closing'
                     ? {
@@ -349,7 +355,6 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
               exit={{ scale: 0.25, opacity: 0, y: 0 }}
               transition={{
                 duration: 0.22,
-                delay: phase === 'opening' ? 0.16 : 0,
                 ease: [0.16, 1, 0.3, 1],
               }}
               className="relative w-full bg-[#161A35]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.85),_0_0_20px_rgba(210,19,25,0.25)] rounded-2xl p-2.5 sm:px-6 overflow-hidden z-20"
@@ -360,7 +365,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 <motion.div
                   initial={{ opacity: 0, x: -12, scale: 0.9 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ duration: 0.2, delay: 0.22 }}
+                  transition={{ duration: 0.18, delay: 0.04 }}
                   className="shrink-0"
                 >
                   <Link
@@ -387,7 +392,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 <nav className="hidden md:flex items-center gap-6">
                   {navLinks.map((link, index) => {
                     const isActive = activeSection === link.id;
-                    const delay = 0.24 + index * 0.025;
+                    const delay = 0.06 + index * 0.025;
 
                     if (link.href) {
                       return (
@@ -438,7 +443,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 <motion.div
                   initial={{ opacity: 0, x: 12, scale: 0.9 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ duration: 0.2, delay: 0.34 }}
+                  transition={{ duration: 0.2, delay: 0.16 }}
                   className="flex items-center gap-2.5 shrink-0"
                 >
                   {onReplayIntro && (
