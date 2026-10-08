@@ -139,23 +139,6 @@ export function LandingClient({ settings }: LandingClientProps) {
 
       {/* FOREGROUND SCROLLABLE CONTENT */}
       <main className="flex-1 relative z-10">
-        
-        {/* Continuous Crimson Satin SVG Ribbon Drawing Down the Page */}
-        <div className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none z-0 overflow-hidden opacity-25">
-          <svg
-            className="w-full h-full"
-            preserveAspectRatio="none"
-            viewBox="0 0 1000 4000"
-            fill="none"
-          >
-            <path
-              d="M500 0 C400 400 650 800 500 1200 C350 1600 600 2000 450 2400 C300 2800 650 3200 500 3600 C450 3800 520 3950 500 4000"
-              stroke="#D21319"
-              strokeWidth="1.5"
-              strokeDasharray="4 2"
-            />
-          </svg>
-        </div>
 
         {/* 1. True 100vh Full-Screen Theatrical Stage Hero */}
         <HeroSection
