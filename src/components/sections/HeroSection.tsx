@@ -68,7 +68,7 @@ export function HeroSection({ onRegisterClick, onViewEventsClick }: HeroSectionP
       {/* 1. CINEMATIC FOREGROUND HERO STAGE (MOBILE RESPONSIVE & ANIMATED) */}
       <section
         id="home"
-        className="relative w-full min-h-screen flex flex-col justify-end pt-24 pb-12 px-4 sm:px-6 lg:px-8 pointer-events-none select-none z-10"
+        className="relative w-full min-h-screen flex flex-col justify-center py-20 sm:py-24 px-4 sm:px-6 lg:px-8 pointer-events-none select-none z-10"
       >
         <div className="max-w-5xl mx-auto w-full pointer-events-auto">
           {/* Frosted Theatrical HUD Console */}

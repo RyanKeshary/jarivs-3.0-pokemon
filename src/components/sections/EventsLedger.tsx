@@ -396,46 +396,49 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
                 <div>
                   <hr className="border-t border-black/20 my-4" />
 
-                  {/* Bottom Action Row (No fake worth money, punchy buttons) */}
-                  <div className="flex items-center justify-between gap-3">
-                    
-                    {/* Status Pill */}
-                    <span className="border-2 border-black bg-black text-white px-2.5 py-1 text-[11px] font-bold font-mono tracking-wider">
-                      {event.fee}
-                    </span>
+                  {/* Bottom Action Area: Clean 2-Tier Contained Grid */}
+                  <div className="space-y-2.5">
+                    {/* Status Pill & WhatsApp Group Row */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="border border-black bg-black text-white px-2 py-0.5 text-[11px] font-bold font-mono tracking-wider">
+                        {event.fee}
+                      </span>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={event.whatsappLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1.5 border-2 border-emerald-800 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#065f46] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1"
-                        title="Join Official WhatsApp Group"
-                      >
-                        <span>💬</span>
-                        <span className="hidden sm:inline">GROUP</span>
-                      </a>
+                      {event.whatsappLink && (
+                        <a
+                          href={event.whatsappLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-0.5 border border-emerald-800 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono font-bold text-[11px] uppercase tracking-wider transition-colors cursor-pointer shadow-[1.5px_1.5px_0px_#065f46] flex items-center gap-1"
+                          title="Join Official WhatsApp Group"
+                        >
+                          <span>💬</span>
+                          <span>WA GROUP</span>
+                        </a>
+                      )}
+                    </div>
 
+                    {/* Action Buttons: 2-Column Full Width Grid */}
+                    <div className="grid grid-cols-2 gap-2 w-full">
                       <button
                         onClick={() => setActiveModalEvent(event)}
-                        className="px-3 py-1.5 border-2 border-black bg-white hover:bg-neutral-100 text-black font-mono font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                        className="w-full py-2 border-2 border-black bg-white hover:bg-neutral-100 text-black font-mono font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1"
                         title="View Rules and Format"
                       >
-                        RULES
+                        <span>📜</span>
+                        <span>RULES</span>
                       </button>
 
                       <button
                         onClick={() => onSelectEventForRegistration(event.id)}
-                        className="px-4 py-1.5 bg-black hover:bg-[#D21319] text-white font-sans font-black text-xs uppercase tracking-wider transition-all duration-150 flex items-center gap-1.5 shadow-[2px_2px_0px_#000] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
+                        className="w-full py-2 bg-black hover:bg-[#D21319] text-white font-sans font-black text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_#000] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
                       >
                         <span>REGISTER</span>
-                        <span className="w-4 h-4 bg-white text-black flex items-center justify-center font-bold text-xs">
+                        <span className="w-4 h-4 bg-white text-black flex items-center justify-center font-bold text-xs shrink-0">
                           ↗
                         </span>
                       </button>
                     </div>
-
                   </div>
 
                 </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -53,6 +54,21 @@ export function RegistrationModal({
   const [successData, setSuccessData] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isOpen]);
 
   // Load draft from localStorage on initial render
   useEffect(() => {
@@ -368,19 +384,19 @@ export function RegistrationModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted || typeof document === 'undefined') return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-3 sm:p-6 overflow-y-auto select-none">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 select-none overflow-hidden">
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 16 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="relative w-full max-w-2xl bg-[#FAF9F5] text-black border-2 border-black shadow-[10px_10px_0px_#000] my-4 sm:my-8 p-5 sm:p-7 overflow-y-auto max-h-[92vh]"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.16, ease: 'easeOut' }}
+        className="relative w-full max-w-2xl bg-[#FAF9F5] text-black border-2 border-black shadow-[8px_8px_0px_#000] p-3.5 sm:p-4 flex flex-col max-h-[94vh] sm:max-h-[90vh] overflow-hidden"
       >
         {/* HEADER BAR */}
-        <div className="relative flex items-center justify-between pb-3.5 mb-4 border-b-2 border-black">
+        <div className="relative flex items-center justify-between pb-2 mb-2 border-b-2 border-black flex-shrink-0">
           <div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#D21319] animate-pulse border border-black" />
@@ -388,37 +404,39 @@ export function RegistrationModal({
                 INDIGO TECH FEST · JARVIS 3.0
               </span>
               {draftRestored && (
-                <span className="font-mono text-[9px] bg-green-100 text-green-800 px-2 py-0.2 border border-green-800 font-bold">
+                <span className="font-mono text-[9px] bg-green-100 text-green-800 px-1.5 py-0.2 border border-green-800 font-bold">
                   Draft Restored
                 </span>
               )}
             </div>
-            <h2 className="text-xl sm:text-2xl font-black font-sans uppercase tracking-tight text-black mt-1">
+            <h2 className="text-lg sm:text-xl font-black font-sans uppercase tracking-tight text-black mt-0.5">
               Festival Enlistment & Team Roster
             </h2>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 bg-black text-white hover:bg-[#D21319] border border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-mono font-bold text-sm transition-colors cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
+            className="w-7 h-7 bg-black text-white hover:bg-[#D21319] border border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-mono font-bold text-xs transition-colors cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
             aria-label="Close"
           >
             ✕
           </button>
         </div>
 
-        {/* PROMINENT DISQUALIFICATION WARNING BANNER */}
-        <div className="relative mb-4 p-3 bg-red-50 border-2 border-[#D21319] shadow-[2px_2px_0px_rgba(210,19,25,0.25)] flex items-start gap-2.5 text-xs">
-          <span className="text-lg leading-none">⚠️</span>
-          <div>
-            <span className="font-bold text-[#b91c1c] uppercase tracking-wide block font-mono text-[11px]">
-              STRICT RULE: MAXIMUM 2 EVENTS PER MEMBER
+        {/* COMPACT DISQUALIFICATION WARNING BANNER */}
+        <div className="relative mb-2 px-2.5 py-1.5 bg-red-50 border-2 border-[#D21319] flex items-center justify-between gap-2 text-xs flex-shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-base leading-none shrink-0">⚠️</span>
+            <span className="font-mono text-[11px] font-bold text-[#b91c1c] uppercase tracking-wide truncate">
+              STRICT RULE: MAX 2 EVENTS PER MEMBER
             </span>
-            <span className="text-neutral-800 text-[11px] leading-relaxed block mt-0.5 font-sans">
-              Each student can participate in a maximum of <strong>2 events</strong> across the fest.
-              Enrolling in more than 2 events will result in immediate disqualification.
+            <span className="hidden sm:inline text-neutral-700 text-[10px] font-sans truncate">
+              (Disqualification if enrolled in &gt; 2 events)
             </span>
           </div>
+          <span className="text-[9px] font-mono font-bold bg-[#D21319] text-white px-1.5 py-0.5 shrink-0 border border-black">
+            MAX 2
+          </span>
         </div>
 
         {/* SUCCESS BOARDING PASS VIEW */}
@@ -525,23 +543,23 @@ export function RegistrationModal({
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto space-y-2.5 pr-0.5">
             {/* 3-STEP PROGRESS STEPPER */}
-            <div className="p-3 bg-[#EFECE6] border-2 border-black">
-              <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+            <div className="p-1 bg-[#EFECE6] border-2 border-black flex-shrink-0">
+              <div className="grid grid-cols-3 gap-1.5 text-center text-xs font-mono">
                 {/* Step 1 */}
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className={`py-2 px-1 border border-black flex flex-col sm:flex-row items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-1.5 px-1 border border-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
                     currentStep === 1
-                      ? 'bg-black text-white font-bold shadow-[2px_2px_0px_#000]'
+                      ? 'bg-black text-white font-bold shadow-[1.5px_1.5px_0px_#000]'
                       : currentStep > 1
                       ? 'bg-green-100 text-green-900 font-bold'
                       : 'bg-white text-neutral-600'
                   }`}
                 >
-                  <span className="w-4 h-4 rounded-full bg-current text-[10px] flex items-center justify-center text-white shrink-0">
+                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[9px] flex items-center justify-center text-white shrink-0 font-bold">
                     {currentStep > 1 ? '✓' : '1'}
                   </span>
                   <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
@@ -555,15 +573,15 @@ export function RegistrationModal({
                   onClick={() => {
                     if (validateStep1()) setCurrentStep(2);
                   }}
-                  className={`py-2 px-1 border border-black flex flex-col sm:flex-row items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-1.5 px-1 border border-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
                     currentStep === 2
-                      ? 'bg-black text-white font-bold shadow-[2px_2px_0px_#000]'
+                      ? 'bg-black text-white font-bold shadow-[1.5px_1.5px_0px_#000]'
                       : currentStep > 2
                       ? 'bg-green-100 text-green-900 font-bold'
                       : 'bg-white text-neutral-600'
                   }`}
                 >
-                  <span className="w-4 h-4 rounded-full bg-current text-[10px] flex items-center justify-center text-white shrink-0">
+                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[9px] flex items-center justify-center text-white shrink-0 font-bold">
                     {currentStep > 2 ? '✓' : '2'}
                   </span>
                   <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
@@ -577,13 +595,13 @@ export function RegistrationModal({
                   onClick={() => {
                     if (validateStep1() && validateStep2()) setCurrentStep(3);
                   }}
-                  className={`py-2 px-1 border border-black flex flex-col sm:flex-row items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-1.5 px-1 border border-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
                     currentStep === 3
-                      ? 'bg-black text-white font-bold shadow-[2px_2px_0px_#000]'
+                      ? 'bg-black text-white font-bold shadow-[1.5px_1.5px_0px_#000]'
                       : 'bg-white text-neutral-600'
                   }`}
                 >
-                  <span className="w-4 h-4 rounded-full bg-current text-[10px] flex items-center justify-center text-white shrink-0">
+                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[9px] flex items-center justify-center text-white shrink-0 font-bold">
                     3
                   </span>
                   <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
@@ -595,24 +613,24 @@ export function RegistrationModal({
 
             {/* Error Message with Account Exists Warning */}
             {errorMsg && (
-              <div className="p-3.5 bg-red-100 border-2 border-[#D21319] text-[#991b1b] text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-sans shadow-[3px_3px_0px_#D21319]">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg leading-none">⚠️</span>
+              <div className="p-2.5 bg-red-100 border-2 border-[#D21319] text-[#991b1b] text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 font-sans shadow-[2px_2px_0px_#D21319]">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-base leading-none">⚠️</span>
                   <div>
-                    <span className="font-bold block font-mono text-[11px] uppercase text-[#7f1d1d]">
+                    <span className="font-bold block font-mono text-[10px] uppercase text-[#7f1d1d]">
                       {errorMsg.toLowerCase().includes('account already exists')
                         ? 'DUPLICATE REGISTRATION DETECTED · ACCOUNT EXISTS'
                         : 'REGISTRATION WARNING'}
                     </span>
-                    <span className="mt-0.5 block leading-relaxed">{errorMsg}</span>
+                    <span className="mt-0.5 block leading-relaxed text-[11px]">{errorMsg}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                   {errorMsg.toLowerCase().includes('account already exists') && (
                     <a
                       href="/dashboard"
-                      className="px-3 py-1.5 bg-[#D21319] text-white font-mono font-bold text-[11px] uppercase border border-black shadow-[2px_2px_0px_#000]"
+                      className="px-2.5 py-1 bg-[#D21319] text-white font-mono font-bold text-[10px] uppercase border border-black shadow-[1.5px_1.5px_0px_#000]"
                     >
                       Login to Dashboard ➔
                     </a>
@@ -630,8 +648,8 @@ export function RegistrationModal({
             )}
 
             {stepError && (
-              <div className="p-3 bg-red-50 border-2 border-red-500 text-red-900 text-xs flex items-center justify-between gap-2 font-mono">
-                <div className="flex items-center gap-2">
+              <div className="p-2 bg-red-50 border-2 border-red-500 text-red-900 text-xs flex items-center justify-between gap-2 font-mono">
+                <div className="flex items-center gap-1.5">
                   <span>⚠️</span>
                   <span>{stepError}</span>
                 </div>
@@ -647,7 +665,7 @@ export function RegistrationModal({
 
             {/* Max Event Warning */}
             {maxWarning && (
-              <div className="p-3 bg-amber-100 border-2 border-amber-600 text-amber-900 text-xs flex items-center gap-2 font-mono">
+              <div className="p-2 bg-amber-100 border-2 border-amber-600 text-amber-900 text-xs flex items-center gap-1.5 font-mono">
                 <span>⚠️</span>
                 <span>{maxWarning}</span>
               </div>
@@ -664,22 +682,22 @@ export function RegistrationModal({
               />
             </div>
 
-            {/* STEP 1: EVENT SELECTION */}
+            {/* STEP 1: EVENT SELECTION (COMPACT FIT) */}
             {currentStep === 1 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between pb-0.5">
                   <div>
-                    <h3 className="text-sm font-black uppercase font-sans text-black">
+                    <h3 className="text-xs font-black uppercase font-sans text-black">
                       Step 1: Select Your Competitions
                     </h3>
-                    <p className="text-[11px] font-mono text-neutral-600">
+                    <p className="text-[10px] font-mono text-neutral-600">
                       Pick 1 or 2 disciplines only. Teams are allocated per discipline.
                     </p>
                   </div>
 
                   {/* Counter Badge */}
                   <span
-                    className={`text-[11px] font-mono px-2.5 py-1 border border-black shadow-[2px_2px_0px_#000] ${
+                    className={`text-[10px] font-mono px-2 py-0.5 border border-black shadow-[1.5px_1.5px_0px_#000] ${
                       selectedEvents.length === 2
                         ? 'bg-[#D21319] text-white font-bold'
                         : selectedEvents.length === 1
@@ -691,8 +709,8 @@ export function RegistrationModal({
                   </span>
                 </div>
 
-                {/* 7 Interactive Event Selection Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* 7 Interactive Compact Event Selection Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {FEST_EVENTS.map((ev) => {
                     const isSelected = selectedEvents.includes(ev.id);
                     const isLimitReached = selectedEvents.length >= 2 && !isSelected;
@@ -701,20 +719,20 @@ export function RegistrationModal({
                       <div
                         key={ev.id}
                         onClick={() => toggleEvent(ev.id)}
-                        className={`p-3 border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 select-none ${
+                        className={`px-2.5 py-1.5 border-2 transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
                           isSelected
-                            ? 'bg-[#FFF5F5] border-[#D21319] shadow-[3px_3px_0px_#D21319] ring-1 ring-[#D21319]'
+                            ? 'bg-[#FFF5F5] border-[#D21319] shadow-[2px_2px_0px_#D21319] ring-1 ring-[#D21319]'
                             : isLimitReached
                             ? 'bg-neutral-100 border-neutral-300 opacity-50 cursor-not-allowed'
-                            : 'bg-white border-black hover:bg-[#F9F7F1] shadow-[2px_2px_0px_#000]'
+                            : 'bg-white border-black hover:bg-[#F9F7F1] shadow-[1.5px_1.5px_0px_#000]'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-10 h-10 border border-black bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 border border-black bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
                             <img
                               src={ev.pokemonGif}
                               alt={ev.pokemon}
-                              className="w-8 h-8 object-contain"
+                              className="w-6 h-6 object-contain"
                               style={{ imageRendering: 'pixelated' }}
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = ev.pokemonStatic;
@@ -722,29 +740,21 @@ export function RegistrationModal({
                             />
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-black truncate font-sans">
+                            <div className="text-xs font-black text-black truncate font-sans uppercase leading-tight">
                               {ev.title}
                             </div>
-                            <div className="text-[10px] text-neutral-600 flex items-center gap-1.5 mt-0.5 font-mono">
-                              <span className="font-bold text-[#D21319]">{ev.dayTag}</span>
-                              <span>•</span>
-                              <span>{ev.teamSize}</span>
+                            <div className="text-[10px] text-neutral-600 truncate font-mono leading-tight">
+                              <span className="font-bold text-[#D21319]">{ev.dayTag}</span> • {ev.teamSize}
                             </div>
-                            {ev.whatsappLink && (
-                              <div className="text-[9px] font-mono text-emerald-700 flex items-center gap-1 mt-0.5">
-                                <span>💬</span>
-                                <span className="font-bold">WhatsApp Group Active</span>
-                              </div>
-                            )}
                           </div>
                         </div>
 
                         <div
-                          className={`w-6 h-6 border-2 border-black flex items-center justify-center shrink-0 transition font-mono ${
+                          className={`w-5 h-5 border-2 border-black flex items-center justify-center shrink-0 transition font-mono ${
                             isSelected
                               ? 'bg-[#D21319] text-white font-bold text-xs'
                               : isLimitReached
-                              ? 'bg-neutral-200 text-neutral-500 text-xs'
+                              ? 'bg-neutral-200 text-neutral-500 text-[10px]'
                               : 'bg-white'
                           }`}
                         >
@@ -757,12 +767,12 @@ export function RegistrationModal({
 
                 {/* Schedule Clash Warning Alert */}
                 {activeClashes.length > 0 && (
-                  <div className="p-3 bg-amber-50 border-2 border-amber-600 text-amber-900 text-xs space-y-1">
-                    <span className="font-bold flex items-center gap-1.5 font-mono">
+                  <div className="p-2 bg-amber-50 border-2 border-amber-600 text-amber-900 text-xs space-y-0.5">
+                    <span className="font-bold flex items-center gap-1.5 font-mono text-[11px]">
                       <span>⚠️</span> Schedule Overlap Notice:
                     </span>
                     {activeClashes.map((c, i) => (
-                      <div key={i} className="text-[11px] pl-5 font-sans">
+                      <div key={i} className="text-[10px] pl-4 font-sans">
                         • {c}
                       </div>
                     ))}
@@ -770,11 +780,11 @@ export function RegistrationModal({
                 )}
 
                 {/* Step 1 Actions */}
-                <div className="pt-2 flex items-center justify-between gap-3">
+                <div className="pt-2 flex items-center justify-between gap-2.5">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2.5 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer"
+                    className="px-3.5 py-1.5 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -783,7 +793,7 @@ export function RegistrationModal({
                     type="button"
                     onClick={handleNextFromStep1}
                     disabled={selectedEvents.length === 0}
-                    className="px-6 py-2.5 bg-[#D21319] hover:bg-[#b00f14] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-black shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-1.5 bg-[#D21319] hover:bg-[#b00f14] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1.5"
                   >
                     <span>Proceed to Personal Info</span>
                     <span>➔</span>
@@ -1102,4 +1112,6 @@ export function RegistrationModal({
       </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

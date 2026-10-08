@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FestEventItem } from '@/components/sections/EventsLedger';
 
@@ -168,8 +169,18 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
 
 export function EventThemedModal({ event, onClose, onRegister }: EventThemedModalProps) {
   const [activeTab, setActiveTab] = useState<'rules' | 'rounds' | 'prizes' | 'judging'>('rules');
+  const [mounted, setMounted] = useState(false);
 
-  if (!event) return null;
+  useEffect(() => {
+    setMounted(true);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
+  if (!event || !mounted || typeof document === 'undefined') return null;
 
   const config = THEME_CONFIGS[event.id] || {
     accentColor: '#D21319',
@@ -183,23 +194,23 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
     judgingCriteria: ['Technical Execution', 'Innovation', 'Oral Defense']
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto select-none">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 select-none overflow-hidden">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 14 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="relative w-full max-w-2xl bg-[#FAF9F5] text-black border-2 border-black shadow-[10px_10px_0px_#000] rounded-none overflow-hidden max-h-[92vh] flex flex-col my-auto"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.16, ease: 'easeOut' }}
+        className="relative w-full max-w-2xl bg-[#FAF9F5] text-black border-2 border-black shadow-[8px_8px_0px_#000] rounded-none overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
       >
         {/* Top Strip */}
         <div
-          className="h-2 w-full border-b border-black"
+          className="h-2 w-full border-b border-black flex-shrink-0"
           style={{ backgroundColor: config.accentColor }}
         />
 
         {/* HERO BANNER SECTION (LIGHT THEME) */}
-        <div className={`relative p-5 sm:p-7 ${config.lightBg} border-b-2 border-black flex-shrink-0`}>
+        <div className={`relative p-4 sm:p-5 ${config.lightBg} border-b-2 border-black flex-shrink-0`}>
           {/* Subtle Halftone Pattern */}
           <div
             className="absolute inset-0 pointer-events-none opacity-20"
@@ -212,27 +223,27 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 w-8 h-8 bg-black text-white hover:bg-[#D21319] transition-colors border border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-mono font-bold text-sm cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
+            className="absolute top-3.5 right-3.5 z-20 w-8 h-8 bg-black text-white hover:bg-[#D21319] transition-colors border border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-mono font-bold text-sm cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
             aria-label="Close"
           >
             ✕
           </button>
 
-          <div className="relative z-10 flex flex-col-reverse sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-2 flex-1">
+          <div className="relative z-10 flex flex-col-reverse sm:flex-row items-start sm:items-center justify-between gap-3 pr-8 sm:pr-0">
+            <div className="space-y-1.5 flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className={`px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wider uppercase border border-black shadow-[2px_2px_0px_#000] ${config.badgeBg}`}>
+                <span className={`px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider uppercase border border-black shadow-[1.5px_1.5px_0px_#000] ${config.badgeBg}`}>
                   {config.themeGlyph} {config.badgeText}
                 </span>
-                <span className="px-2 py-0.5 bg-white text-black border border-black font-mono text-[10px] font-bold shadow-[2px_2px_0px_#000]">
+                <span className="px-2 py-0.5 bg-white text-black border border-black font-mono text-[10px] font-bold shadow-[1.5px_1.5px_0px_#000]">
                   {event.dayTag}
                 </span>
-                <span className="px-2 py-0.5 bg-black text-white border border-black font-mono text-[10px] font-bold shadow-[2px_2px_0px_#000]">
+                <span className="px-2 py-0.5 bg-black text-white border border-black font-mono text-[10px] font-bold shadow-[1.5px_1.5px_0px_#000]">
                   {event.category}
                 </span>
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-black font-sans uppercase tracking-tight text-black">
+              <h2 className="text-xl sm:text-2xl font-black font-sans uppercase tracking-tight text-black leading-snug">
                 {event.name}
               </h2>
 
@@ -244,13 +255,13 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
             {/* Event Sprite with Clean Light Drop Shadow */}
             <div className="relative flex-shrink-0 mx-auto sm:mx-0">
               <div
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-black flex items-center justify-center shadow-[4px_4px_0px_#000]"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-black flex items-center justify-center shadow-[3px_3px_0px_#000]"
                 style={{ backgroundColor: `${config.accentColor}25` }}
               >
                 <img
                   src={event.pokemonGif}
                   alt={event.pokemon}
-                  className="w-20 h-20 sm:w-24 sm:h-24 object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]"
+                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]"
                   style={{ imageRendering: 'pixelated' }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = event.pokemonStatic;
@@ -261,31 +272,31 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           </div>
 
           {/* Quick Specs Strip */}
-          <div className="relative z-10 mt-4 pt-3 border-t border-black/20 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
-            <div className="bg-white p-2 border border-black shadow-[2px_2px_0px_#000]">
-              <span className="text-[10px] text-neutral-600 block uppercase">Team Size</span>
-              <span className="font-bold text-black">{event.teamSize}</span>
+          <div className="relative z-10 mt-3 pt-2.5 border-t border-black/20 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs font-mono">
+            <div className="bg-white p-1.5 border border-black shadow-[1.5px_1.5px_0px_#000]">
+              <span className="text-[9px] text-neutral-600 block uppercase font-bold">Team Size</span>
+              <span className="font-bold text-black text-[11px] truncate block">{event.teamSize}</span>
             </div>
-            <div className="bg-white p-2 border border-black shadow-[2px_2px_0px_#000]">
-              <span className="text-[10px] text-neutral-600 block uppercase">Scheduled Time</span>
-              <span className="font-bold text-black">{event.slotTime}</span>
+            <div className="bg-white p-1.5 border border-black shadow-[1.5px_1.5px_0px_#000]">
+              <span className="text-[9px] text-neutral-600 block uppercase font-bold">Scheduled Time</span>
+              <span className="font-bold text-black text-[11px] truncate block">{event.slotTime}</span>
             </div>
-            <div className="bg-white p-2 border border-black shadow-[2px_2px_0px_#000]">
-              <span className="text-[10px] text-neutral-600 block uppercase">Format / Mode</span>
-              <span className="font-bold text-black">{event.mode}</span>
+            <div className="bg-white p-1.5 border border-black shadow-[1.5px_1.5px_0px_#000]">
+              <span className="text-[9px] text-neutral-600 block uppercase font-bold">Format / Mode</span>
+              <span className="font-bold text-black text-[11px] truncate block">{event.mode}</span>
             </div>
-            <div className="bg-white p-2 border border-black shadow-[2px_2px_0px_#000]">
-              <span className="text-[10px] text-neutral-600 block uppercase">Entry Fee</span>
-              <span className="font-bold text-green-700">100% Free</span>
+            <div className="bg-white p-1.5 border border-black shadow-[1.5px_1.5px_0px_#000]">
+              <span className="text-[9px] text-neutral-600 block uppercase font-bold">Entry Fee</span>
+              <span className="font-bold text-green-700 text-[11px] block">100% Free</span>
             </div>
           </div>
         </div>
 
-        {/* NAVIGATION TABS (LIGHT EDITORIAL) */}
-        <div className="flex border-b-2 border-black bg-[#EFECE6] px-4 gap-1 sm:gap-2 flex-shrink-0 overflow-x-auto text-xs font-mono">
+        {/* NAVIGATION TABS (LIGHT EDITORIAL - NO SCROLLBAR ARROWS) */}
+        <div className="flex border-b-2 border-black bg-[#EFECE6] px-3 sm:px-4 gap-1 flex-shrink-0 overflow-x-auto text-xs font-mono scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <button
             onClick={() => setActiveTab('rules')}
-            className={`py-2.5 px-3 sm:px-4 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
               activeTab === 'rules'
                 ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
                 : 'border-transparent text-neutral-600 hover:text-black'
@@ -295,7 +306,7 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           </button>
           <button
             onClick={() => setActiveTab('rounds')}
-            className={`py-2.5 px-3 sm:px-4 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
               activeTab === 'rounds'
                 ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
                 : 'border-transparent text-neutral-600 hover:text-black'
@@ -305,7 +316,7 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           </button>
           <button
             onClick={() => setActiveTab('prizes')}
-            className={`py-2.5 px-3 sm:px-4 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
               activeTab === 'prizes'
                 ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
                 : 'border-transparent text-neutral-600 hover:text-black'
@@ -315,7 +326,7 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           </button>
           <button
             onClick={() => setActiveTab('judging')}
-            className={`py-2.5 px-3 sm:px-4 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
               activeTab === 'judging'
                 ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
                 : 'border-transparent text-neutral-600 hover:text-black'
@@ -326,16 +337,16 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
         </div>
 
         {/* TAB CONTENT (LIGHT THEME) */}
-        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4 bg-[#FAF9F5]">
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3 bg-[#FAF9F5]">
           {activeTab === 'rules' && (
-            <div className="space-y-4">
-              <div className="p-3.5 bg-white border border-black shadow-[2px_2px_0px_#000] text-xs text-neutral-800 leading-relaxed font-sans">
+            <div className="space-y-3">
+              <div className="p-3 bg-white border border-black shadow-[2px_2px_0px_#000] text-xs text-neutral-800 leading-relaxed font-sans">
                 <span className="font-bold text-black font-mono block mb-1">Executive Summary:</span>
                 {event.description}
               </div>
 
               <div>
-                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-black border-b border-black pb-1 mb-2.5">
+                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-black border-b border-black pb-1 mb-2">
                   Mandatory Regulations:
                 </h4>
                 <ul className="space-y-2 text-xs text-neutral-900 font-sans">
@@ -441,30 +452,30 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           )}
         </div>
 
-        {/* ACTION FOOTER (LIGHT THEME) */}
-        <div className="p-4 bg-[#EFECE6] border-t-2 border-black flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
-          <div className="flex items-center gap-2 text-xs font-mono text-neutral-700">
+        {/* ACTION FOOTER (LIGHT THEME - NO CUTOFFS) */}
+        <div className="p-3 sm:p-3.5 bg-[#EFECE6] border-t-2 border-black flex flex-col sm:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+          <div className="flex items-center gap-2 text-[11px] font-mono text-neutral-800 shrink-0">
             <span className="w-2.5 h-2.5 rounded-full bg-green-600 animate-pulse border border-black" />
-            <span>Registration: <strong className="text-green-700">OPEN (MAX 2 EVENTS PER MEMBER)</strong></span>
+            <span>Registration: <strong className="text-green-700">OPEN (MAX 2 EVENTS)</strong></span>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             {event.whatsappLink && (
               <a
                 href={event.whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-1.5"
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-1 shrink-0"
                 title="Join Event WhatsApp Group"
               >
                 <span>💬</span>
-                <span>WhatsApp Group</span>
+                <span>WhatsApp</span>
               </a>
             )}
 
             <button
               onClick={onClose}
-              className="flex-1 sm:flex-none px-4 py-2 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
+              className="px-3.5 py-1.5 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px] shrink-0"
             >
               Close
             </button>
@@ -474,9 +485,9 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
                 onClose();
                 onRegister(id);
               }}
-              className="flex-1 sm:flex-none px-6 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white border-2 border-black shadow-[3px_3px_0px_#000] font-sans font-bold text-xs uppercase tracking-wider transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-1.5"
+              className="px-4 py-1.5 bg-[#D21319] hover:bg-[#b00f14] text-white border-2 border-black shadow-[2px_2px_0px_#000] font-sans font-black text-xs uppercase tracking-wider transition-all cursor-pointer active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-1.5 shrink-0"
             >
-              <span>Enlist in this Event</span>
+              <span>ENLIST NOW</span>
               <span>[ ↗ ]</span>
             </button>
           </div>
@@ -485,4 +496,6 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
       </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
