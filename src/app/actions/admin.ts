@@ -6,29 +6,52 @@ import { revalidatePath } from 'next/cache';
 
 // Helper to verify admin or master authorization
 // Helper to verify authorization (Coordinator, Admin, Manager, or Master)
-export async function requireCoordinatorOrAdmin() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
-    throw new Error('Unauthorized: login required');
+export async function requireCoordinatorOrAdmin(userOverride?: any) {
+  let user = userOverride;
+  if (!user) {
+    const supabase = await createClient();
+    const { data: { user: authUser }, error } = await supabase.auth.getUser();
+    if (error || !authUser) {
+      throw new Error('Unauthorized: login required');
+    }
+    user = authUser;
   }
 
-  const profileRows = await sql`SELECT * FROM public.profiles WHERE id = ${user.id}`;
-  let profile = profileRows[0];
   const userEmail = (user.email || '').toLowerCase().trim();
+
+  let profileRows: any[] = [];
+  try {
+    profileRows = await sql`SELECT * FROM public.profiles WHERE id = ${user.id}::uuid`;
+  } catch {
+    try {
+      profileRows = await sql`SELECT * FROM public.profiles WHERE id = ${user.id}`;
+    } catch {}
+  }
+  let profile = profileRows[0];
   
   // STRICT RULE: ONLY ryankeshary@gmail.com and shrey.sleeps@gmail.com are masters
   const isMasterUser = userEmail === 'ryankeshary@gmail.com' || userEmail === 'shrey.sleeps@gmail.com';
 
-  if (!profile && isMasterUser && user.email) {
-    const byEmail = await sql`SELECT * FROM public.profiles WHERE LOWER(email) = ${userEmail}`;
-    profile = byEmail[0] || { id: user.id, email: user.email, role: 'master', full_name: 'Master Organizer' };
+  // Fallback to lookup by email if profile was not found by id
+  if (!profile && userEmail) {
+    try {
+      const byEmail = await sql`SELECT * FROM public.profiles WHERE LOWER(email) = ${userEmail}`;
+      profile = byEmail[0];
+    } catch {}
   }
 
-  const isCoordinator = profile?.role === 'coordinator';
-  const isManager = profile?.role === 'manager';
-  const isAdmin = profile?.role === 'admin' || isMasterUser;
-  const isMaster = isMasterUser || profile?.role === 'master';
+  if (!profile && isMasterUser && user.email) {
+    profile = { id: user.id, email: user.email, role: 'master', full_name: 'Master Organizer' };
+  }
+
+  // Also check auth user metadata for role if profile row is missing or role is not set
+  const metaRole = user.user_metadata?.role;
+  const effectiveRole = profile?.role || metaRole || (isMasterUser ? 'master' : null);
+
+  const isCoordinator = effectiveRole === 'coordinator';
+  const isManager = effectiveRole === 'manager';
+  const isAdmin = effectiveRole === 'admin' || isMasterUser;
+  const isMaster = isMasterUser || effectiveRole === 'master';
 
   const isAuthorized = isMaster || isAdmin || isManager || isCoordinator;
 
@@ -38,7 +61,7 @@ export async function requireCoordinatorOrAdmin() {
 
   return {
     user,
-    profile: profile || { id: user.id, email: user.email, role: isMaster ? 'master' : isCoordinator ? 'coordinator' : 'admin' },
+    profile: profile || { id: user.id, email: user.email, role: effectiveRole || (isMaster ? 'master' : isCoordinator ? 'coordinator' : 'admin') },
     isCoordinator,
     isManager,
     isAdmin,
@@ -47,8 +70,8 @@ export async function requireCoordinatorOrAdmin() {
 }
 
 // Helper to verify Admin, Manager, or Master authorization (blocks coordinators from sensitive management)
-export async function requireAdminOrManager() {
-  const auth = await requireCoordinatorOrAdmin();
+export async function requireAdminOrManager(userOverride?: any) {
+  const auth = await requireCoordinatorOrAdmin(userOverride);
   if (auth.isCoordinator) {
     throw new Error('Forbidden: Requires Administrator or Manager privileges.');
   }
@@ -61,17 +84,21 @@ const requireAdmin = requireAdminOrManager;
 // Dedicated server actions for admin auth
 export async function adminLoginAction(email: string, password: string) {
   try {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password: password.trim(),
+      email: cleanEmail,
+      password: cleanPassword,
     });
 
     if (error || !data.user) {
       return { success: false, error: error?.message || 'Authentication failed' };
     }
 
-    const festData = await getFestAdminData();
+    // Pass data.user directly so we do not hit uncommitted cookies in the same action context
+    const festData = await getFestAdminData(data.user);
     return { success: true, data: festData };
   } catch (err: any) {
     return { success: false, error: err.message || 'Authentication error' };
@@ -102,8 +129,8 @@ async function logAudit(actorId: string, actorEmail: string, action: string, tar
 }
 
 // 1. Fetch Complete Admin Data
-export async function getAdminData() {
-  const { user, profile, isMaster } = await requireAdmin();
+export async function getAdminData(userOverride?: any) {
+  const { user, profile, isMaster } = await requireAdmin(userOverride);
 
   // Run all independent queries concurrently in a single batch
   const [
@@ -719,8 +746,8 @@ export async function adminCheckInSquad(teamId: string) {
 // INDIGO TECH FEST SPECIFIC ADMIN SUITE
 // =============================================================================
 
-export async function getFestAdminData() {
-  const { user, profile, isCoordinator, isMaster } = await requireCoordinatorOrAdmin();
+export async function getFestAdminData(userOverride?: any) {
+  const { user, profile, isCoordinator, isMaster } = await requireCoordinatorOrAdmin(userOverride);
 
   // 1. Coordinators receive strictly the data required for the check-in scanner
   if (isCoordinator) {

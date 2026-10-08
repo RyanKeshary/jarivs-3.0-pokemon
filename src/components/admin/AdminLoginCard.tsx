@@ -17,26 +17,59 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
     setLoading(true);
     setErrorMsg(null);
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     try {
-      // 1. Authenticate via Server Action to establish session cookies
-      const res = await adminLoginAction(email, password);
+      // 1. Authenticate via Server Action to establish session cookies & fetch data
+      const res = await adminLoginAction(cleanEmail, cleanPassword);
       if (res.success && res.data) {
+        try {
+          localStorage.removeItem('indigo_logged_out');
+          localStorage.setItem('indigo_logged_in', 'true');
+          window.dispatchEvent(new Event('auth_state_change'));
+        } catch {}
+
+        // Also sync client-side Supabase browser session in parallel
+        try {
+          const supabase = createClient();
+          await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: cleanPassword,
+          });
+        } catch {}
+
         onLoginSuccess(res.data);
         return;
       }
 
-      // If server action reported an auth failure, try client auth fallback
+      // 2. If server action reported an auth failure, try client auth fallback
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password: password.trim(),
+        email: cleanEmail,
+        password: cleanPassword,
       });
 
       if (error) {
-        throw new Error(res.error || error.message);
+        throw new Error(res.error || error.message || 'Authentication failed. Please verify credentials.');
       }
 
+      try {
+        localStorage.removeItem('indigo_logged_out');
+        localStorage.setItem('indigo_logged_in', 'true');
+        window.dispatchEvent(new Event('auth_state_change'));
+      } catch {}
+
+      // Retry fetching fest admin data with client session established
+      const retryRes = await adminLoginAction(cleanEmail, cleanPassword);
+      if (retryRes.success && retryRes.data) {
+        onLoginSuccess(retryRes.data);
+        return;
+      }
+
+      // 3. Fallback redirect/reload to enter console
       onLoginSuccess();
+      window.location.href = '/admin';
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
     } finally {

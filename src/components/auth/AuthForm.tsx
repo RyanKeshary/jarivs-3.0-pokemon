@@ -141,7 +141,9 @@ export function AuthForm() {
                 window.dispatchEvent(new Event('auth_state_change'));
               } catch {}
               setTimeout(() => {
-                window.location.href = isMaster ? '/admin' : '/';
+                const metaRole = signInData?.user?.user_metadata?.role;
+                const isAdmin = isMaster || metaRole === 'admin' || metaRole === 'manager' || metaRole === 'coordinator';
+                window.location.href = isAdmin ? '/admin' : '/';
               }, 150);
               return;
             }
@@ -165,7 +167,9 @@ export function AuthForm() {
             window.dispatchEvent(new Event('auth_state_change'));
           } catch {}
           setTimeout(() => {
-            window.location.href = isMaster ? '/admin' : '/';
+            const metaRole = data?.user?.user_metadata?.role;
+            const isAdmin = isMaster || metaRole === 'admin' || metaRole === 'manager' || metaRole === 'coordinator';
+            window.location.href = isAdmin ? '/admin' : '/';
           }, 150);
         }
       } else if (mode === 'login') {
@@ -206,14 +210,22 @@ export function AuthForm() {
                 .eq('id', data.user.id)
                 .single();
 
-              if (profile?.role === 'master' || profile?.role === 'admin' || profile?.role === 'manager') {
+              const effectiveRole = profile?.role || data?.user?.user_metadata?.role;
+
+              if (effectiveRole === 'master' || effectiveRole === 'admin' || effectiveRole === 'manager' || effectiveRole === 'coordinator') {
                 target = '/admin';
-                welcomeMsg = `Gym Leader recognized! Welcome, ${profile.full_name || 'Admin'}. Redirecting to Admin HQ...`;
+                welcomeMsg = effectiveRole === 'coordinator'
+                  ? `Gate Coordinator recognized! Welcome, ${profile?.full_name || 'Coordinator'}. Redirecting to Admin HQ...`
+                  : `Gym Leader recognized! Welcome, ${profile?.full_name || 'Admin'}. Redirecting to Admin HQ...`;
               } else if (profile?.full_name) {
                 welcomeMsg = `Welcome back, Trainer ${profile.full_name}!`;
               }
             } catch {
-              // fallback to default
+              const metaRole = data?.user?.user_metadata?.role;
+              if (metaRole === 'coordinator' || metaRole === 'admin' || metaRole === 'manager') {
+                target = '/admin';
+                welcomeMsg = 'Console Staff recognized! Redirecting to Admin HQ...';
+              }
             }
           }
 

@@ -56,6 +56,7 @@ import {
   masterRemoveAdmin,
   resetAdminPassword
 } from '@/app/actions/admin';
+import { createClient } from '@/lib/supabase/client';
 
 interface IndigoAdminDashboardProps {
   data: any;
@@ -80,6 +81,20 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {}
+    try {
+      localStorage.removeItem('indigo_logged_in');
+      localStorage.setItem('indigo_logged_out', 'true');
+      window.dispatchEvent(new Event('auth_state_change'));
+    } catch {}
+    await adminLogoutAction();
+    window.location.href = '/';
+  };
 
   // Manual participant form state
   const [manualForm, setManualForm] = useState({
@@ -568,10 +583,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 </button>
               )}
               <button
-                onClick={async () => {
-                  await adminLogoutAction();
-                  window.location.href = '/';
-                }}
+                onClick={handleLogout}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
                 title="Logout"
               >
@@ -613,10 +625,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             )}
 
             <button
-              onClick={async () => {
-                await adminLogoutAction();
-                window.location.href = '/';
-              }}
+              onClick={handleLogout}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
               title="Sign out from Administrator Console"
             >
