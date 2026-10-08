@@ -443,8 +443,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </span>
             </div>
 
-            {/* User pill & Logout button on mobile */}
+            {/* User pill & Action buttons on mobile */}
             <div className="flex items-center gap-2 md:hidden">
+              <button
+                onClick={() => setSideExportOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors cursor-pointer"
+                title="CSV Export Sidebar"
+              >
+                <Download size={12} className="text-[#D21319]" />
+                <span>Export</span>
+              </button>
               <button
                 onClick={async () => {
                   await adminLogoutAction();
@@ -531,6 +539,15 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 </button>
               );
             })}
+
+            <button
+              onClick={() => setSideExportOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 hover:text-slate-900 ml-auto shrink-0 shadow-2xs"
+              title="Open CSV Export Sidebar"
+            >
+              <Download size={13} className="text-[#D21319]" />
+              <span>Export CSV</span>
+            </button>
           </div>
         </div>
       </header>
@@ -1946,47 +1963,48 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       )}
 
       {/* ========================================================
-          MODAL DIALOG: CSV EXPORT CENTER (NO SCROLLING)
+          SLIDE-OVER SIDEBAR: CSV EXPORT CENTER
          ======================================================== */}
       {sideExportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
           <div
             onClick={() => setSideExportOpen(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity cursor-pointer"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity cursor-pointer"
           />
 
-          <div className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#D21319] text-white rounded-xl shadow-xs">
-                  <Download size={18} />
+          {/* Right-aligned Slide-over Sidebar Drawer */}
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 z-50">
+            <div className="w-screen max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-200">
+              {/* Sidebar Header */}
+              <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#D21319] text-white rounded-xl shadow-xs shrink-0">
+                    <Download size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 tracking-tight">CSV Export Center</h2>
+                    <p className="text-xs text-slate-500">Instant spreadsheet exports for festival operations</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-black text-slate-900 tracking-tight">CSV Export Center</h2>
-                  <p className="text-xs text-slate-500">Instant spreadsheet exports for festival operations</p>
-                </div>
+                <button
+                  onClick={() => setSideExportOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                  title="Close export sidebar"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                onClick={() => setSideExportOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                title="Close export center"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            {/* Modal Content - 3 columns, fits comfortably without scrolling */}
-            <div className="p-4 sm:p-5">
-              <p className="text-xs text-slate-600 mb-4">
-                Export real-time festival records into standard UTF-8 CSV formats, suitable for Microsoft Excel, Google Sheets, and attendance desks.
-              </p>
+              {/* Sidebar Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  Export real-time festival records into standard UTF-8 CSV formats, suitable for Microsoft Excel, Google Sheets, and attendance desks.
+                </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                {/* Option 1: Checked-In Attendees Only */}
-                <div className="p-4 bg-white border-2 border-blue-200 rounded-xl hover:border-blue-500 transition-colors shadow-2xs flex flex-col justify-between space-y-3">
-                  <div className="space-y-2">
+                <div className="space-y-3.5">
+                  {/* Option 1: Checked-In Attendees Only */}
+                  <div className="p-4 bg-white border-2 border-blue-200 rounded-xl hover:border-blue-500 transition-colors shadow-2xs space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
@@ -2006,19 +2024,17 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     <p className="text-[11px] text-slate-600 leading-snug">
                       Verified candidates admitted through the Rapid Check-In desk with timestamps and contact numbers.
                     </p>
+                    <button
+                      onClick={() => exportRegistrationsCSV('checkedin')}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Download Check-Ins</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => exportRegistrationsCSV('checkedin')}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Download size={13} />
-                    <span>Download Check-Ins</span>
-                  </button>
-                </div>
 
-                {/* Option 2: All Registrations */}
-                <div className="p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-[#D21319] transition-colors shadow-2xs flex flex-col justify-between space-y-3">
-                  <div className="space-y-2">
+                  {/* Option 2: All Registrations */}
+                  <div className="p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-[#D21319] transition-colors shadow-2xs space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-rose-50 text-[#D21319] rounded-lg">
@@ -2038,19 +2054,17 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     <p className="text-[11px] text-slate-600 leading-snug">
                       Comprehensive census of all individual candidate profiles, college affiliations, contact emails, and events.
                     </p>
+                    <button
+                      onClick={() => exportRegistrationsCSV('all')}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Download Census</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => exportRegistrationsCSV('all')}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Download size={13} />
-                    <span>Download Census</span>
-                  </button>
-                </div>
 
-                {/* Option 3: Team / Squad Registrations */}
-                <div className="p-4 bg-white border-2 border-emerald-200 rounded-xl hover:border-emerald-500 transition-colors shadow-2xs flex flex-col justify-between space-y-3">
-                  <div className="space-y-2">
+                  {/* Option 3: Team / Squad Registrations */}
+                  <div className="p-4 bg-white border-2 border-emerald-200 rounded-xl hover:border-emerald-500 transition-colors shadow-2xs space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -2070,27 +2084,27 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     <p className="text-[11px] text-slate-600 leading-snug">
                       All created squads with JRV codes, team captains, roster sizes, discipline tracks, and token keys.
                     </p>
+                    <button
+                      onClick={exportTeamsCSV}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Download Squads</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={exportTeamsCSV}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Download size={13} />
-                    <span>Download Squads</span>
-                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
-              <span className="text-[11px]">UTF-8 Comma-Separated Values (.csv)</span>
-              <button
-                onClick={() => setSideExportOpen(false)}
-                className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold transition-colors cursor-pointer text-xs"
-              >
-                Close
-              </button>
+              {/* Sidebar Footer */}
+              <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono shrink-0">
+                <span className="text-[11px]">UTF-8 (.csv) format</span>
+                <button
+                  onClick={() => setSideExportOpen(false)}
+                  className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold transition-colors cursor-pointer text-xs"
+                >
+                  Close Sidebar
+                </button>
+              </div>
             </div>
           </div>
         </div>
