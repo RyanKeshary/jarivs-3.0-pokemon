@@ -5,7 +5,8 @@ import { sql, createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 // Helper to verify admin or master authorization
-async function requireAdmin() {
+// Helper to verify authorization (Coordinator, Admin, Manager, or Master)
+export async function requireCoordinatorOrAdmin() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
@@ -24,14 +25,38 @@ async function requireAdmin() {
     profile = byEmail[0] || { id: user.id, email: user.email, role: 'master', full_name: 'Master Organizer' };
   }
 
-  const isAdminUser = isMasterUser || profile?.role === 'admin' || profile?.role === 'manager' || profile?.role === 'master';
+  const isCoordinator = profile?.role === 'coordinator';
+  const isManager = profile?.role === 'manager';
+  const isAdmin = profile?.role === 'admin' || isMasterUser;
+  const isMaster = isMasterUser || profile?.role === 'master';
 
-  if (!isAdminUser) {
-    throw new Error('Forbidden: Admin access required');
+  const isAuthorized = isMaster || isAdmin || isManager || isCoordinator;
+
+  if (!isAuthorized) {
+    throw new Error('Forbidden: Console access required');
   }
 
-  return { user, profile: profile || { id: user.id, email: user.email, role: isMasterUser ? 'master' : 'admin' }, isMaster: isMasterUser };
+  return {
+    user,
+    profile: profile || { id: user.id, email: user.email, role: isMaster ? 'master' : isCoordinator ? 'coordinator' : 'admin' },
+    isCoordinator,
+    isManager,
+    isAdmin,
+    isMaster
+  };
 }
+
+// Helper to verify Admin, Manager, or Master authorization (blocks coordinators from sensitive management)
+export async function requireAdminOrManager() {
+  const auth = await requireCoordinatorOrAdmin();
+  if (auth.isCoordinator) {
+    throw new Error('Forbidden: Requires Administrator or Manager privileges.');
+  }
+  return auth;
+}
+
+// Backward-compatible alias for existing functions
+const requireAdmin = requireAdminOrManager;
 
 // Dedicated server actions for admin auth
 export async function adminLoginAction(email: string, password: string) {
@@ -542,19 +567,228 @@ export async function masterRemoveAdmin(targetAdminId: string) {
 }
 
 // =============================================================================
+// COORDINATOR MANAGEMENT (Admins & Managers)
+// =============================================================================
+
+export async function adminAddCoordinator(email: string, fullName: string, password?: string) {
+  const { user, profile } = await requireAdminOrManager();
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanName = fullName.trim() || 'Gate Coordinator';
+  const assignedPassword = password?.trim() || 'password@67';
+
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw new Error('Please provide a valid coordinator email address.');
+  }
+
+  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+  if (MASTER_EMAILS.includes(cleanEmail)) {
+    throw new Error('Action Prohibited: Cannot alter role of a Master Administrator.');
+  }
+
+  let targetUserId: string | null = null;
+  const adminClient = createAdminClient();
+
+  try {
+    const { data: usersData } = await adminClient.auth.admin.listUsers();
+    const existing = usersData?.users?.find((u) => u.email?.toLowerCase().trim() === cleanEmail);
+    if (existing) {
+      targetUserId = existing.id;
+      await adminClient.auth.admin.updateUserById(targetUserId, {
+        password: assignedPassword,
+        user_metadata: { full_name: cleanName, role: 'coordinator' },
+      });
+    } else {
+      const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
+        email: cleanEmail,
+        password: assignedPassword,
+        email_confirm: true,
+        user_metadata: { full_name: cleanName, role: 'coordinator' },
+      });
+      if (createErr || !newUser.user) {
+        throw new Error(createErr?.message || 'Failed to provision coordinator auth record.');
+      }
+      targetUserId = newUser.user.id;
+    }
+  } catch (err: any) {
+    throw new Error(err.message || 'Error configuring coordinator authentication.');
+  }
+
+  if (!targetUserId) {
+    throw new Error('Failed to resolve coordinator user identifier.');
+  }
+
+  await sql`
+    INSERT INTO public.profiles (id, email, full_name, role)
+    VALUES (${targetUserId}, ${cleanEmail}, ${cleanName}, 'coordinator')
+    ON CONFLICT (id) DO UPDATE SET
+      role = 'coordinator',
+      full_name = EXCLUDED.full_name,
+      email = EXCLUDED.email
+  `;
+
+  await sql`
+    UPDATE public.profiles
+    SET role = 'coordinator', full_name = ${cleanName}
+    WHERE LOWER(email) = ${cleanEmail}
+  `;
+
+  await logAudit(user.id, user.email || '', 'ADD_COORDINATOR', 'profiles', targetUserId, {
+    appointedEmail: cleanEmail,
+    appointedName: cleanName,
+    appointedByRole: profile.role,
+    defaultPassword: assignedPassword,
+  });
+
+  revalidatePath('/admin');
+  return { success: true, coordinatorId: targetUserId };
+}
+
+export async function adminRemoveCoordinator(coordinatorId: string) {
+  const { user } = await requireAdminOrManager();
+
+  const targetRows = await sql`
+    SELECT id, email, role, full_name FROM public.profiles WHERE id = ${coordinatorId}::uuid
+  `;
+  if (targetRows.length === 0) {
+    throw new Error('Coordinator profile record not found.');
+  }
+
+  const target = targetRows[0];
+  const targetEmail = (target.email || '').toLowerCase().trim();
+
+  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+  if (MASTER_EMAILS.includes(targetEmail)) {
+    throw new Error('Action Prohibited: Cannot alter role of Master Administrator.');
+  }
+
+  if (target.role !== 'coordinator') {
+    throw new Error('Action Prohibited: Target user does not hold a coordinator role.');
+  }
+
+  await sql`DELETE FROM public.profiles WHERE id = ${coordinatorId}::uuid`;
+
+  try {
+    const adminClient = createAdminClient();
+    await adminClient.auth.admin.deleteUser(coordinatorId);
+  } catch (e) {
+    try {
+      await sql`DELETE FROM auth.users WHERE id = ${coordinatorId}::uuid`;
+    } catch (err) {}
+  }
+
+  await logAudit(user.id, user.email || '', 'REMOVE_COORDINATOR', 'profiles', coordinatorId, {
+    removedEmail: targetEmail,
+    removedName: target.full_name,
+  });
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function adminResetCoordinatorPassword(coordinatorId: string) {
+  const { user } = await requireAdminOrManager();
+
+  const targetRows = await sql`
+    SELECT id, email, role FROM public.profiles WHERE id = ${coordinatorId}::uuid
+  `;
+  if (targetRows.length === 0) throw new Error('Coordinator not found.');
+  if (targetRows[0].role !== 'coordinator') throw new Error('Target user is not a coordinator.');
+
+  const adminClient = createAdminClient();
+  await adminClient.auth.admin.updateUserById(coordinatorId, {
+    password: 'password@67',
+  });
+
+  await logAudit(user.id, user.email || '', 'RESET_COORDINATOR_PASSWORD', 'profiles', coordinatorId, {
+    email: targetRows[0].email,
+  });
+
+  return { success: true };
+}
+
+export async function adminCheckInSquad(teamId: string) {
+  const { user, isCoordinator } = await requireCoordinatorOrAdmin();
+  await sql`UPDATE public.fest_registrations SET status = 'Checked In' WHERE team_id = ${teamId}`;
+  await logAudit(user.id, user.email || '', isCoordinator ? 'COORDINATOR_SQUAD_CHECKIN' : 'SQUAD_CHECKIN', 'fest_teams', teamId, { status: 'Checked In' });
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+// =============================================================================
 // INDIGO TECH FEST SPECIFIC ADMIN SUITE
 // =============================================================================
 
 export async function getFestAdminData() {
-  const { user, profile, isMaster } = await requireAdmin();
+  const { user, profile, isCoordinator, isMaster } = await requireCoordinatorOrAdmin();
 
+  // 1. Coordinators receive strictly the data required for the check-in scanner
+  if (isCoordinator) {
+    const [registrations, teams, events] = await Promise.all([
+      sql`
+        SELECT 
+          fr.id,
+          fr.team_id,
+          fr.team_code,
+          fr.is_leader,
+          fr.full_name,
+          fr.email,
+          fr.phone,
+          fr.college,
+          fr.department,
+          fr.year_of_study,
+          fr.college_id,
+          fr.reference_id,
+          fr.division,
+          fr.roll_no,
+          fr.status,
+          fr.created_at,
+          ft.name as team_name,
+          ft.event_ids,
+          ft.is_locked,
+          ft.is_waitlist
+        FROM public.fest_registrations fr
+        JOIN public.fest_teams ft ON fr.team_id = ft.id
+        ORDER BY fr.created_at DESC
+      `,
+      sql`SELECT id, code, name, event_ids FROM public.fest_teams ORDER BY created_at DESC`,
+      sql`SELECT id, name, day_label, slot_time FROM public.fest_events ORDER BY created_at ASC`,
+    ]);
+
+    return {
+      currentUser: {
+        id: user.id,
+        email: user.email,
+        role: 'coordinator',
+        isMaster: false,
+      },
+      metrics: {
+        totalParticipants: registrations.length,
+        totalTeams: teams.length,
+        waitlistCount: 0,
+        incompleteTeamsCount: 0,
+      },
+      timelineData: [],
+      perEventStats: [],
+      registrations,
+      teams,
+      events,
+      announcements: [],
+      auditLogs: [],
+      adminUsers: [],
+      coordinators: [],
+    };
+  }
+
+  // 2. Administrators, Managers, and Masters receive the full suite including coordinators roster
   const [
     registrations,
     teams,
     events,
     announcements,
     auditLogs,
-    adminUsers
+    adminUsers,
+    coordinators,
   ] = await Promise.all([
     sql`
       SELECT 
@@ -569,6 +803,9 @@ export async function getFestAdminData() {
         fr.department,
         fr.year_of_study,
         fr.college_id,
+        fr.reference_id,
+        fr.division,
+        fr.roll_no,
         fr.status,
         fr.created_at,
         ft.name as team_name,
@@ -595,7 +832,13 @@ export async function getFestAdminData() {
       FROM public.profiles
       WHERE role IN ('admin', 'manager', 'master') OR LOWER(email) IN ('ryankeshary@gmail.com', 'shrey.sleeps@gmail.com')
       ORDER BY created_at ASC
-    `
+    `,
+    sql`
+      SELECT id, email, full_name, role, created_at
+      FROM public.profiles
+      WHERE role = 'coordinator'
+      ORDER BY created_at DESC
+    `,
   ]);
 
   // Derived metrics
@@ -624,7 +867,7 @@ export async function getFestAdminData() {
       participantCount: participantsInEvent.length,
       capacity: ev.capacity,
       percentage: Math.min(100, Math.round((teamsInEvent.length / (ev.capacity || 50)) * 100)),
-      isOpen: ev.is_open
+      isOpen: ev.is_open,
     };
   });
 
@@ -650,13 +893,13 @@ export async function getFestAdminData() {
       id: user.id,
       email: user.email,
       role: profile.role,
-      isMaster
+      isMaster,
     },
     metrics: {
       totalParticipants,
       totalTeams,
       waitlistCount,
-      incompleteTeamsCount: incompleteTeams.length
+      incompleteTeamsCount: incompleteTeams.length,
     },
     timelineData,
     perEventStats,
@@ -665,15 +908,19 @@ export async function getFestAdminData() {
     events,
     announcements,
     auditLogs,
-    adminUsers: visibleAdminUsers
+    adminUsers: visibleAdminUsers,
+    coordinators: coordinators || [],
   };
 }
 
 // Admin Participant Actions
 export async function adminUpdateParticipantStatus(id: string, status: string) {
-  const { user } = await requireAdmin();
+  const { user, isCoordinator } = await requireCoordinatorOrAdmin();
+  if (isCoordinator && status !== 'Checked In' && status !== 'Confirmed') {
+    throw new Error('Coordinators are strictly authorized to perform attendee check-in.');
+  }
   await sql`UPDATE public.fest_registrations SET status = ${status} WHERE id = ${id}`;
-  await logAudit(user.id, user.email || '', 'UPDATE_PARTICIPANT_STATUS', 'fest_registrations', id, { status });
+  await logAudit(user.id, user.email || '', isCoordinator ? 'COORDINATOR_CHECKIN' : 'UPDATE_PARTICIPANT_STATUS', 'fest_registrations', id, { status });
   revalidatePath('/admin');
   return { success: true };
 }
@@ -715,9 +962,12 @@ export async function adminUpdateParticipantDetails(id: string, data: {
 }
 
 export async function adminBulkUpdateStatus(ids: string[], status: string) {
-  const { user } = await requireAdmin();
+  const { user, isCoordinator } = await requireCoordinatorOrAdmin();
+  if (isCoordinator && status !== 'Checked In' && status !== 'Confirmed') {
+    throw new Error('Coordinators are authorized for attendee check-in only.');
+  }
   await sql`UPDATE public.fest_registrations SET status = ${status} WHERE id = ANY(${ids})`;
-  await logAudit(user.id, user.email || '', 'BULK_UPDATE_STATUS', 'fest_registrations', 'bulk', { count: ids.length, status });
+  await logAudit(user.id, user.email || '', isCoordinator ? 'COORDINATOR_BULK_CHECKIN' : 'BULK_UPDATE_STATUS', 'fest_registrations', 'bulk', { count: ids.length, status });
   revalidatePath('/admin');
   return { success: true };
 }

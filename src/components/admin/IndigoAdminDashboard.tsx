@@ -39,6 +39,10 @@ import {
   adminBulkUpdateStatus,
   adminDeleteParticipant,
   adminBulkDeleteParticipants,
+  adminAddCoordinator,
+  adminRemoveCoordinator,
+  adminResetCoordinatorPassword,
+  adminCheckInSquad,
   adminUpdateTeam,
   adminDeleteTeam,
   adminChangeTeamLeader,
@@ -60,7 +64,7 @@ interface IndigoAdminDashboardProps {
 
 export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'registrations' | 'teams' | 'checkin' | 'events' | 'announcements' | 'audit' | 'master' | 'password'
+    'dashboard' | 'registrations' | 'teams' | 'checkin' | 'events' | 'announcements' | 'coordinators' | 'audit' | 'master' | 'password'
   >('dashboard');
 
   // Registrations Filter & Search State
@@ -110,7 +114,15 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [newAdminName, setNewAdminName] = useState('');
   const [masterNotice, setMasterNotice] = useState<string | null>(null);
 
-  const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers } = data;
+  // Coordinator Management State (Admins & Managers)
+  const [newCoordEmail, setNewCoordEmail] = useState('');
+  const [newCoordName, setNewCoordName] = useState('');
+  const [coordNotice, setCoordNotice] = useState<string | null>(null);
+
+  const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers, coordinators = [] } = data;
+
+  const isCoordinator = currentUser?.role === 'coordinator';
+  const currentTab = isCoordinator ? 'checkin' : activeTab;
 
   // Master status privacy: Ryan Keshary is only visible as master to ryankeshary@gmail.com
   const isCurrentUserRyan = currentUser?.email?.toLowerCase() === 'ryankeshary@gmail.com';
@@ -434,6 +446,60 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     }
   };
 
+  // Coordinator Management Handlers (Admins & Managers)
+  const handleAddCoordinator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCoordEmail.trim() || !newCoordName.trim()) return;
+    setIsProcessing(true);
+    setCoordNotice(null);
+    try {
+      const res = await adminAddCoordinator(newCoordEmail.trim(), newCoordName.trim());
+      if (res?.success) {
+        setCoordNotice(`Gate coordinator ${newCoordEmail.trim()} appointed successfully! Default password is password@67`);
+        setNewCoordEmail('');
+        setNewCoordName('');
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      setCoordNotice(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRemoveCoordinator = async (coordId: string, email: string) => {
+    if (!confirm(`Are you sure you want to remove gate coordinator credentials for ${email}?`)) return;
+    setIsProcessing(true);
+    setCoordNotice(null);
+    try {
+      const res = await adminRemoveCoordinator(coordId);
+      if (res?.success) {
+        setCoordNotice(`Coordinator access removed for ${email}.`);
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      setCoordNotice(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleResetCoordPass = async (coordId: string, email: string) => {
+    if (!confirm(`Reset credentials for coordinator ${email} to default password@67?`)) return;
+    setIsProcessing(true);
+    setCoordNotice(null);
+    try {
+      const res = await adminResetCoordinatorPassword(coordId);
+      if (res?.success) {
+        setCoordNotice(`Credentials successfully reset to password@67 for coordinator ${email}.`);
+      }
+    } catch (err: any) {
+      setCoordNotice(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Status Badge Helper
   const renderStatusBadge = (status: string) => {
     switch (status) {
@@ -485,20 +551,22 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 INDIGO TECH FEST
               </Link>
               <span className="hidden sm:inline-block text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                ADMIN CONSOLE
+                {isCoordinator ? 'COORDINATOR DESK' : 'ADMIN CONSOLE'}
               </span>
             </div>
 
             {/* User pill & Action buttons on mobile */}
             <div className="flex items-center gap-2 md:hidden">
-              <button
-                onClick={() => setSideExportOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors cursor-pointer"
-                title="CSV Export Sidebar"
-              >
-                <Download size={12} className="text-[#D21319]" />
-                <span>Export</span>
-              </button>
+              {!isCoordinator && (
+                <button
+                  onClick={() => setSideExportOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors cursor-pointer"
+                  title="CSV Export Sidebar"
+                >
+                  <Download size={12} className="text-[#D21319]" />
+                  <span>Export</span>
+                </button>
+              )}
               <button
                 onClick={async () => {
                   await adminLogoutAction();
@@ -516,8 +584,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
           {/* User profile & Quick action links (Desktop) */}
           <div className="hidden md:flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
-              <Shield size={13} className="text-[#D21319]" />
-              <span className="font-semibold">{currentUser?.email || 'Administrator'}</span>
+              {isCoordinator ? <UserCheck size={13} className="text-blue-600" /> : <Shield size={13} className="text-[#D21319]" />}
+              <span className="font-semibold">{currentUser?.email || (isCoordinator ? 'Coordinator' : 'Administrator')}</span>
+              {isCoordinator && (
+                <span className="px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[9px] font-bold rounded">COORDINATOR</span>
+              )}
             </div>
 
             {onRefresh && (
@@ -530,14 +601,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </button>
             )}
 
-            <button
-              onClick={() => setSideExportOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              title="Open CSV Export Center"
-            >
-              <Download size={13} className="text-[#D21319]" />
-              <span>EXPORT CSV</span>
-            </button>
+            {!isCoordinator && (
+              <button
+                onClick={() => setSideExportOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                title="Open CSV Export Center"
+              >
+                <Download size={13} className="text-[#D21319]" />
+                <span>EXPORT CSV</span>
+              </button>
+            )}
 
             <button
               onClick={async () => {
@@ -554,48 +627,51 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
         </div>
 
-        {/* Action Tabs Bar */}
-        <div className="border-t border-slate-100 bg-slate-50/80 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-none">
-            {[
-              { id: 'dashboard', label: 'Overview', icon: Layers },
-              { id: 'registrations', label: 'Registrations', icon: Users },
-              { id: 'teams', label: 'Squads', icon: Shield },
-              { id: 'checkin', label: 'Rapid Check-In', icon: CheckCircle2 },
-              { id: 'events', label: 'Disciplines', icon: Settings },
-              { id: 'announcements', label: 'Notices', icon: Bell },
-              { id: 'audit', label: 'Audit Log', icon: FileText },
-              ...(currentUser?.isMaster ? [{ id: 'master', label: 'Master Console', icon: Crown }] : []),
-              { id: 'password', label: 'Security', icon: KeyRound },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    isActive
-                      ? 'bg-[#D21319] text-white shadow-xs'
-                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  <Icon size={14} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+        {/* Action Tabs Bar - Only visible to Admins/Managers, HIDDEN for Coordinators */}
+        {!isCoordinator && (
+          <div className="border-t border-slate-100 bg-slate-50/80 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-none">
+              {[
+                { id: 'dashboard', label: 'Overview', icon: Layers },
+                { id: 'registrations', label: 'Registrations', icon: Users },
+                { id: 'teams', label: 'Squads', icon: Shield },
+                { id: 'checkin', label: 'Rapid Check-In', icon: CheckCircle2 },
+                { id: 'events', label: 'Disciplines', icon: Settings },
+                { id: 'announcements', label: 'Notices', icon: Bell },
+                { id: 'coordinators', label: 'Coordinators', icon: UserCheck },
+                { id: 'audit', label: 'Audit Log', icon: FileText },
+                ...(currentUser?.isMaster ? [{ id: 'master', label: 'Master Console', icon: Crown }] : []),
+                { id: 'password', label: 'Security', icon: KeyRound },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? 'bg-[#D21319] text-white shadow-xs'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon size={14} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
 
-            <button
-              onClick={() => setSideExportOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 hover:text-slate-900 ml-auto shrink-0 shadow-2xs"
-              title="Open CSV Export Sidebar"
-            >
-              <Download size={13} className="text-[#D21319]" />
-              <span>Export CSV</span>
-            </button>
+              <button
+                onClick={() => setSideExportOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 hover:text-slate-900 ml-auto shrink-0 shadow-2xs"
+                title="Open CSV Export Sidebar"
+              >
+                <Download size={13} className="text-[#D21319]" />
+                <span>Export CSV</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* 2. MAIN CONTENT BODY */}
@@ -618,9 +694,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 1: DASHBOARD OVERVIEW
+            TAB 1: DASHBOARD OVERVIEW (Admins & Managers)
            ======================================================== */}
-        {activeTab === 'dashboard' && (
+        {currentTab === 'dashboard' && !isCoordinator && (
           <div className="space-y-6">
             
             {/* Quick Actions Header Strip */}
@@ -809,9 +885,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 2: REGISTRATIONS MANAGEMENT
+            TAB 2: REGISTRATIONS MANAGEMENT (Admins & Managers)
            ======================================================== */}
-        {activeTab === 'registrations' && (
+        {currentTab === 'registrations' && !isCoordinator && (
           <div className="space-y-4">
             
             {/* Control Bar: Search, Filters, Bulk Actions */}
@@ -1069,9 +1145,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 3: TEAMS & SQUADS ARCHIVE
+            TAB 3: TEAMS & SQUADS ARCHIVE (Admins & Managers)
            ======================================================== */}
-        {activeTab === 'teams' && (
+        {currentTab === 'teams' && !isCoordinator && (
           <div className="space-y-4">
             
             <div className="flex justify-between items-center bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
@@ -1167,9 +1243,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 4: RAPID CHECK-IN SCANNER
+            TAB 4: RAPID CHECK-IN SCANNER (Accessible to Coordinators & Admins)
            ======================================================== */}
-        {activeTab === 'checkin' && (
+        {currentTab === 'checkin' && (
           <div className="max-w-2xl mx-auto space-y-6">
             
             <div className="p-8 bg-white border border-slate-200 rounded-2xl shadow-sm text-center space-y-3">
@@ -1211,6 +1287,44 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
             {/* Results list */}
             <div className="space-y-3">
+              {/* Squad Batch Check-In Bar: When search matches multiple candidates in an enrolled squad */}
+              {(() => {
+                const q = checkinQuery.trim().toLowerCase();
+                if (!q) return null;
+                const matches = (registrations || []).filter((r: any) => {
+                  return (
+                    r.full_name?.toLowerCase().includes(q) ||
+                    r.team_code?.toLowerCase().includes(q) ||
+                    r.phone?.includes(q) ||
+                    r.email?.toLowerCase().includes(q)
+                  );
+                });
+                const unchecked = matches.filter((r: any) => r.status !== 'Checked In');
+                if (unchecked.length <= 1) return null;
+
+                return (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-blue-900 shadow-2xs">
+                    <div>
+                      <strong>{unchecked.length}</strong> matching candidates ready for admission.
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setIsProcessing(true);
+                        await adminBulkUpdateStatus(unchecked.map((r: any) => r.id), 'Checked In');
+                        setIsProcessing(false);
+                        setFeedbackNotice(`Successfully checked in ${unchecked.length} candidates.`);
+                        if (onRefresh) onRefresh();
+                      }}
+                      disabled={isProcessing}
+                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5 transition-colors"
+                    >
+                      <Check size={13} />
+                      <span>Check In Entire Squad ({unchecked.length})</span>
+                    </button>
+                  </div>
+                );
+              })()}
+
               {(registrations || [])
                 .filter((r: any) => {
                   const q = checkinQuery.trim().toLowerCase();
@@ -1284,9 +1398,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 5: EVENT SETTINGS & CONFIG
+            TAB 5: EVENT SETTINGS & CONFIG (Admins & Managers)
            ======================================================== */}
-        {activeTab === 'events' && (
+        {currentTab === 'events' && !isCoordinator && (
           <div className="space-y-4">
             
             <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
@@ -1356,9 +1470,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 6: ANNOUNCEMENTS & NOTICES
+            TAB 6: ANNOUNCEMENTS & NOTICES (Admins & Managers)
            ======================================================== */}
-        {activeTab === 'announcements' && (
+        {currentTab === 'announcements' && !isCoordinator && (
           <div className="max-w-3xl mx-auto space-y-6">
             
             {/* Post Notice Form */}
@@ -1437,9 +1551,150 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 7: AUDIT LOGS
+            TAB: GATE COORDINATORS MANAGEMENT (Admins & Managers)
            ======================================================== */}
-        {activeTab === 'audit' && (
+        {currentTab === 'coordinators' && !isCoordinator && (
+          <div className="space-y-6">
+            <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <UserCheck size={18} className="text-blue-600" />
+                  <span>Festival Gate Coordinators</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Appoint gate desk coordinators. Coordinators have access strictly and exclusively to the Rapid Attendee Check-In scanner.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-mono font-bold shrink-0">
+                <Users size={13} /> {coordinators.length} Coordinator{coordinators.length === 1 ? '' : 's'} Appointed
+              </span>
+            </div>
+
+            {coordNotice && (
+              <div className="p-3.5 bg-blue-50 border border-blue-300 rounded-lg text-xs font-mono text-blue-900 flex items-center justify-between">
+                <span>{coordNotice}</span>
+                <button
+                  type="button"
+                  onClick={() => setCoordNotice(null)}
+                  className="font-bold text-blue-700 hover:text-blue-900 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Appoint New Coordinator Form */}
+            <form onSubmit={handleAddCoordinator} className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Appoint Gate Coordinator</h3>
+                <p className="text-xs text-slate-500">
+                  Provision gate check-in credentials. Newly appointed coordinators default to password: <strong className="text-black font-mono">password@67</strong>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Coordinator Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newCoordEmail}
+                    onChange={(e) => setNewCoordEmail(e.target.value)}
+                    placeholder="e.g. coordinator@slrtce.in"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Coordinator Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCoordName}
+                    onChange={(e) => setNewCoordName(e.target.value)}
+                    placeholder="e.g. Rahul Sharma (Check-In Lead)"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                <span className="text-[11px] font-mono text-slate-500">
+                  ✦ Default credentials: Email + <strong className="text-slate-800">password@67</strong> (Coordinators can access Check-In ONLY)
+                </span>
+
+                <button
+                  type="submit"
+                  disabled={isProcessing || !newCoordEmail.trim() || !newCoordName.trim()}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <Plus size={14} />
+                  <span>Appoint Coordinator</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Active Coordinators Table */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Active Gate Coordinators</h3>
+                  <p className="text-xs text-slate-500">Authorized personnel who can scan and check in festival participants</p>
+                </div>
+                <span className="text-xs font-mono bg-white px-2 py-0.5 border border-slate-200 rounded">
+                  {coordinators.length} Officers
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-100 font-mono text-xs">
+                {coordinators.map((coord: any) => (
+                  <div key={coord.id || coord.email} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                    <div>
+                      <div className="font-bold text-slate-900 flex items-center gap-2">
+                        <span>{coord.full_name || 'Gate Coordinator'}</span>
+                        <span className="px-2 py-0.2 text-[10px] rounded uppercase font-bold bg-blue-100 text-blue-900 border border-blue-200">
+                          COORDINATOR
+                        </span>
+                      </div>
+                      <div className="text-slate-500 text-xs font-sans mt-0.5">{coord.email}</div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleResetCoordPass(coord.id, coord.email)}
+                        disabled={isProcessing}
+                        className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer"
+                        title="Reset password to password@67"
+                      >
+                        Reset Password
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCoordinator(coord.id, coord.email)}
+                        disabled={isProcessing}
+                        className="px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-600 bg-rose-50 rounded border border-rose-200 transition-colors cursor-pointer"
+                        title="Remove Coordinator Access"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {coordinators.length === 0 && (
+                  <div className="p-8 text-center text-slate-500 font-mono text-xs">
+                    No gate coordinators appointed yet. Appoint coordinators above to delegate check-in duties.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 7: AUDIT LOGS (Admins & Managers)
+           ======================================================== */}
+        {currentTab === 'audit' && !isCoordinator && (
           <div className="space-y-4">
             <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
               <h2 className="text-base font-bold text-slate-900">Administrative Audit Trail & Officer Roster</h2>
@@ -1519,7 +1774,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         {/* ========================================================
             TAB: MASTER CONSOLE (MASTERS ONLY)
            ======================================================== */}
-        {activeTab === 'master' && currentUser?.isMaster && (
+        {currentTab === 'master' && !isCoordinator && currentUser?.isMaster && (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-neutral-900 to-black text-white p-6 rounded-xl shadow-sm border border-neutral-800">
               <div className="flex items-center gap-2 mb-1">
@@ -1668,9 +1923,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         )}
 
         {/* ========================================================
-            TAB 8: SECURITY & PASSWORD
+            TAB 8: SECURITY & PASSWORD (Admins & Managers)
            ======================================================== */}
-        {activeTab === 'password' && (
+        {currentTab === 'password' && !isCoordinator && (
           <div className="max-w-md mx-auto p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
             <div>
               <h2 className="text-base font-bold text-slate-900">Change Admin Master Password</h2>
