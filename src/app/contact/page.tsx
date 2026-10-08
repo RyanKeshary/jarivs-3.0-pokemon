@@ -24,17 +24,17 @@ interface ContactPerson {
 
 const LINE_1_LEADS: ContactPerson[] = [
   {
-    name: 'SHREYASH CHATURVEDI',
-    role: 'President',
-    phone: '+91 73041 67033',
-    rawPhone: '+917304167033',
-    isLead: true,
-  },
-  {
     name: 'MANTHAN JOSHI',
     role: 'Technical Coordinator',
     phone: '+91 90043 27565',
     rawPhone: '+919004327565',
+    isLead: true,
+  },
+  {
+    name: 'SHREYASH CHATURVEDI',
+    role: 'President',
+    phone: '+91 73041 67033',
+    rawPhone: '+917304167033',
     isLead: true,
   },
 ];

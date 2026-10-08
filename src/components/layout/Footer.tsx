@@ -124,21 +124,21 @@ export function Footer() {
               {/* Emergency Contacts List */}
               <div className="space-y-1 font-mono text-xs">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-bold">President (Shreyash Chaturvedi):</span>
-                  <a href="tel:+917304167033" className="text-black font-bold underline hover:text-[#D21319]">
-                    +91 73041 67033
-                  </a>
-                </div>
-                <div className="flex items-center justify-between text-[11px]">
                   <span className="font-bold">Tech Coord (Manthan Joshi):</span>
                   <a href="tel:+919004327565" className="text-black font-bold underline hover:text-[#D21319]">
                     +91 90043 27565
                   </a>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold">President (Shreyash Chaturvedi):</span>
+                  <a href="tel:+917304167033" className="text-black font-bold underline hover:text-[#D21319]">
+                    +91 73041 67033
+                  </a>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
                   <span className="font-bold">Takniki Desk:</span>
-                  <a href="tel:+918767577969" className="text-black font-bold underline hover:text-[#D21319]">
-                    +91 87675 77969
+                  <a href="tel:+919372602311" className="text-black font-bold underline hover:text-[#D21319]">
+                    +91 93726 02311
                   </a>
                 </div>
               </div>
