@@ -141,14 +141,10 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
                 onClick={onRegisterClick}
                 className="w-full sm:w-auto px-8 py-3 bg-[#D21319] hover:bg-black text-white font-sans font-black text-xs tracking-wider uppercase border-2 border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#D21319] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center justify-center gap-2"
               >
-                <span>ENROLL YOUR SQUAD NOW</span>
+                <span>ENLIST UR TEAM NOW</span>
                 <span>→</span>
               </button>
             )}
-          </div>
-
-          <div className="mt-5 pt-3 border-t border-black/10 text-[10px] sm:text-[11px] text-neutral-500 font-mono">
-            VENUE: SLRTCE CAMPUS, MIRA ROAD, MUMBAI · OCTOBER 16–17, 2026
           </div>
         </div>
 
