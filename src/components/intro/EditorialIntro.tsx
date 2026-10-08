@@ -40,7 +40,7 @@ export function EditorialIntro({ onComplete }: EditorialIntroProps) {
         <div className="flex items-center justify-between border-b border-[#AFAEA2]/40 pb-4 mb-6 text-xs text-[#AFAEA2] font-mono">
           <span>VOL. III · SEC. A</span>
           <span className="tracking-widest">16 - 17 OCTOBER 2026</span>
-          <span>EST. MMXXVI</span>
+          <span>EST. 2026</span>
         </div>
 
         {/* Engraved Crown Phoenix */}

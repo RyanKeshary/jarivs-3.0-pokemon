@@ -177,7 +177,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
         {/* 4. Optical Corner Brackets (High-End Technical Framing) */}
         <div className="absolute top-4 left-4 sm:top-7 sm:left-7 pointer-events-none text-[9px] font-mono tracking-widest text-[#AFAEA2]/60 hidden sm:block">
-          <span>┌ CODEX // SLRTCE MMXXVI</span>
+          <span>┌ JARVIS 3.0 // SLRTCE</span>
         </div>
         <div className="absolute top-4 right-4 sm:top-7 sm:right-7 pointer-events-none text-[9px] font-mono tracking-widest text-[#AFAEA2]/60 hidden sm:block text-right">
           <span>OPTICAL TARGET: AUTOMATON ┐</span>

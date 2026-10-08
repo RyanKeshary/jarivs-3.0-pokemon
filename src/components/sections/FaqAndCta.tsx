@@ -119,11 +119,11 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
           </div>
 
           <span className="font-mono text-[10px] text-[#D21319] block mb-1.5 tracking-[0.25em] font-bold uppercase">
-            CONVOCATION FINALE · CODEX MMXXVI
+            CONVOCATION FINALE · JARVIS 3.0
           </span>
 
           <h2 className="font-serif text-3xl sm:text-5xl text-black uppercase font-black tracking-tight mb-2.5">
-            ENLIST IN THE CODEX
+            ENLIST IN THE ARENA
           </h2>
 
           <p className="font-sans text-xs sm:text-sm text-neutral-600 max-w-lg mx-auto leading-relaxed mb-6">

@@ -94,7 +94,7 @@ export function FestManifesto() {
 
         {/* Marginalia Annotation */}
         <div className="mt-12 pt-6 border-t border-[#AFAEA2]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs font-mono text-[#AFAEA2] gap-2">
-          <span>CODEX JARVIS · MMXXVI</span>
+          <span>JARVIS 3.0 · SLRTCE</span>
           <span>DISCIPLINE: ARTIFICIAL LOGIC, ROBOTICS & CREATIVE CODE</span>
         </div>
 

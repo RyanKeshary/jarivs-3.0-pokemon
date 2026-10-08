@@ -382,7 +382,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                         INDIGO TECH FEST
                       </span>
                       <span className="label-editorial text-[8px] text-[#AFAEA2] tracking-[0.25em] mt-0.5">
-                        JARVIS 3.0 · CODEX MMXXVI
+                        JARVIS 3.0
                       </span>
                     </div>
                   </Link>

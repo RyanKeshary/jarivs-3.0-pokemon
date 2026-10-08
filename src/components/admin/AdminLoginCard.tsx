@@ -118,7 +118,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
           <Link href="/" className="hover:text-black underline cursor-pointer">
             ← Return to Arena
           </Link>
-          <span>Secured via Codex Auth</span>
+          <span>Secured via SLRTCE Auth</span>
         </div>
 
       </div>

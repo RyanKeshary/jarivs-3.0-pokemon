@@ -156,7 +156,7 @@ export function Footer() {
                   <div className="w-4 h-4 bg-black text-white group-hover:bg-[#D21319] flex items-center justify-center rounded-xs transition-colors">
                     <Play size={9} className="fill-current ml-0.5" />
                   </div>
-                  <span className="uppercase tracking-wider">ARCHIVAL LOGS // MMXXVI</span>
+                  <span className="uppercase tracking-wider">ARCHIVAL LOGS</span>
                 </div>
                 <span className="text-[9px] bg-black text-white group-hover:bg-[#D21319] px-1 py-0.2 rounded-xs transition-colors">
                   PLAY ➔
@@ -192,7 +192,7 @@ export function Footer() {
             <div className="p-2.5 bg-[#161A35] border-b border-white/20 flex items-center justify-between text-white font-mono text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#D21319] animate-pulse" />
-                <span className="font-bold tracking-wider uppercase">FESTIVAL ARCHIVAL REEL // MMXXVI</span>
+                <span className="font-bold tracking-wider uppercase">FESTIVAL ARCHIVAL REEL</span>
               </div>
               <button
                 type="button"

@@ -125,7 +125,7 @@ export default function JoinTeamPage({
                 href="/"
                 className="inline-block px-8 py-3 bg-[#E9E6DA] text-[#D21319] font-grotesk font-bold text-xs uppercase border border-[#E9E6DA] shadow-[3px_3px_0px_#0E1026]"
               >
-                RETURN TO FEST CODEX
+                RETURN TO FESTIVAL HOME
               </Link>
             </div>
           ) : (
