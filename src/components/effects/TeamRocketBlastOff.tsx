@@ -22,9 +22,12 @@ export function TeamRocketBlastOff() {
   });
 
   // LINEAR TRAJECTORY INCLINED UPWARDS FROM LEFT TO RIGHT:
-  // Starts lower-left (-16vw, 84vh) and linearly ascends towards upper-right (106vw, -10vh)
-  const x = useTransform(smoothProgress, [0, 1], ['-16vw', '106vw']);
-  const y = useTransform(smoothProgress, [0, 1], ['84vh', '-10vh']);
+  // Starts completely off-screen lower-left (-40vw, 92vh) and linearly ascends towards upper-right (106vw, -10vh)
+  const x = useTransform(smoothProgress, [0, 1], ['-40vw', '106vw']);
+  const y = useTransform(smoothProgress, [0, 1], ['92vh', '-10vh']);
+
+  // Completely hidden at the start (opacity = 0 while scroll <= 0.05), smoothly emerges as user scrolls down
+  const opacity = useTransform(smoothProgress, [0, 0.06, 0.94, 1], [0, 1, 1, 0]);
 
   // Distant perspective shrinkage as they blast off into the stratosphere
   const scale = useTransform(smoothProgress, [0, 0.65, 1], [1.05, 0.78, 0.32]);
@@ -56,6 +59,7 @@ export function TeamRocketBlastOff() {
           y,
           scale,
           rotate,
+          opacity,
         }}
         className="absolute top-0 left-0 will-change-transform"
       >
