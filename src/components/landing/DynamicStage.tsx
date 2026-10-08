@@ -29,6 +29,8 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
     let animFrameId: number;
 
     const handlePointerMove = (e: PointerEvent) => {
+      // Ignore touch pointers and narrow screens to eliminate jitter while scrolling on mobile
+      if (e.pointerType === 'touch' || window.innerWidth < 768) return;
       last = performance.now();
       tx = -(e.clientY / window.innerHeight - 0.5) * 9;
       ty = (e.clientX / window.innerWidth - 0.5) * 12;
@@ -37,12 +39,13 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
 
     function renderLoop(t: number) {
-      if (t - last > 3000) {
-        tx = Math.sin(t / 3800) * 2.2;
-        ty = Math.sin(t / 5200) * 3.4;
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      if (t - last > 3000 || isMobile) {
+        tx = Math.sin(t / 4000) * (isMobile ? 0.7 : 1.8);
+        ty = Math.sin(t / 5400) * (isMobile ? 1.0 : 2.6);
       }
-      cx += (tx - cx) * 0.06;
-      cy += (ty - cy) * 0.06;
+      cx += (tx - cx) * 0.05;
+      cy += (ty - cy) * 0.05;
       if (sc) {
         sc.style.transform = `rotateX(${cx.toFixed(3)}deg) rotateY(${cy.toFixed(3)}deg)`;
       }
@@ -90,7 +93,7 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
   }, []);
 
   return (
-    <div className="w-full h-full flex items-center justify-center select-none relative overflow-hidden">
+    <div className="w-full h-full flex items-center justify-center select-none relative overflow-hidden [clip-path:inset(0)] touch-pan-y">
       
       {/* 3D Perspective Tilt Wrapper (Edge-to-Edge Full Screen) */}
       <div className="tilt">

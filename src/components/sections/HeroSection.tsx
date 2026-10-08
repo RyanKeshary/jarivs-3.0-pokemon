@@ -11,10 +11,10 @@ interface HeroSectionProps {
 export function HeroSection({ onRegisterClick, onViewEventsClick }: HeroSectionProps) {
   return (
     <>
-      {/* 1. CINEMATIC 100VH UNOBSTRUCTED STAGE HERO (CARD REMOVED AS REQUESTED) */}
+      {/* 1. CINEMATIC 100VH/100DVH UNOBSTRUCTED STAGE HERO */}
       <section
         id="home"
-        className="relative w-full min-h-screen flex flex-col justify-end pb-8 sm:pb-12 px-4 pointer-events-none select-none z-10"
+        className="relative w-full min-h-[100dvh] min-h-screen h-[100dvh] flex flex-col justify-end pb-[max(1.75rem,env(safe-area-inset-bottom,1.75rem))] sm:pb-12 px-4 pointer-events-none select-none z-10"
       >
         {/* Clean, Subtle Bottom Scroll Prompt */}
         <div
@@ -31,11 +31,11 @@ export function HeroSection({ onRegisterClick, onViewEventsClick }: HeroSectionP
       </section>
 
       {/* 2. CURATORIAL STATUS TICKER & ACTION STRIP */}
-      <div className="w-full bg-black text-white border-y-2 border-black py-3 px-4 sm:px-6 select-none relative z-10 shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs font-mono">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-[#D21319]" />
-            <span className="text-white font-sans font-bold uppercase tracking-wider text-xs">
+      <div className="w-full bg-black text-white border-y-2 border-black py-2.5 sm:py-3 px-3 sm:px-6 select-none relative z-10 shadow-md">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 text-xs font-mono">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2 text-center sm:text-left">
+            <span className="w-2 h-2 bg-[#D21319] shrink-0" />
+            <span className="text-white font-sans font-bold uppercase tracking-wider text-[11px] sm:text-xs">
               INDIGO TECH FEST · 7 DISCIPLINES LEDGER
             </span>
             <span className="text-neutral-500 hidden sm:inline">|</span>
@@ -44,7 +44,7 @@ export function HeroSection({ onRegisterClick, onViewEventsClick }: HeroSectionP
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <a
               href="#announcements"
               className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-bold"
