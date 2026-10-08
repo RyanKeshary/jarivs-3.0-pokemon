@@ -191,6 +191,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   const handlePokeballClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (phase === 'closed') {
+      setIsPinned(true);
       handleOpenSequence();
     } else {
       setIsPinned((prev) => !prev);
@@ -216,7 +217,22 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
 
   return (
     <header className="fixed top-2 sm:top-3.5 left-0 right-0 z-40 select-none px-2 sm:px-6 pointer-events-none flex justify-center">
-      
+      {/* Mobile backdrop overlay to dismiss by tapping outside */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            key="mobile-nav-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={handleCollapse}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-10 pointer-events-auto lg:hidden"
+            aria-hidden="true"
+          />
+        )}
+      </AnimatePresence>
+
       {/* 
         PARENT INTERACTION CONTAINER:
         - When closed: Compact hit area around the single Pokéball.
@@ -226,7 +242,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
       <div
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`pointer-events-auto relative flex items-center justify-center transition-all duration-200 ${
+        className={`pointer-events-auto relative flex items-center justify-center transition-all duration-200 z-20 ${
           isExpanded ? 'w-full max-w-7xl' : 'w-[56px] h-[56px]'
         }`}
       >
@@ -357,39 +373,36 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 duration: 0.22,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className="relative w-full bg-[#161A35]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.85),_0_0_20px_rgba(210,19,25,0.25)] rounded-2xl p-2 sm:p-2.5 lg:px-6 overflow-hidden z-20"
+              className="relative w-full max-w-sm sm:max-w-md lg:max-w-7xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto no-scrollbar bg-[#121633]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.9),_0_0_25px_rgba(210,19,25,0.25)] rounded-2xl p-3.5 sm:p-4 lg:p-2.5 lg:px-6 z-20"
             >
-              <div className="flex items-center justify-between gap-1.5 sm:gap-3">
-                
+              
+              {/* ========================================================
+                  1. DESKTOP / LAPTOP FLOATING NAVBAR (>= lg: 1024px)
+                  Sleek single-line bar with brand, all links, and actions
+                 ======================================================== */}
+              <div className="hidden lg:flex items-center justify-between gap-4">
                 {/* BRANDMARK */}
-                <motion.div
-                  initial={{ opacity: 0, x: -12, scale: 0.9 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ duration: 0.18, delay: 0.04 }}
-                  className="shrink-0"
+                <Link
+                  href="/"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    scrollToSection('home');
+                  }}
+                  className="flex items-center gap-2.5 group cursor-pointer shrink-0"
                 >
-                  <Link
-                    href="/"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      scrollToSection('home');
-                    }}
-                    className="flex items-center gap-1.5 sm:gap-2.5 group cursor-pointer"
-                  >
-                    <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 bg-[#D21319] group-hover:scale-125 transition-transform rounded-xs shadow-[0_0_8px_#D21319] shrink-0" />
-                    <div className="flex flex-col">
-                      <span className="font-serif text-xs sm:text-base lg:text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
-                        INDIGO TECH FEST
-                      </span>
-                      <span className="label-editorial text-[7px] sm:text-[8px] text-[#AFAEA2] tracking-[0.2em] sm:tracking-[0.25em] mt-0.5">
-                        JARVIS 3.0
-                      </span>
-                    </div>
-                  </Link>
-                </motion.div>
+                  <span className="w-2.5 h-2.5 bg-[#D21319] group-hover:scale-125 transition-transform rounded-xs shadow-[0_0_8px_#D21319]" />
+                  <div className="flex flex-col">
+                    <span className="font-serif text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
+                      INDIGO TECH FEST
+                    </span>
+                    <span className="label-editorial text-[8px] text-[#AFAEA2] tracking-[0.25em] mt-0.5">
+                      JARVIS 3.0
+                    </span>
+                  </div>
+                </Link>
 
-                {/* DESKTOP CENTER NAVIGATION LINKS */}
-                <nav className="hidden lg:flex items-center gap-5 xl:gap-6">
+                {/* DESKTOP NAV LINKS */}
+                <nav className="flex items-center gap-6">
                   {navLinks.map((link, index) => {
                     const isActive = activeSection === link.id;
                     const delay = 0.06 + index * 0.025;
@@ -405,7 +418,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                           <Link
                             href={link.href}
                             onClick={() => handleCollapse()}
-                            className="relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap text-[#AFAEA2] hover:text-white"
+                            className="font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 text-[#AFAEA2] hover:text-white"
                           >
                             {link.label}
                           </Link>
@@ -439,80 +452,91 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                   })}
                 </nav>
 
-                {/* RIGHT ACTION TRIGGERS */}
-                <motion.div
-                  initial={{ opacity: 0, x: 12, scale: 0.9 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ duration: 0.2, delay: 0.16 }}
-                  className="flex items-center gap-1 sm:gap-2 shrink-0"
-                >
-                  {/* INTRO FILM BUTTON */}
+                {/* DESKTOP RIGHT ACTIONS */}
+                <div className="flex items-center gap-2.5 shrink-0">
                   {onReplayIntro && (
                     <button
                       type="button"
                       onClick={onReplayIntro}
-                      className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono font-bold text-[#E9E6DA] bg-black/40 hover:bg-[#D21319] hover:text-white border border-[#AFAEA2]/40 hover:border-[#D21319] rounded-lg transition-all cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-[#E9E6DA] bg-black/40 hover:bg-[#D21319] hover:text-white border border-[#AFAEA2]/40 hover:border-[#D21319] rounded-lg transition-all cursor-pointer"
                       title="Play 1008.mp4 Intro Video"
                     >
-                      <Play size={10} className="fill-current text-[#D21319] hover:text-white" />
+                      <Play size={11} className="fill-current text-[#D21319] hover:text-white" />
                       <span>INTRO FILM</span>
                     </button>
                   )}
 
-                  {/* ENLIST SQUAD BUTTON */}
                   {!hasMaxEvents && (
                     <button
                       type="button"
                       onClick={onRegisterClick}
-                      className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-lg shadow-[0_0_12px_rgba(210,19,25,0.3)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                      className="px-4 py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-lg shadow-[0_0_12px_rgba(210,19,25,0.4)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <span>ENLIST SQUAD</span>
-                      <span className="hidden xs:inline">→</span>
+                      <span>→</span>
                     </button>
                   )}
 
-                  {/* ADMIN LINK */}
                   <Link
                     href="/admin"
-                    className="hidden lg:inline-flex items-center px-2.5 py-1.5 text-xs font-mono font-bold text-[#AFAEA2] hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-colors cursor-pointer"
+                    className="inline-flex items-center px-3 py-2 text-xs font-mono font-bold text-[#AFAEA2] hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-colors cursor-pointer"
                     title="Curator & Admin Panel"
                   >
                     [ ADMIN ]
                   </Link>
 
-                  {/* Mobile Menu Dropdown Toggle Button */}
-                  <button
-                    type="button"
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="lg:hidden p-1.5 text-[#E9E6DA] hover:text-white bg-white/5 hover:bg-white/15 border border-white/20 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5"
-                    aria-label="Toggle Mobile Menu"
-                    title="Toggle all navigation options"
-                  >
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider hidden xs:inline text-[#AFAEA2]">
-                      {mobileMenuOpen ? 'HIDE' : 'ALL'}
-                    </span>
-                    <ChevronRight size={14} className={mobileMenuOpen ? 'rotate-90 text-[#D21319] transition-transform' : 'transition-transform'} />
-                  </button>
-
-                  {/* Close / Repack Button */}
                   <button
                     type="button"
                     onClick={handleCollapse}
-                    className="p-1 sm:p-1.5 text-[#AFAEA2] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer shrink-0"
+                    className="p-1.5 text-[#AFAEA2] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                     title="Close navigation back to Pokéball"
                   >
-                    <X size={15} />
+                    <X size={16} />
                   </button>
-                </motion.div>
-
+                </div>
               </div>
 
+
               {/* ========================================================
-                  3. MOBILE QUICK NAVIGATION RIBBON (Directly accessible on mobile)
-                  Shows all options from the laptop cleanly in mobile view!
+                  2. PROPER MOBILE NAV BAR (< lg: 1024px)
+                  Full proper navigation menu upon clicking the Pokéball!
                  ======================================================== */}
-              <div className="lg:hidden mt-2 pt-1.5 border-t border-white/10 overflow-hidden">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 scroll-smooth">
+              <div className="lg:hidden flex flex-col space-y-2.5">
+                {/* Mobile Header Bar */}
+                <div className="flex items-center justify-between pb-2 border-b border-white/15">
+                  <Link
+                    href="/"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      scrollToSection('home');
+                    }}
+                    className="flex items-center gap-2 group cursor-pointer"
+                  >
+                    <span className="w-2.5 h-2.5 bg-[#D21319] rounded-xs shadow-[0_0_8px_#D21319] shrink-0 animate-pulse" />
+                    <div className="flex flex-col">
+                      <span className="font-serif text-sm font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
+                        INDIGO TECH FEST
+                      </span>
+                      <span className="label-editorial text-[7.5px] text-[#AFAEA2] tracking-[0.2em] mt-0.5">
+                        JARVIS 3.0 · SLRTCE
+                      </span>
+                    </div>
+                  </Link>
+
+                  {/* Close button */}
+                  <button
+                    type="button"
+                    onClick={handleCollapse}
+                    className="p-1.5 bg-white/10 hover:bg-[#D21319] text-[#E9E6DA] hover:text-white rounded-lg transition-all cursor-pointer flex items-center justify-center border border-white/20 active:scale-95"
+                    title="Close navigation back to Pokéball"
+                    aria-label="Close navigation"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Vertical Navigation Items (Spacious, Touch-Friendly, No Ellipsis) */}
+                <div className="space-y-1 py-0.5">
                   {navLinks.map((link) => {
                     const isActive = activeSection === link.id;
 
@@ -522,10 +546,20 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                           key={link.id}
                           href={link.href}
                           onClick={() => handleCollapse()}
-                          className="shrink-0 px-2 py-1 rounded-md bg-white/5 hover:bg-white/15 border border-white/15 text-[#AFAEA2] hover:text-white text-[9.5px] font-mono uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap"
+                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-left transition group active:bg-white/15"
                         >
-                          <span className="text-[11px]">{link.icon}</span>
-                          <span>{link.shortLabel}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-base shrink-0">{link.icon}</span>
+                            <div>
+                              <div className="font-serif text-xs uppercase tracking-wider text-white font-bold group-hover:text-[#D21319] transition-colors">
+                                {link.label}
+                              </div>
+                              <div className="font-mono text-[9px] text-[#AFAEA2]">
+                                {link.desc}
+                              </div>
+                            </div>
+                          </div>
+                          <ChevronRight size={14} className="text-[#AFAEA2] group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
                         </Link>
                       );
                     }
@@ -535,19 +569,37 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                         key={link.id}
                         type="button"
                         onClick={() => scrollToSection(link.id)}
-                        className={`shrink-0 px-2 py-1 rounded-md border text-[9.5px] font-mono uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
+                        className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition group cursor-pointer active:scale-[0.99] ${
                           isActive
-                            ? 'bg-[#D21319]/25 border-[#D21319] text-white font-bold shadow-[0_0_8px_rgba(210,19,25,0.4)]'
-                            : 'bg-white/5 hover:bg-white/15 border-white/15 text-[#AFAEA2] hover:text-white'
+                            ? 'bg-[#D21319]/20 border-[#D21319] shadow-[0_0_12px_rgba(210,19,25,0.25)]'
+                            : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
                         }`}
                       >
-                        <span className="text-[11px]">{link.icon}</span>
-                        <span>{link.shortLabel}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-base shrink-0">{link.icon}</span>
+                          <div>
+                            <div className={`font-serif text-xs uppercase tracking-wider font-bold transition-colors ${
+                              isActive ? 'text-white' : 'text-[#E9E6DA] group-hover:text-white'
+                            }`}>
+                              {link.label}
+                            </div>
+                            <div className="font-mono text-[9px] text-[#AFAEA2]">
+                              {link.desc}
+                            </div>
+                          </div>
+                        </div>
+                        {isActive ? (
+                          <span className="w-2 h-2 rounded-full bg-[#D21319] shadow-[0_0_8px_#D21319]" />
+                        ) : (
+                          <ChevronRight size={14} className="text-[#AFAEA2] group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
+                        )}
                       </button>
                     );
                   })}
+                </div>
 
-                  {/* Intro Film pill on mobile */}
+                {/* Sub-actions: Intro Film & Admin */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
                   {onReplayIntro && (
                     <button
                       type="button"
@@ -555,133 +607,38 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                         handleCollapse();
                         onReplayIntro();
                       }}
-                      className="shrink-0 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-mono text-[9.5px] uppercase font-bold tracking-wider transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                      className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                     >
-                      <span className="text-[11px]">🎬</span>
-                      <span>FILM</span>
+                      <Play size={11} className="fill-current text-amber-400" />
+                      <span>INTRO FILM</span>
                     </button>
                   )}
 
-                  {/* Admin pill on mobile */}
                   <Link
                     href="/admin"
                     onClick={() => handleCollapse()}
-                    className="shrink-0 px-2 py-1 rounded-md bg-white/5 hover:bg-white/15 border border-white/15 text-[#AFAEA2] hover:text-white font-mono text-[9.5px] uppercase font-bold tracking-wider transition-all flex items-center gap-1 whitespace-nowrap"
+                    className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-[#AFAEA2] hover:text-white font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 text-center"
                   >
-                    <span className="text-[11px]">🛡️</span>
-                    <span>ADMIN</span>
+                    <span>[ ADMIN PANEL ]</span>
                   </Link>
                 </div>
+
+                {/* Primary Action Button: Enlist Squad */}
+                {!hasMaxEvents && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCollapse();
+                      if (onRegisterClick) onRegisterClick();
+                    }}
+                    className="w-full py-3 px-4 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-xl shadow-[0_0_15px_rgba(210,19,25,0.4)] active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>ENLIST SQUAD NOW</span>
+                    <span>→</span>
+                  </button>
+                )}
               </div>
 
-              {/* ========================================================
-                  4. MOBILE EXPANDED COMMAND DRAWER
-                  Rich interactive menu with subtitles and badges when opened.
-                 ======================================================== */}
-              <AnimatePresence>
-                {mobileMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    className="lg:hidden mt-2 pt-2 border-t border-white/15 space-y-1 overflow-hidden"
-                  >
-                    <div className="grid grid-cols-1 gap-1">
-                      {navLinks.map((link) => {
-                        const isActive = activeSection === link.id;
-
-                        if (link.href) {
-                          return (
-                            <Link
-                              key={link.id}
-                              href={link.href}
-                              onClick={() => {
-                                setMobileMenuOpen(false);
-                                handleCollapse();
-                              }}
-                              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-left transition group"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">{link.icon}</span>
-                                <div>
-                                  <div className="font-serif text-[11px] uppercase tracking-wider text-white font-bold group-hover:text-[#D21319] transition-colors">
-                                    {link.label}
-                                  </div>
-                                  <div className="font-mono text-[8.5px] text-[#AFAEA2]">
-                                    {link.desc}
-                                  </div>
-                                </div>
-                              </div>
-                              <ChevronRight size={13} className="text-[#AFAEA2] group-hover:text-white transition-transform" />
-                            </Link>
-                          );
-                        }
-
-                        return (
-                          <button
-                            key={link.id}
-                            type="button"
-                            onClick={() => scrollToSection(link.id)}
-                            className={`w-full p-2 rounded-lg border flex items-center justify-between text-left transition group cursor-pointer ${
-                              isActive
-                                ? 'bg-[#D21319]/20 border-[#D21319] shadow-[0_0_10px_rgba(210,19,25,0.25)]'
-                                : 'bg-white/5 hover:bg-white/10 border-white/10'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">{link.icon}</span>
-                              <div>
-                                <div className={`font-serif text-[11px] uppercase tracking-wider font-bold transition-colors ${
-                                  isActive ? 'text-white' : 'text-[#E9E6DA] group-hover:text-white'
-                                }`}>
-                                  {link.label}
-                                </div>
-                                <div className="font-mono text-[8.5px] text-[#AFAEA2]">
-                                  {link.desc}
-                                </div>
-                              </div>
-                            </div>
-                            {isActive ? (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#D21319] shadow-[0_0_6px_#D21319]" />
-                            ) : (
-                              <ChevronRight size={13} className="text-[#AFAEA2] group-hover:text-white transition-transform" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="pt-1.5 grid grid-cols-2 gap-1.5 border-t border-white/10">
-                      {onReplayIntro && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMobileMenuOpen(false);
-                            handleCollapse();
-                            onReplayIntro();
-                          }}
-                          className="p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono text-[9px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer"
-                        >
-                          <Play size={10} className="fill-current" />
-                          <span>PLAY INTRO FILM</span>
-                        </button>
-                      )}
-
-                      <Link
-                        href="/admin"
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          handleCollapse();
-                        }}
-                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-[#AFAEA2] hover:text-white font-mono text-[9px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 transition"
-                      >
-                        <span>[ ADMIN CONSOLE ]</span>
-                      </Link>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
