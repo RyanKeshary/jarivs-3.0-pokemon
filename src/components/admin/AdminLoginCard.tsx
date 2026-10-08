@@ -7,8 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { EngravedPhoenix } from '@/components/illustrations/EngravedPokemon';
 
 export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any) => void }) {
-  const [email, setEmail] = useState('shrey.sleeps@gmail.com');
-  const [password, setPassword] = useState('password@67');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -44,11 +44,6 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
     }
   };
 
-  const fillDefaultCredentials = () => {
-    setEmail('shrey.sleeps@gmail.com');
-    setPassword('password@67');
-  };
-
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-4 select-none">
       <div className="w-full max-w-md bg-white border-2 border-black p-6 sm:p-8 shadow-[8px_8px_0px_#000] text-black">
@@ -63,7 +58,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
             INDIGO TECH FEST · JARVIS 3.0
           </span>
           <h1 className="font-sans text-2xl sm:text-3xl font-black uppercase tracking-tight text-black mt-1">
-            Curator & Admin Portal
+            Curator &amp; Admin Portal
           </h1>
           <p className="font-sans text-xs text-neutral-600 mt-1">
             Restricted to fest organizers, coordinators, and master adjudicators.
@@ -87,29 +82,23 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. curator@slrtce.in"
+              autoComplete="username"
               className="w-full bg-white border-2 border-black p-2.5 text-xs text-black font-mono focus:border-[#D21319] focus:outline-none shadow-[2px_2px_0px_#000]"
             />
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-black block">
-                MASTER PASSWORD
-              </label>
-              <button
-                type="button"
-                onClick={fillDefaultCredentials}
-                className="font-mono text-[9px] text-[#0284c7] hover:underline cursor-pointer"
-              >
-                [ Auto-Fill Default ]
-              </button>
-            </div>
+            <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-black block mb-1">
+              MASTER PASSWORD
+            </label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter administrator password"
+              autoComplete="current-password"
               className="w-full bg-white border-2 border-black p-2.5 text-xs text-black font-mono focus:border-[#D21319] focus:outline-none shadow-[2px_2px_0px_#000]"
             />
           </div>
@@ -125,11 +114,11 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
           </div>
         </form>
 
-        <div className="mt-6 pt-4 border-t-2 border-black flex justify-between items-center text-[10px] font-mono text-neutral-600">
-          <span>SECURED CONSOLE</span>
-          <Link href="/" className="hover:text-black font-bold">
-            [ ➔ BACK TO FESTIVAL ]
+        <div className="mt-6 pt-4 border-t border-black/10 flex items-center justify-between text-[11px] font-mono text-neutral-500">
+          <Link href="/" className="hover:text-black underline cursor-pointer">
+            ← Return to Arena
           </Link>
+          <span>Secured via Codex Auth</span>
         </div>
 
       </div>
