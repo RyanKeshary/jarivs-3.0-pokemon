@@ -110,6 +110,19 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
   const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers } = data;
 
+  // Master status privacy: Ryan Keshary is only visible as master to ryankeshary@gmail.com
+  const isCurrentUserRyan = currentUser?.email?.toLowerCase() === 'ryankeshary@gmail.com';
+
+  const visibleAdminUsers = useMemo(() => {
+    return (adminUsers || []).filter((admin: any) => {
+      const isRyan = admin.email?.toLowerCase() === 'ryankeshary@gmail.com';
+      if (isRyan && !isCurrentUserRyan) {
+        return false;
+      }
+      return true;
+    });
+  }, [adminUsers, isCurrentUserRyan]);
+
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
     return (registrations || []).filter((reg: any) => {
@@ -1357,13 +1370,14 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   <p className="text-[11px] text-slate-500 font-sans">Officers with administrative console privileges</p>
                 </div>
                 <span className="text-[11px] font-mono bg-white px-2.5 py-0.5 border border-slate-200 rounded font-bold text-slate-700">
-                  {(adminUsers || []).length} Officers Appointed
+                  {visibleAdminUsers.length} Officers Appointed
                 </span>
               </div>
               <div className="divide-y divide-slate-100 font-mono text-xs">
-                {(adminUsers || []).map((admin: any) => {
+                {visibleAdminUsers.map((admin: any) => {
+                  const isRyan = admin.email?.toLowerCase() === 'ryankeshary@gmail.com';
                   const isMasterOfficer =
-                    admin.email?.toLowerCase() === 'ryankeshary@gmail.com' ||
+                    (isRyan && isCurrentUserRyan) ||
                     admin.email?.toLowerCase() === 'shrey.sleeps@gmail.com';
                   return (
                     <div key={admin.id || admin.email} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
@@ -1432,7 +1446,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </div>
               <h2 className="text-lg font-bold font-sans">Appoint & Manage Festival Administrators</h2>
               <p className="text-xs text-neutral-400 mt-0.5">
-                Exclusive privileges restricted to ryankeshary@gmail.com and shrey.sleeps@gmail.com.
+                Exclusive privileges restricted to {isCurrentUserRyan ? 'ryankeshary@gmail.com and shrey.sleeps@gmail.com' : 'shrey.sleeps@gmail.com'}.
                 Other admins cannot view or access this console.
               </p>
             </div>
@@ -1508,14 +1522,15 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   <p className="text-xs text-slate-500">Manage credentials and access privileges</p>
                 </div>
                 <span className="text-xs font-mono bg-white px-2 py-0.5 border border-slate-200 rounded">
-                  {(adminUsers || []).length} Officers
+                  {visibleAdminUsers.length} Officers
                 </span>
               </div>
 
               <div className="divide-y divide-slate-100 font-mono text-xs">
-                {(adminUsers || []).map((admin: any) => {
+                {visibleAdminUsers.map((admin: any) => {
+                  const isRyan = admin.email?.toLowerCase() === 'ryankeshary@gmail.com';
                   const isMasterOfficer =
-                    admin.email?.toLowerCase() === 'ryankeshary@gmail.com' ||
+                    (isRyan && isCurrentUserRyan) ||
                     admin.email?.toLowerCase() === 'shrey.sleeps@gmail.com';
                   return (
                     <div key={admin.id || admin.email} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
@@ -1931,170 +1946,151 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       )}
 
       {/* ========================================================
-          FLOATING PERSISTENT SIDE EXPORT BUTTON
-         ======================================================== */}
-      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40">
-        <button
-          onClick={() => setSideExportOpen(true)}
-          className="group flex items-center gap-2.5 py-3 px-3 bg-white hover:bg-slate-50 text-slate-900 border-l-4 border-l-[#D21319] border-y border-slate-300 shadow-xl rounded-l-2xl transition-all duration-200 hover:-translate-x-1 cursor-pointer"
-          title="Open CSV Export Hub (Check-ins, All Registrations, Squads)"
-        >
-          <div className="p-2 bg-rose-50 text-[#D21319] rounded-xl group-hover:bg-[#D21319] group-hover:text-white transition-colors shadow-2xs">
-            <Download size={18} />
-          </div>
-          <div className="text-left hidden sm:flex sm:flex-col pr-1">
-            <span className="text-xs font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
-              EXPORT CSV
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            </span>
-            <span className="text-[10px] font-mono text-slate-500">Check-ins & Squads</span>
-          </div>
-        </button>
-      </div>
-
-      {/* ========================================================
-          SLIDE-OVER DRAWER: CSV EXPORT CENTER
+          MODAL DIALOG: CSV EXPORT CENTER (NO SCROLLING)
          ======================================================== */}
       {sideExportOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
             onClick={() => setSideExportOpen(false)}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity cursor-pointer"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity cursor-pointer"
           />
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col">
-              
-              {/* Drawer Header */}
-              <div className="p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#D21319] text-white rounded-xl shadow-xs">
-                    <Download size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-black text-slate-900 tracking-tight">CSV Export Center</h2>
-                    <p className="text-xs text-slate-500">Instant spreadsheet exports for festival operations</p>
-                  </div>
+          <div className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#D21319] text-white rounded-xl shadow-xs">
+                  <Download size={18} />
                 </div>
-                <button
-                  onClick={() => setSideExportOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                  title="Close export center"
-                >
-                  <X size={18} />
-                </button>
+                <div>
+                  <h2 className="text-base font-black text-slate-900 tracking-tight">CSV Export Center</h2>
+                  <p className="text-xs text-slate-500">Instant spreadsheet exports for festival operations</p>
+                </div>
               </div>
+              <button
+                onClick={() => setSideExportOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                title="Close export center"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              {/* Drawer Content */}
-              <div className="flex-1 p-6 space-y-4 overflow-y-auto">
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Export complete or filtered real-time records into standard UTF-8 CSV formats, suitable for Microsoft Excel, Google Sheets, and attendance verification desks.
-                </p>
+            {/* Modal Content - 3 columns, fits comfortably without scrolling */}
+            <div className="p-4 sm:p-5">
+              <p className="text-xs text-slate-600 mb-4">
+                Export real-time festival records into standard UTF-8 CSV formats, suitable for Microsoft Excel, Google Sheets, and attendance desks.
+              </p>
 
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 {/* Option 1: Checked-In Attendees Only */}
-                <div className="p-4 bg-white border-2 border-blue-200 rounded-xl hover:border-blue-500 transition-colors shadow-2xs space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                        <UserCheck size={18} />
+                <div className="p-4 bg-white border-2 border-blue-200 rounded-xl hover:border-blue-500 transition-colors shadow-2xs flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                          <UserCheck size={16} />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-slate-900">Check-Ins Report</h3>
+                          <span className="text-[10px] font-mono text-blue-600 font-bold block">
+                            {checkedInCount} Admitted
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Check-Ins Report</h3>
-                        <span className="text-[11px] font-mono text-blue-600 font-bold">
-                          {checkedInCount} Attendees Admitted
-                        </span>
-                      </div>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-bold">
+                        .CSV
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-bold">
-                      .CSV
-                    </span>
+                    <p className="text-[11px] text-slate-600 leading-snug">
+                      Verified candidates admitted through the Rapid Check-In desk with timestamps and contact numbers.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600">
-                    Exports verified candidates admitted through the Rapid Check-In desk with timestamps, contact numbers, and squad affiliations.
-                  </p>
                   <button
                     onClick={() => exportRegistrationsCSV('checkedin')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
                   >
-                    <Download size={14} />
-                    <span>Download Check-Ins (.csv)</span>
+                    <Download size={13} />
+                    <span>Download Check-Ins</span>
                   </button>
                 </div>
 
                 {/* Option 2: All Registrations */}
-                <div className="p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-[#D21319] transition-colors shadow-2xs space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-rose-50 text-[#D21319] rounded-lg">
-                        <Users size={18} />
+                <div className="p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-[#D21319] transition-colors shadow-2xs flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-rose-50 text-[#D21319] rounded-lg">
+                          <Users size={16} />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-slate-900">All Registrations</h3>
+                          <span className="text-[10px] font-mono text-slate-600 font-bold block">
+                            {registrations?.length || 0} Total Candidates
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">All Registrations</h3>
-                        <span className="text-[11px] font-mono text-slate-600 font-bold">
-                          {registrations?.length || 0} Total Candidates
-                        </span>
-                      </div>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold">
+                        .CSV
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-bold">
-                      .CSV
-                    </span>
+                    <p className="text-[11px] text-slate-600 leading-snug">
+                      Comprehensive census of all individual candidate profiles, college affiliations, contact emails, and events.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600">
-                    Comprehensive census of all individual candidate profiles, college affiliations, contact emails, phone numbers, and enrolled events.
-                  </p>
                   <button
                     onClick={() => exportRegistrationsCSV('all')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
                   >
-                    <Download size={14} />
-                    <span>Download All Registrations (.csv)</span>
+                    <Download size={13} />
+                    <span>Download Census</span>
                   </button>
                 </div>
 
                 {/* Option 3: Team / Squad Registrations */}
-                <div className="p-4 bg-white border-2 border-emerald-200 rounded-xl hover:border-emerald-500 transition-colors shadow-2xs space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                        <Shield size={18} />
+                <div className="p-4 bg-white border-2 border-emerald-200 rounded-xl hover:border-emerald-500 transition-colors shadow-2xs flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                          <Shield size={16} />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-slate-900">Squad Registrations</h3>
+                          <span className="text-[10px] font-mono text-emerald-700 font-bold block">
+                            {teams?.length || 0} Squads
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Team / Squad Registrations</h3>
-                        <span className="text-[11px] font-mono text-emerald-700 font-bold">
-                          {teams?.length || 0} Registered Squads
-                        </span>
-                      </div>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-bold">
+                        .CSV
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-bold">
-                      .CSV
-                    </span>
+                    <p className="text-[11px] text-slate-600 leading-snug">
+                      All created squads with JRV codes, team captains, roster sizes, discipline tracks, and token keys.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600">
-                    All created squads with JRV squad codes, team captains, roster sizes, discipline tracks, lock status, and token keys.
-                  </p>
                   <button
                     onClick={exportTeamsCSV}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
                   >
-                    <Download size={14} />
-                    <span>Download Team Registrations (.csv)</span>
+                    <Download size={13} />
+                    <span>Download Squads</span>
                   </button>
                 </div>
-
               </div>
+            </div>
 
-              {/* Drawer Footer */}
-              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
-                <span>UTF-8 Comma-Separated Values</span>
-                <button
-                  onClick={() => setSideExportOpen(false)}
-                  className="px-3 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-semibold transition-colors cursor-pointer"
-                >
-                  Close
-                </button>
-              </div>
-
+            {/* Modal Footer */}
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-mono">
+              <span className="text-[11px]">UTF-8 Comma-Separated Values (.csv)</span>
+              <button
+                onClick={() => setSideExportOpen(false)}
+                className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold transition-colors cursor-pointer text-xs"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

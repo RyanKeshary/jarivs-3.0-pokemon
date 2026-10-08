@@ -636,6 +636,15 @@ export async function getFestAdminData() {
   }
   const timelineData = Object.entries(timelineMap).map(([date, count]) => ({ date, count }));
 
+  // STRICT PRIVACY: Hide ryankeshary as master/admin from everyone but ryankeshary
+  const userEmail = (user.email || '').toLowerCase();
+  const visibleAdminUsers = (adminUsers || []).filter((a: any) => {
+    if (a.email?.toLowerCase() === 'ryankeshary@gmail.com') {
+      return userEmail === 'ryankeshary@gmail.com';
+    }
+    return true;
+  });
+
   return {
     currentUser: {
       id: user.id,
@@ -656,7 +665,7 @@ export async function getFestAdminData() {
     events,
     announcements,
     auditLogs,
-    adminUsers
+    adminUsers: visibleAdminUsers
   };
 }
 
