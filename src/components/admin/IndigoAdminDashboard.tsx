@@ -81,6 +81,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [mobileTabsMenuOpen, setMobileTabsMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -552,52 +553,34 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col antialiased">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col antialiased overflow-x-hidden w-full max-w-full">
       
       {/* 1. TOP EXECUTIVE MASTHEAD (LIGHT THEMED) */}
-      <header className="bg-white border-b border-slate-200 shadow-xs sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
+      <header className="bg-white border-b border-slate-200 shadow-xs sticky top-0 z-30 w-full max-w-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2 w-full">
           
           {/* Brand & Identity */}
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-            <div className="flex items-center gap-2.5">
-              <span className="w-3 h-3 bg-[#D21319] rounded-sm shadow-sm" />
-              <Link href="/" className="font-serif text-xl sm:text-2xl font-black text-[#D21319] tracking-tight hover:opacity-90">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#D21319] rounded-xs shadow-xs shrink-0" />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Link
+                href="/"
+                className="font-serif text-[15px] sm:text-2xl font-black text-[#D21319] tracking-tight hover:opacity-90 leading-none whitespace-nowrap"
+              >
                 INDIGO TECH FEST
               </Link>
-              <span className="hidden sm:inline-block text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                {isCoordinator ? 'COORDINATOR DESK' : 'ADMIN CONSOLE'}
+              <span className="hidden sm:inline-block text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                {isCoordinator ? 'COORDINATOR' : 'ADMIN CONSOLE'}
               </span>
-            </div>
-
-            {/* User pill & Action buttons on mobile */}
-            <div className="flex items-center gap-2 md:hidden">
-              {!isCoordinator && (
-                <button
-                  onClick={() => setSideExportOpen(true)}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors cursor-pointer"
-                  title="CSV Export Sidebar"
-                >
-                  <Download size={12} className="text-[#D21319]" />
-                  <span>Export</span>
-                </button>
-              )}
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
-                title="Logout"
-              >
-                <LogOut size={12} />
-                <span>Logout</span>
-              </button>
             </div>
           </div>
 
-          {/* User profile & Quick action links (Desktop) */}
-          <div className="hidden md:flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
+          {/* Quick Action Links & User profile */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* Desktop user role pill */}
+            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
               {isCoordinator ? <UserCheck size={13} className="text-blue-600" /> : <Shield size={13} className="text-[#D21319]" />}
-              <span className="font-semibold">{currentUser?.email || (isCoordinator ? 'Coordinator' : 'Administrator')}</span>
+              <span className="font-semibold truncate max-w-[150px]">{currentUser?.email || (isCoordinator ? 'Coordinator' : 'Admin')}</span>
               {isCoordinator && (
                 <span className="px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[9px] font-bold rounded">COORDINATOR</span>
               )}
@@ -606,31 +589,31 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             {onRefresh && (
               <button
                 onClick={onRefresh}
-                className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                title="Refresh latest data"
+                className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                title="Refresh latest telemetry"
               >
-                <RefreshCw size={15} />
+                <RefreshCw size={13} />
               </button>
             )}
 
             {!isCoordinator && (
               <button
                 onClick={() => setSideExportOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
-                title="Open CSV Export Center"
+                className="flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                title="CSV Export Center"
               >
                 <Download size={13} className="text-[#D21319]" />
-                <span>EXPORT CSV</span>
+                <span className="hidden sm:inline">Export CSV</span>
               </button>
             )}
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-2.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
               title="Sign out from Administrator Console"
             >
               <LogOut size={13} />
-              <span>LOGOUT</span>
+              <span className="text-[11px] sm:text-xs">Logout</span>
             </button>
           </div>
 
@@ -638,8 +621,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
         {/* Action Tabs Bar - Only visible to Admins/Managers, HIDDEN for Coordinators */}
         {!isCoordinator && (
-          <div className="border-t border-slate-100 bg-slate-50/80 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto py-2 scrollbar-none">
+          <div className="border-t border-slate-100 bg-slate-50/90 w-full max-w-full">
+            {/* Desktop Tabs Bar (Wide Screens >= md) */}
+            <div className="hidden md:flex max-w-7xl mx-auto items-center gap-1.5 px-4 sm:px-6 lg:px-8 py-2 overflow-x-auto">
               {[
                 { id: 'dashboard', label: 'Overview', icon: Layers },
                 { id: 'registrations', label: 'Registrations', icon: Users },
@@ -658,7 +642,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                       isActive
                         ? 'bg-[#D21319] text-white shadow-xs'
                         : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
@@ -679,12 +663,125 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 <span>Export CSV</span>
               </button>
             </div>
+
+            {/* Mobile Tab Navigator (Strictly Zero Horizontal Scroll) */}
+            <div className="md:hidden px-3 py-2 space-y-1.5 w-full max-w-full">
+              {/* Primary 4 Quick Operational Tabs (Equal Grid, 100% Responsive) */}
+              <div className="grid grid-cols-4 gap-1 w-full">
+                {[
+                  { id: 'dashboard', label: 'Overview', icon: Layers },
+                  { id: 'registrations', label: 'Regs', icon: Users },
+                  { id: 'teams', label: 'Squads', icon: Shield },
+                  { id: 'checkin', label: 'Check-In', icon: CheckCircle2 },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        setMobileTabsMenuOpen(false);
+                      }}
+                      className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer text-center w-full min-w-0 ${
+                        isActive
+                          ? 'bg-[#D21319] text-white shadow-xs ring-1 ring-[#D21319]'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Icon size={14} className="mb-0.5 shrink-0" />
+                      <span className="truncate w-full leading-tight">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Sub-bar: Active View Tag & Expandable Menu Toggle */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold shrink-0">VIEW:</span>
+                  <span className="text-xs font-bold text-slate-900 truncate">
+                    {activeTab === 'dashboard' ? 'Overview' :
+                     activeTab === 'registrations' ? 'Registrations' :
+                     activeTab === 'teams' ? 'Squads' :
+                     activeTab === 'checkin' ? 'Rapid Check-In' :
+                     activeTab === 'events' ? 'Disciplines' :
+                     activeTab === 'announcements' ? 'Notices' :
+                     activeTab === 'coordinators' ? 'Coordinators' :
+                     activeTab === 'audit' ? 'Audit Log' :
+                     activeTab === 'master' ? 'Master Console' :
+                     'Security'}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setMobileTabsMenuOpen(!mobileTabsMenuOpen)}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer shadow-2xs ${
+                    mobileTabsMenuOpen || !['dashboard', 'registrations', 'teams', 'checkin'].includes(activeTab)
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  <Layers size={12} />
+                  <span>{mobileTabsMenuOpen ? 'Hide Menu ▲' : 'All Sections (10) ▼'}</span>
+                </button>
+              </div>
+
+              {/* Expandable Mobile Grid (All 10 Sections with Large Tap Targets) */}
+              {mobileTabsMenuOpen && (
+                <div className="grid grid-cols-2 gap-1.5 p-2 bg-white rounded-xl border border-slate-200 shadow-sm mt-1 animate-in fade-in duration-150">
+                  {[
+                    { id: 'dashboard', label: 'Overview', icon: Layers },
+                    { id: 'registrations', label: 'Registrations', icon: Users },
+                    { id: 'teams', label: 'Squads', icon: Shield },
+                    { id: 'checkin', label: 'Rapid Check-In', icon: CheckCircle2 },
+                    { id: 'events', label: 'Disciplines', icon: Settings },
+                    { id: 'announcements', label: 'Notices', icon: Bell },
+                    { id: 'coordinators', label: 'Coordinators', icon: UserCheck },
+                    { id: 'audit', label: 'Audit Log', icon: FileText },
+                    ...(currentUser?.isMaster ? [{ id: 'master', label: 'Master Console', icon: Crown }] : []),
+                    { id: 'password', label: 'Security', icon: KeyRound },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id as any);
+                          setMobileTabsMenuOpen(false);
+                        }}
+                        className={`flex items-center gap-2 p-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer ${
+                          isActive
+                            ? 'bg-[#D21319] text-white shadow-xs'
+                            : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/70'
+                        }`}
+                      >
+                        <Icon size={14} className="shrink-0" />
+                        <span className="truncate">{tab.label}</span>
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    onClick={() => {
+                      setSideExportOpen(true);
+                      setMobileTabsMenuOpen(false);
+                    }}
+                    className="col-span-2 flex items-center justify-center gap-1.5 p-2 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors cursor-pointer"
+                  >
+                    <Download size={14} className="text-[#D21319]" />
+                    <span>Open CSV Export Center</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </header>
 
       {/* 2. MAIN CONTENT BODY */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
         
         {/* Global Feedback Banner */}
         {feedbackNotice && (
@@ -709,24 +806,24 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
           <div className="space-y-6">
             
             {/* Quick Actions Header Strip */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
               <div>
-                <h1 className="text-lg font-bold text-slate-900">Festival Overview</h1>
-                <p className="text-xs text-slate-500">Live operational telemetry & enrollment status</p>
+                <h1 className="text-base sm:text-lg font-bold text-slate-900">Festival Overview</h1>
+                <p className="text-xs text-slate-500">Live operational telemetry &amp; enrollment status</p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => setManualModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#D21319] hover:bg-[#b00f14] text-white rounded-lg shadow-xs transition-colors cursor-pointer"
+                  className="col-span-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-[#D21319] hover:bg-[#b00f14] text-white rounded-lg shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus size={14} />
-                  <span>On-Spot Register</span>
+                  <span>On-Spot Reg</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('checkin')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-xs transition-colors cursor-pointer"
+                  className="col-span-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-xs transition-colors cursor-pointer"
                 >
                   <CheckCircle2 size={14} />
                   <span>Rapid Check-In</span>
@@ -734,7 +831,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
                 <button
                   onClick={() => setSideExportOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition-colors cursor-pointer"
+                  className="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition-colors cursor-pointer"
                   title="Open CSV Export Hub"
                 >
                   <Download size={14} className="text-[#D21319]" />
