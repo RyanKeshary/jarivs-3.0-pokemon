@@ -203,7 +203,8 @@ export default function JoinTeamPage({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="jane.dept25@slrtce.in"
+                      placeholder="Enter your @slrtce.in ID"
+                      autoComplete="off"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                     <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">

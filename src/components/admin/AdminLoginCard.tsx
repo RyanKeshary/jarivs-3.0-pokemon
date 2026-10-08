@@ -82,8 +82,8 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. curator@slrtce.in"
-              autoComplete="username"
+              placeholder="Enter administrator email"
+              autoComplete="off"
               className="w-full bg-white border-2 border-black p-2.5 text-xs text-black font-mono focus:border-[#D21319] focus:outline-none shadow-[2px_2px_0px_#000]"
             />
           </div>

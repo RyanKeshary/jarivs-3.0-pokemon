@@ -72,14 +72,14 @@ export function RegistrationModal({
     }
   }, [isOpen]);
 
-  // Load draft from localStorage on initial render
+  // Load draft from localStorage on initial render (do NOT prefill email/login ID)
   useEffect(() => {
     try {
       const savedDraft = localStorage.getItem('indigo_reg_draft');
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
         if (parsed.fullName) setFullName(parsed.fullName);
-        if (parsed.email) setEmail(parsed.email);
+        // Do not prefill login id / email - keep blank
         if (parsed.phone) setPhone(parsed.phone);
         if (parsed.college) setCollege(parsed.college);
         if (parsed.department) setDepartment(parsed.department);
@@ -88,21 +88,20 @@ export function RegistrationModal({
         if (parsed.rollNo) setRollNo(parsed.rollNo);
         if (parsed.referenceId) setReferenceId(parsed.referenceId);
         if (parsed.teamName) setTeamName(parsed.teamName);
-        if (parsed.fullName || parsed.email) setDraftRestored(true);
+        if (parsed.fullName) setDraftRestored(true);
       }
     } catch {
       // ignore
     }
   }, []);
 
-  // Save draft locally on input change
+  // Save draft locally on input change (exclude email so login ID is never prefilled)
   useEffect(() => {
     try {
       localStorage.setItem(
         'indigo_reg_draft',
         JSON.stringify({
           fullName,
-          email,
           phone,
           college,
           department,
@@ -116,7 +115,7 @@ export function RegistrationModal({
     } catch {
       // ignore
     }
-  }, [fullName, email, phone, college, department, yearOfStudy, division, rollNo, referenceId, teamName]);
+  }, [fullName, phone, college, department, yearOfStudy, division, rollNo, referenceId, teamName]);
 
   // Preselection & Join Code handling
   useEffect(() => {
@@ -346,6 +345,7 @@ export function RegistrationModal({
           localStorage.setItem('indigo_logged_in', 'true');
           localStorage.removeItem('indigo_logged_out');
           localStorage.setItem('indigo_user_events_count', String(selectedEvents.length));
+          localStorage.removeItem('indigo_reg_draft');
           window.dispatchEvent(new Event('auth_state_change'));
         } catch {}
 
@@ -391,6 +391,7 @@ export function RegistrationModal({
           localStorage.setItem('indigo_logged_in', 'true');
           localStorage.removeItem('indigo_logged_out');
           localStorage.setItem('indigo_user_events_count', '2');
+          localStorage.removeItem('indigo_reg_draft');
           window.dispatchEvent(new Event('auth_state_change'));
         } catch {}
 
@@ -869,7 +870,8 @@ export function RegistrationModal({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. yourname.dept25@slrtce.in"
+                      placeholder="Enter your @slrtce.in ID"
+                      autoComplete="off"
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
                     />
                     <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">

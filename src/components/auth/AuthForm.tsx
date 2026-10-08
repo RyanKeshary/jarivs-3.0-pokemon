@@ -424,7 +424,8 @@ export function AuthForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="trainer@slrtce.in"
+                placeholder="Enter your @slrtce.in ID"
+                autoComplete="off"
                 className="w-full px-3.5 py-2.5 bg-white text-gray-950 font-medium placeholder:text-gray-400 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] focus:ring-1 focus:ring-[#EE1515] transition-all"
               />
             </div>
