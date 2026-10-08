@@ -28,25 +28,25 @@ export function Footer() {
   return (
     <footer id="contact-footer" className="relative z-20 w-full bg-[#FAF8F5] text-black border-t-2 border-black select-none">
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
         
-        {/* 3 Neo-Brutalist Slim Cards Grid (Sleek, low-height version) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        {/* 3 Neo-Brutalist Cards Grid (Minimalist & scaled-down on mobile, expansive on desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 mb-2.5 sm:mb-4">
           
           {/* ========================================================
               BOX 1: FESTIVAL BRAND & SYMPOSIUM
              ======================================================== */}
-          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] p-4 sm:p-5 flex flex-col justify-between">
+          <div className="bg-white border sm:border-2 border-black shadow-[2px_2px_0px_#000] sm:shadow-[4px_4px_0px_#000] p-3 sm:p-5 flex flex-col justify-between">
             <div>
-              <div className="inline-block bg-black text-white px-2.5 py-0.5 font-mono text-[11px] font-black uppercase tracking-wider mb-1.5 shadow-[2px_2px_0px_#D21319]">
+              <div className="inline-block bg-black text-white px-2 sm:px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-wider mb-1 sm:mb-1.5 shadow-[1.5px_1.5px_0px_#D21319] sm:shadow-[2px_2px_0px_#D21319]">
                 INDIGO TECH FEST
               </div>
               
-              <div className="font-mono text-[9px] text-slate-500 font-bold tracking-widest uppercase mb-2">
+              <div className="font-mono text-[8px] sm:text-[9px] text-slate-500 font-bold tracking-widest uppercase mb-1.5 sm:mb-2">
                 SPECTRUM OF INNOVATION · JARVIS 3.0
               </div>
 
-              <p className="font-sans text-xs text-slate-700 leading-relaxed">
+              <p className="font-sans text-[11px] sm:text-xs text-slate-700 leading-snug sm:leading-relaxed">
                 The flagship annual technical symposium organized by the <strong>Department of Computer Engineering &amp; IT</strong> in association with the <strong>Technical Student Council</strong> at Shree L. R. Tiwari College of Engineering, Mumbai.
               </p>
             </div>
@@ -55,17 +55,17 @@ export function Footer() {
           {/* ========================================================
               BOX 2: PAGES (NAV BUTTONS)
              ======================================================== */}
-          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] p-4 sm:p-5 flex flex-col justify-between">
+          <div className="bg-white border sm:border-2 border-black shadow-[2px_2px_0px_#000] sm:shadow-[4px_4px_0px_#000] p-3 sm:p-5 flex flex-col justify-between">
             <div>
-              <div className="inline-block bg-black text-white px-2.5 py-0.5 font-mono text-[11px] font-black uppercase tracking-wider mb-2.5">
+              <div className="inline-block bg-black text-white px-2 sm:px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-wider mb-1.5 sm:mb-2.5">
                 PAGES
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 gap-1 sm:gap-1.5">
                 <button
                   type="button"
                   onClick={scrollToTop}
-                  className="py-1 px-2 bg-white hover:bg-black hover:text-white border border-black text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-center cursor-pointer block truncate"
+                  className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   HOME
                 </button>
@@ -73,7 +73,7 @@ export function Footer() {
                 <button
                   type="button"
                   onClick={() => scrollToSection('events')}
-                  className="py-1 px-2 bg-white hover:bg-black hover:text-white border border-black text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-center cursor-pointer block truncate"
+                  className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   7 DISCIPLINES
                 </button>
@@ -81,7 +81,7 @@ export function Footer() {
                 <button
                   type="button"
                   onClick={() => scrollToSection('announcements')}
-                  className="py-1 px-2 bg-white hover:bg-black hover:text-white border border-black text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-center cursor-pointer block truncate"
+                  className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   NOTICES
                 </button>
@@ -89,7 +89,7 @@ export function Footer() {
                 <button
                   type="button"
                   onClick={() => scrollToSection('timeline')}
-                  className="py-1 px-2 bg-white hover:bg-black hover:text-white border border-black text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-center cursor-pointer block truncate"
+                  className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   SCHEDULE
                 </button>
@@ -97,14 +97,14 @@ export function Footer() {
                 <button
                   type="button"
                   onClick={() => scrollToSection('how-to-join')}
-                  className="py-1 px-2 bg-white hover:bg-black hover:text-white border border-black text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-center cursor-pointer block truncate"
+                  className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   HOW TO ENLIST
                 </button>
 
                 <Link
                   href="/contact"
-                  className="py-1 px-2 bg-white hover:bg-black hover:text-white border border-black text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-center cursor-pointer block truncate"
+                  className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   CONTACT DESKS
                 </Link>
@@ -115,27 +115,27 @@ export function Footer() {
           {/* ========================================================
               BOX 3: EMERGENCY HELPLINE & EASTER EGG VIDEO
              ======================================================== */}
-          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] p-4 sm:p-5 flex flex-col justify-between">
+          <div className="bg-white border sm:border-2 border-black shadow-[2px_2px_0px_#000] sm:shadow-[4px_4px_0px_#000] p-3 sm:p-5 flex flex-col justify-between">
             <div>
-              <div className="inline-block bg-black text-white px-2.5 py-0.5 font-mono text-[11px] font-black uppercase tracking-wider mb-2.5">
+              <div className="inline-block bg-black text-white px-2 sm:px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-wider mb-1.5 sm:mb-2.5">
                 EMERGENCY HELPLINE
               </div>
 
               {/* Emergency Contacts List */}
-              <div className="space-y-1 font-mono text-xs">
-                <div className="flex items-center justify-between text-[11px]">
+              <div className="space-y-0.5 sm:space-y-1 font-mono text-[10px] sm:text-xs">
+                <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
                   <span className="font-bold">Tech Coord (Manthan Joshi):</span>
                   <a href="tel:+919004327565" className="text-black font-bold underline hover:text-[#D21319]">
                     +91 90043 27565
                   </a>
                 </div>
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
                   <span className="font-bold">President (Shreyash Chaturvedi):</span>
                   <a href="tel:+917304167033" className="text-black font-bold underline hover:text-[#D21319]">
                     +91 73041 67033
                   </a>
                 </div>
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
                   <span className="font-bold">Takniki Desk:</span>
                   <a href="tel:+919372602311" className="text-black font-bold underline hover:text-[#D21319]">
                     +91 93726 02311
@@ -145,20 +145,20 @@ export function Footer() {
             </div>
 
             {/* EASTER EGG VIDEO BLOCK */}
-            <div className="pt-2.5 mt-2 border-t border-slate-200">
+            <div className="pt-2 sm:pt-2.5 mt-1.5 sm:mt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setVideoModalOpen(true)}
-                className="w-full py-1.5 px-2.5 bg-[#FAF8F5] hover:bg-black hover:text-white border border-black text-[11px] font-mono font-bold flex items-center justify-between shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer group"
+                className="w-full py-1 sm:py-1.5 px-2 sm:px-2.5 bg-[#FAF8F5] hover:bg-black hover:text-white border border-black text-[10px] sm:text-[11px] font-mono font-bold flex items-center justify-between shadow-[1.5px_1.5px_0px_#000] sm:shadow-[2px_2px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] transition-all cursor-pointer group"
                 title="Click to view Festival Archive Reel"
               >
                 <div className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 bg-black text-white group-hover:bg-[#D21319] flex items-center justify-center rounded-xs transition-colors">
-                    <Play size={9} className="fill-current ml-0.5" />
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-black text-white group-hover:bg-[#D21319] flex items-center justify-center rounded-xs transition-colors">
+                    <Play size={8} className="fill-current ml-0.5" />
                   </div>
                   <span className="uppercase tracking-wider">ARCHIVAL LOGS</span>
                 </div>
-                <span className="text-[9px] bg-black text-white group-hover:bg-[#D21319] px-1 py-0.2 rounded-xs transition-colors">
+                <span className="text-[8.5px] sm:text-[9px] bg-black text-white group-hover:bg-[#D21319] px-1 py-0.2 rounded-xs transition-colors">
                   PLAY ➔
                 </span>
               </button>
@@ -168,14 +168,14 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar: Slim return to top without copyright box */}
-        <div className="border-t border-black/20 pt-2 flex justify-end">
+        <div className="border-t border-black/20 pt-1.5 sm:pt-2 flex justify-end">
           <button
             type="button"
             onClick={scrollToTop}
-            className="flex items-center gap-1.5 px-3 py-1 bg-black hover:bg-[#D21319] text-white font-mono text-[10px] font-bold uppercase transition-colors shadow-[2px_2px_0px_#000] cursor-pointer"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1 bg-black hover:bg-[#D21319] text-white font-mono text-[9px] sm:text-[10px] font-bold uppercase transition-colors shadow-[1.5px_1.5px_0px_#000] sm:shadow-[2px_2px_0px_#000] cursor-pointer"
           >
             <span>RETURN TO TOP</span>
-            <ArrowUp size={11} />
+            <ArrowUp size={10} />
           </button>
         </div>
 
