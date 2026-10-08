@@ -217,22 +217,6 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
 
   return (
     <header className="fixed top-2 sm:top-3.5 left-0 right-0 z-40 select-none px-2 sm:px-6 pointer-events-none flex justify-center">
-      {/* Mobile backdrop overlay to dismiss by tapping outside */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            key="mobile-nav-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={handleCollapse}
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-10 pointer-events-auto lg:hidden"
-            aria-hidden="true"
-          />
-        )}
-      </AnimatePresence>
-
       {/* 
         PARENT INTERACTION CONTAINER:
         - When closed: Compact hit area around the single Pokéball.
@@ -362,10 +346,14 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
             Emerges from the center of the Pokéball as it opens.
             Full responsive design: fits all mobile proportions without clipping.
            ======================================================== */}
+        {/* ========================================================
+            2. DESKTOP EXPANDED FLOATING NAVBAR (>= lg: 1024px)
+            Emerges from the center of the Pokéball as it opens.
+           ======================================================== */}
         <AnimatePresence>
           {isExpanded && (
             <motion.div
-              key="expanded-navbar-bar"
+              key="desktop-expanded-navbar"
               initial={{ scale: 0.25, opacity: 0, y: 0 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.25, opacity: 0, y: 0 }}
@@ -373,59 +361,35 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 duration: 0.22,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className="relative w-full max-w-sm sm:max-w-md lg:max-w-7xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto no-scrollbar bg-[#121633]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.9),_0_0_25px_rgba(210,19,25,0.25)] rounded-2xl p-3.5 sm:p-4 lg:p-2.5 lg:px-6 z-20"
+              className="hidden lg:flex relative w-full max-w-7xl bg-[#121633]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.9),_0_0_25px_rgba(210,19,25,0.25)] rounded-2xl p-2.5 px-6 items-center justify-between gap-4 z-20"
             >
-              
-              {/* ========================================================
-                  1. DESKTOP / LAPTOP FLOATING NAVBAR (>= lg: 1024px)
-                  Sleek single-line bar with brand, all links, and actions
-                 ======================================================== */}
-              <div className="hidden lg:flex items-center justify-between gap-4">
-                {/* BRANDMARK */}
-                <Link
-                  href="/"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    scrollToSection('home');
-                  }}
-                  className="flex items-center gap-2.5 group cursor-pointer shrink-0"
-                >
-                  <span className="w-2.5 h-2.5 bg-[#D21319] group-hover:scale-125 transition-transform rounded-xs shadow-[0_0_8px_#D21319]" />
-                  <div className="flex flex-col">
-                    <span className="font-serif text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
-                      INDIGO TECH FEST
-                    </span>
-                    <span className="label-editorial text-[8px] text-[#AFAEA2] tracking-[0.25em] mt-0.5">
-                      JARVIS 3.0
-                    </span>
-                  </div>
-                </Link>
+              {/* BRANDMARK */}
+              <Link
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToSection('home');
+                }}
+                className="flex items-center gap-2.5 group cursor-pointer shrink-0"
+              >
+                <span className="w-2.5 h-2.5 bg-[#D21319] group-hover:scale-125 transition-transform rounded-xs shadow-[0_0_8px_#D21319]" />
+                <div className="flex flex-col">
+                  <span className="font-serif text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
+                    INDIGO TECH FEST
+                  </span>
+                  <span className="label-editorial text-[8px] text-[#AFAEA2] tracking-[0.25em] mt-0.5">
+                    JARVIS 3.0
+                  </span>
+                </div>
+              </Link>
 
-                {/* DESKTOP NAV LINKS */}
-                <nav className="flex items-center gap-6">
-                  {navLinks.map((link, index) => {
-                    const isActive = activeSection === link.id;
-                    const delay = 0.06 + index * 0.025;
+              {/* DESKTOP NAV LINKS */}
+              <nav className="flex items-center gap-6">
+                {navLinks.map((link, index) => {
+                  const isActive = activeSection === link.id;
+                  const delay = 0.06 + index * 0.025;
 
-                    if (link.href) {
-                      return (
-                        <motion.div
-                          key={link.id}
-                          initial={{ opacity: 0, y: 6, scale: 0.9 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          transition={{ duration: 0.18, delay }}
-                        >
-                          <Link
-                            href={link.href}
-                            onClick={() => handleCollapse()}
-                            className="font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 text-[#AFAEA2] hover:text-white"
-                          >
-                            {link.label}
-                          </Link>
-                        </motion.div>
-                      );
-                    }
-
+                  if (link.href) {
                     return (
                       <motion.div
                         key={link.id}
@@ -433,197 +397,220 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ duration: 0.18, delay }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => scrollToSection(link.id)}
-                          className={`relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap ${
-                            isActive
-                              ? 'text-white font-bold'
-                              : 'text-[#AFAEA2] hover:text-white'
-                          }`}
+                        <Link
+                          href={link.href}
+                          onClick={() => handleCollapse()}
+                          className="font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 text-[#AFAEA2] hover:text-white"
                         >
                           {link.label}
-                          {isActive && (
-                            <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D21319] shadow-[0_0_8px_#D21319]" />
-                          )}
-                        </button>
+                        </Link>
                       </motion.div>
                     );
-                  })}
-                </nav>
+                  }
 
-                {/* DESKTOP RIGHT ACTIONS */}
-                <div className="flex items-center gap-2.5 shrink-0">
-                  {onReplayIntro && (
-                    <button
-                      type="button"
-                      onClick={onReplayIntro}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-[#E9E6DA] bg-black/40 hover:bg-[#D21319] hover:text-white border border-[#AFAEA2]/40 hover:border-[#D21319] rounded-lg transition-all cursor-pointer"
-                      title="Play 1008.mp4 Intro Video"
+                  return (
+                    <motion.div
+                      key={link.id}
+                      initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.18, delay }}
                     >
-                      <Play size={11} className="fill-current text-[#D21319] hover:text-white" />
-                      <span>INTRO FILM</span>
-                    </button>
-                  )}
+                      <button
+                        type="button"
+                        onClick={() => scrollToSection(link.id)}
+                        className={`relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap ${
+                          isActive
+                            ? 'text-white font-bold'
+                            : 'text-[#AFAEA2] hover:text-white'
+                        }`}
+                      >
+                        {link.label}
+                        {isActive && (
+                          <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D21319] shadow-[0_0_8px_#D21319]" />
+                        )}
+                      </button>
+                    </motion.div>
+                  );
+                })}
+              </nav>
 
-                  {!hasMaxEvents && (
-                    <button
-                      type="button"
-                      onClick={onRegisterClick}
-                      className="px-4 py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-lg shadow-[0_0_12px_rgba(210,19,25,0.4)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span>ENLIST SQUAD</span>
-                      <span>→</span>
-                    </button>
-                  )}
-
-                  <Link
-                    href="/admin"
-                    className="inline-flex items-center px-3 py-2 text-xs font-mono font-bold text-[#AFAEA2] hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-colors cursor-pointer"
-                    title="Curator & Admin Panel"
-                  >
-                    [ ADMIN ]
-                  </Link>
-
+              {/* DESKTOP RIGHT ACTIONS */}
+              <div className="flex items-center gap-2.5 shrink-0">
+                {onReplayIntro && (
                   <button
                     type="button"
-                    onClick={handleCollapse}
-                    className="p-1.5 text-[#AFAEA2] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-                    title="Close navigation back to Pokéball"
+                    onClick={onReplayIntro}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-[#E9E6DA] bg-black/40 hover:bg-[#D21319] hover:text-white border border-[#AFAEA2]/40 hover:border-[#D21319] rounded-lg transition-all cursor-pointer"
+                    title="Play 1008.mp4 Intro Video"
                   >
-                    <X size={16} />
+                    <Play size={11} className="fill-current text-[#D21319] hover:text-white" />
+                    <span>INTRO FILM</span>
                   </button>
-                </div>
+                )}
+
+                {!hasMaxEvents && (
+                  <button
+                    type="button"
+                    onClick={onRegisterClick}
+                    className="px-4 py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-lg shadow-[0_0_12px_rgba(210,19,25,0.4)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>ENLIST SQUAD</span>
+                    <span>→</span>
+                  </button>
+                )}
+
+                <Link
+                  href="/admin"
+                  className="inline-flex items-center px-3 py-2 text-xs font-mono font-bold text-[#AFAEA2] hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-colors cursor-pointer"
+                  title="Curator & Admin Panel"
+                >
+                  [ ADMIN ]
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleCollapse}
+                  className="p-1.5 text-[#AFAEA2] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                  title="Close navigation back to Pokéball"
+                >
+                  <X size={16} />
+                </button>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
+      </div>
 
-              {/* ========================================================
-                  2. PROPER MOBILE NAV BAR (< lg: 1024px)
-                  Full proper navigation menu upon clicking the Pokéball!
-                 ======================================================== */}
-              <div className="lg:hidden flex flex-col space-y-2.5">
-                {/* Mobile Header Bar */}
-                <div className="flex items-center justify-between pb-2 border-b border-white/15">
+      {/* ========================================================
+          3. MOBILE MINIMALISTIC SIDEBAR (< lg: 1024px)
+          Sleek, modern slide-in drawer on the right edge.
+         ======================================================== */}
+      <AnimatePresence>
+        {isExpanded && (
+          <>
+            {/* Dimmed Backdrop Overlay */}
+            <motion.div
+              key="mobile-sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={handleCollapse}
+              className="fixed inset-0 bg-black/75 backdrop-blur-xs z-40 pointer-events-auto lg:hidden"
+              aria-hidden="true"
+            />
+
+            {/* Minimalist Slide-In Sidebar */}
+            <motion.aside
+              key="mobile-minimalist-sidebar"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="fixed top-0 right-0 bottom-0 w-[290px] sm:w-[320px] max-w-[85vw] bg-[#0A0D1E]/98 backdrop-blur-2xl border-l border-white/10 z-50 pointer-events-auto flex flex-col justify-between p-6 shadow-[-15px_0_50px_rgba(0,0,0,0.85)] lg:hidden overflow-y-auto no-scrollbar"
+            >
+              {/* Top Section */}
+              <div className="flex flex-col space-y-6">
+                {/* Header: Brand & Close */}
+                <div className="flex items-center justify-between pb-4 border-b border-white/10">
                   <Link
                     href="/"
                     onClick={(e) => {
                       e.preventDefault();
                       scrollToSection('home');
                     }}
-                    className="flex items-center gap-2 group cursor-pointer"
+                    className="flex items-center gap-2.5 group cursor-pointer"
                   >
-                    <span className="w-2.5 h-2.5 bg-[#D21319] rounded-xs shadow-[0_0_8px_#D21319] shrink-0 animate-pulse" />
+                    <span className="w-2 h-2 bg-[#D21319] rounded-xs shadow-[0_0_8px_#D21319] shrink-0 animate-pulse" />
                     <div className="flex flex-col">
-                      <span className="font-serif text-sm font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
+                      <span className="font-serif text-sm font-black tracking-wider text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
                         INDIGO TECH FEST
                       </span>
-                      <span className="label-editorial text-[7.5px] text-[#AFAEA2] tracking-[0.2em] mt-0.5">
+                      <span className="font-mono text-[8px] text-[#AFAEA2] tracking-[0.22em] mt-1">
                         JARVIS 3.0 · SLRTCE
                       </span>
                     </div>
                   </Link>
 
-                  {/* Close button */}
                   <button
                     type="button"
                     onClick={handleCollapse}
-                    className="p-1.5 bg-white/10 hover:bg-[#D21319] text-[#E9E6DA] hover:text-white rounded-lg transition-all cursor-pointer flex items-center justify-center border border-white/20 active:scale-95"
-                    title="Close navigation back to Pokéball"
-                    aria-label="Close navigation"
+                    className="p-1.5 text-[#AFAEA2] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer active:scale-90"
+                    title="Close sidebar"
+                    aria-label="Close sidebar"
                   >
-                    <X size={16} />
+                    <X size={18} />
                   </button>
                 </div>
 
-                {/* Vertical Navigation Items (Spacious, Touch-Friendly, No Ellipsis) */}
-                <div className="space-y-1 py-0.5">
-                  {navLinks.map((link) => {
-                    const isActive = activeSection === link.id;
+                {/* Minimalist Navigation Index */}
+                <div className="flex flex-col">
+                  <div className="text-[9px] font-mono text-[#AFAEA2]/50 tracking-[0.25em] uppercase pb-3">
+                    NAVIGATION INDEX
+                  </div>
 
-                    if (link.href) {
+                  <nav className="flex flex-col space-y-3.5">
+                    {navLinks.map((link, idx) => {
+                      const isActive = activeSection === link.id;
+                      const indexStr = `0${idx + 1}`;
+
+                      if (link.href) {
+                        return (
+                          <Link
+                            key={link.id}
+                            href={link.href}
+                            onClick={() => handleCollapse()}
+                            className="flex items-center justify-between group py-1.5 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono text-[10px] text-[#D21319]/70 tracking-widest">
+                                {indexStr}
+                              </span>
+                              <span className="font-grotesk text-xs tracking-[0.18em] uppercase text-[#AFAEA2] group-hover:text-white transition-colors">
+                                {link.label}
+                              </span>
+                            </div>
+                            <ChevronRight size={13} className="text-[#AFAEA2]/40 group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
+                          </Link>
+                        );
+                      }
+
                       return (
-                        <Link
+                        <button
                           key={link.id}
-                          href={link.href}
-                          onClick={() => handleCollapse()}
-                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-left transition group active:bg-white/15"
+                          type="button"
+                          onClick={() => scrollToSection(link.id)}
+                          className="flex items-center justify-between group py-1.5 transition-colors text-left cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="text-base shrink-0">{link.icon}</span>
-                            <div>
-                              <div className="font-serif text-xs uppercase tracking-wider text-white font-bold group-hover:text-[#D21319] transition-colors">
-                                {link.label}
-                              </div>
-                              <div className="font-mono text-[9px] text-[#AFAEA2]">
-                                {link.desc}
-                              </div>
-                            </div>
-                          </div>
-                          <ChevronRight size={14} className="text-[#AFAEA2] group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
-                        </Link>
-                      );
-                    }
-
-                    return (
-                      <button
-                        key={link.id}
-                        type="button"
-                        onClick={() => scrollToSection(link.id)}
-                        className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition group cursor-pointer active:scale-[0.99] ${
-                          isActive
-                            ? 'bg-[#D21319]/20 border-[#D21319] shadow-[0_0_12px_rgba(210,19,25,0.25)]'
-                            : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-base shrink-0">{link.icon}</span>
-                          <div>
-                            <div className={`font-serif text-xs uppercase tracking-wider font-bold transition-colors ${
-                              isActive ? 'text-white' : 'text-[#E9E6DA] group-hover:text-white'
+                            <span className={`font-mono text-[10px] tracking-widest ${
+                              isActive ? 'text-[#D21319] font-bold' : 'text-[#D21319]/70'
+                            }`}>
+                              {indexStr}
+                            </span>
+                            <span className={`font-grotesk text-xs tracking-[0.18em] uppercase transition-colors ${
+                              isActive
+                                ? 'text-white font-bold'
+                                : 'text-[#AFAEA2] group-hover:text-white'
                             }`}>
                               {link.label}
-                            </div>
-                            <div className="font-mono text-[9px] text-[#AFAEA2]">
-                              {link.desc}
-                            </div>
+                            </span>
                           </div>
-                        </div>
-                        {isActive ? (
-                          <span className="w-2 h-2 rounded-full bg-[#D21319] shadow-[0_0_8px_#D21319]" />
-                        ) : (
-                          <ChevronRight size={14} className="text-[#AFAEA2] group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
-                        )}
-                      </button>
-                    );
-                  })}
+                          {isActive ? (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D21319] shadow-[0_0_6px_#D21319]" />
+                          ) : (
+                            <ChevronRight size={13} className="text-[#AFAEA2]/40 group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </nav>
                 </div>
+              </div>
 
-                {/* Sub-actions: Intro Film & Admin */}
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-                  {onReplayIntro && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleCollapse();
-                        onReplayIntro();
-                      }}
-                      className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
-                    >
-                      <Play size={11} className="fill-current text-amber-400" />
-                      <span>INTRO FILM</span>
-                    </button>
-                  )}
-
-                  <Link
-                    href="/admin"
-                    onClick={() => handleCollapse()}
-                    className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-[#AFAEA2] hover:text-white font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 text-center"
-                  >
-                    <span>[ ADMIN PANEL ]</span>
-                  </Link>
-                </div>
-
-                {/* Primary Action Button: Enlist Squad */}
+              {/* Bottom Section: Actions & Telemetry */}
+              <div className="flex flex-col space-y-3 pt-6 border-t border-white/10">
                 {!hasMaxEvents && (
                   <button
                     type="button"
@@ -631,19 +618,49 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                       handleCollapse();
                       if (onRegisterClick) onRegisterClick();
                     }}
-                    className="w-full py-3 px-4 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-xl shadow-[0_0_15px_rgba(210,19,25,0.4)] active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-2.5 px-4 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-lg shadow-[0_0_15px_rgba(210,19,25,0.35)] active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
                     <span>ENLIST SQUAD NOW</span>
                     <span>→</span>
                   </button>
                 )}
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {onReplayIntro && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCollapse();
+                        onReplayIntro();
+                      }}
+                      className="py-2 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-amber-400 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                    >
+                      <Play size={10} className="fill-current text-amber-400" />
+                      <span>INTRO FILM</span>
+                    </button>
+                  )}
+
+                  <Link
+                    href="/admin"
+                    onClick={() => handleCollapse()}
+                    className="py-2 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[#AFAEA2] hover:text-white font-mono text-[10px] font-bold uppercase tracking-wider flex items-center justify-center transition active:scale-95 text-center"
+                  >
+                    <span>[ ADMIN ]</span>
+                  </Link>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 text-[8px] font-mono text-[#AFAEA2]/40 uppercase tracking-widest">
+                  <span>TELEMETRY: VER 3.0</span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    ONLINE
+                  </span>
+                </div>
               </div>
-
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-      </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
     </header>
   );
