@@ -100,7 +100,7 @@ export function LandingClient({ settings }: LandingClientProps) {
       
       {/* 1. PERSISTENT FIXED BACKGROUND STAGE: THE LANDING PAGE ALWAYS STAYS IN THE BACKGROUND */}
       <div className="fixed inset-0 w-full h-full z-0 overflow-hidden pointer-events-none [clip-path:inset(0)] [-webkit-clip-path:inset(0)]">
-        <div className="w-full h-full pointer-events-none sm:pointer-events-auto">
+        <div className="w-full h-full pointer-events-auto">
           <DynamicStage
             onEnterClick={handleViewEvents}
             onRegisterClick={() => handleOpenRegistration()}

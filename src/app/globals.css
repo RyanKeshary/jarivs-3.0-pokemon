@@ -79,7 +79,7 @@ select:-webkit-autofill {
 }
 
 /* =========================================================================
-   AUTHENTIC DYNAMIC STAGE ARCHITECTURE (EXACT SPEC FROM INDIGO TECH FEST)
+   AUTHENTIC DYNAMIC STAGE ARCHITECTURE (INDIGO TECH FEST · JARVIS 3.0)
    ========================================================================= */
 
 .tilt {
@@ -103,13 +103,6 @@ select:-webkit-autofill {
 .stage {
   position: relative;
   overflow: hidden;
-  /* True full-screen cover: fills 100% of viewport with zero border letterboxing */
-  /* Using 100dvh with 100vh fallback for mobile address bar stability */
-  width: max(100vw, calc(100vh * 1.79137));
-  width: max(100vw, calc(100dvh * 1.79137));
-  height: max(100vh, calc(100vw / 1.79137));
-  height: max(100dvh, calc(100vw / 1.79137));
-  aspect-ratio: 2576 / 1438;
   perspective: 1200px;
   animation: intro 1.6s ease-out, kb 26s ease-in-out infinite;
   border: none !important;
@@ -131,29 +124,93 @@ select:-webkit-autofill {
   50% { scale: 1.025; }
 }
 
-/* Dedicated Mobile Responsiveness: Prevent overflow breakout, erratic tilt, and touch interception */
-@media (max-width: 768px) {
+/* Landscape stage for Tablets & Laptops (Desktop / min-width: 768px) */
+.st-l {
+  display: block;
+  width: max(100vw, calc(100vh * 1.79137));
+  width: max(100vw, calc(100dvh * 1.79137));
+  height: max(100vh, calc(100vw / 1.79137));
+  height: max(100dvh, calc(100vw / 1.79137));
+  aspect-ratio: 2576 / 1438;
+  --c-jiggly: url('/assets/l-jiggly.png');
+  --c-gengar: url('/assets/l-gengar.png');
+  --c-pika: url('/assets/l-pika.png');
+  --c-psy: url('/assets/l-psy.png');
+  --c-eevee: url('/assets/l-eevee.png');
+  --img: url('/assets/l-base.jpg');
+  --wl: url('/assets/l-wing-left.png');
+  --wr: url('/assets/l-wing-right.png');
+  --rd: url('/assets/l-front-red.png');
+  --sn: url('/assets/l-snorlax.png');
+}
+
+.st-l .wl { left: 23.167%; top: 3.685%; width: 27.833%; height: 43.526%; background-image: var(--wl); transform-origin: 91.1% 66.7%; animation: flap 8s ease-in-out infinite; }
+.st-l .wr { left: 49.222%; top: 2.689%; width: 27.222%; height: 46.315%; background-image: var(--wr); transform-origin: 8.8% 64.8%; animation: flap 8s ease-in-out infinite; }
+.st-l .rd { left: 21.722%; top: 0; width: 56.278%; height: 50.100%; background-image: var(--rd); }
+.st-l .sn { left: 61.778%; top: 12.251%; width: 12.278%; height: 16.135%; background-image: var(--sn); transform-origin: 50% 100%; animation: breathe 4.2s ease-in-out infinite; pointer-events: auto !important; }
+.st-l .jiggly { left: 14.556%; top: 36.454%; width: 8.611%; height: 15.139%; background-image: var(--c-jiggly); transform-origin: 50% 100%; animation: sway 2.2s ease-in-out infinite; }
+.st-l .gengar { left: 30.556%; top: 44.323%; width: 7.444%; height: 13.645%; background-image: var(--c-gengar); transform-origin: 50% 60%; animation: lean 3.6s ease-in-out infinite; }
+.st-l .pika { left: 43.333%; top: 49.203%; width: 7.722%; height: 14.044%; background-image: var(--c-pika); transform-origin: 50% 100%; animation: bounce 3.2s ease-in-out infinite; }
+.st-l .psy { left: 82.556%; top: 59.960%; width: 7.389%; height: 18.327%; background-image: var(--c-psy); transform-origin: 50% 100%; animation: rock 5s ease-in-out infinite; }
+.st-l .eevee { left: 55.000%; top: 73.307%; width: 11.944%; height: 9.861%; background-image: var(--c-eevee); transform-origin: 50% 100%; animation: breathe 3.6s ease-in-out infinite; }
+
+/* Portrait Mobile Stage (< 768px from site) */
+.st-p {
+  display: none !important;
+  aspect-ratio: 1438 / 2576;
+  --c-jiggly: url('/assets/p-jiggly.png');
+  --c-gengar: url('/assets/p-gengar.png');
+  --c-pika: url('/assets/p-pika.png');
+  --c-psy: url('/assets/p-psy.png');
+  --c-eevee: url('/assets/p-eevee.png');
+  --img: url('/assets/p-base.jpg');
+  --wl: url('/assets/p-wing-left.png');
+  --wr: url('/assets/p-wing-right.png');
+  --rd: url('/assets/p-front-red.png');
+  --sn: url('/assets/p-snorlax.png');
+}
+
+.st-p .wl { left: 2.917%; top: 9.493%; width: 47.750%; height: 24.430%; background-image: var(--wl); transform-origin: 90.9% 93.9%; animation: flap 8s ease-in-out infinite; }
+.st-p .wr { left: 47.583%; top: 8.981%; width: 49.500%; height: 24.942%; background-image: var(--wr); transform-origin: 8.7% 94.0%; animation: flap 8s ease-in-out infinite; }
+.st-p .rd { left: 1.333%; top: 0; width: 97.333%; height: 34.946%; background-image: var(--rd); }
+.st-p .sn { left: 66.167%; top: 18.241%; width: 29.083%; height: 11.028%; background-image: var(--sn); transform-origin: 50% 100%; animation: breathe 4.2s ease-in-out infinite; pointer-events: auto !important; }
+.st-p .jiggly { left: 4.417%; top: 35.644%; width: 18.917%; height: 10.423%; background-image: var(--c-jiggly); transform-origin: 50% 100%; animation: sway 2.2s ease-in-out infinite; }
+.st-p .gengar { left: 3.333%; top: 54.118%; width: 20.750%; height: 12.471%; background-image: var(--c-gengar); transform-origin: 50% 60%; animation: lean 3.6s ease-in-out infinite; }
+.st-p .pika { left: 38.667%; top: 57.376%; width: 25.083%; height: 14.379%; background-image: var(--c-pika); transform-origin: 50% 100%; animation: bounce 3.2s ease-in-out infinite; }
+.st-p .psy { left: 79.500%; top: 56.398%; width: 16.833%; height: 13.495%; background-image: var(--c-psy); transform-origin: 50% 100%; animation: rock 5s ease-in-out infinite; }
+.st-p .eevee { left: 33.667%; top: 76.128%; width: 33.750%; height: 9.446%; background-image: var(--c-eevee); transform-origin: 50% 100%; animation: breathe 3.6s ease-in-out infinite; }
+
+/* Responsive Switch: Tablets & Laptops (>= 768px) show Landscape; Mobile Phones (< 768px) show Portrait */
+@media (max-width: 767px) {
   .tilt {
     perspective: 600px;
     -webkit-perspective: 600px;
     touch-action: pan-y;
   }
 
-  .stage {
-    perspective: 600px;
-    -webkit-perspective: 600px;
-    animation: intro 1.2s ease-out; /* Disable infinite kb scale oscillation on mobile for smooth 60fps */
+  .st-l {
+    display: none !important;
   }
 
-  /* Keep atmospheric grain within mobile bounds */
+  .st-p {
+    display: block !important;
+    perspective: 600px;
+    -webkit-perspective: 600px;
+    width: max(100vw, calc(100vh * 0.55823));
+    width: max(100vw, calc(100dvh * 0.55823));
+    height: max(100vh, calc(100vw / 0.55823));
+    height: max(100dvh, calc(100vw / 0.55823));
+    aspect-ratio: 1438 / 2576;
+    animation: intro 1.2s ease-out;
+  }
+
   .grain {
     inset: 0 !important;
   }
 
-  /* Prevent background sprites from capturing touch scroll gestures */
   .sn,
   .s {
-    pointer-events: none !important;
+    pointer-events: auto !important;
   }
 }
 
@@ -197,44 +254,54 @@ select:-webkit-autofill {
   pointer-events: none;
 }
 
-/* Wings, Ribbons, Snorlax */
-.wl {
-  left: 23.167%;
-  top: 3.685%;
-  width: 27.833%;
-  height: 43.526%;
-  background-image: var(--wl);
-  transform-origin: 91.1% 66.7%;
-  animation: flapL 8s ease-in-out infinite;
-}
-
-.wr {
-  left: 49.222%;
-  top: 2.689%;
-  width: 27.222%;
-  height: 46.315%;
-  background-image: var(--wr);
-  transform-origin: 8.8% 64.8%;
-  animation: flapR 8s ease-in-out infinite;
+/* Individual Transparent Pokémon Sprites */
+.s {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  will-change: transform;
+  pointer-events: auto;
 }
 
 .sn {
-  left: 61.778%;
-  top: 12.251%;
-  width: 12.278%;
-  height: 16.135%;
-  background-image: var(--sn);
-  transform-origin: 50% 100%;
-  animation: breathe 4.2s ease-in-out infinite;
   pointer-events: auto !important;
 }
 
-.rd {
-  left: 21.722%;
-  top: 0;
-  width: 56.278%;
-  height: 50.100%;
-  background-image: var(--rd);
+.rib {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.enter {
+  margin-top: 14px;
+  height: 40px;
+  box-sizing: border-box;
+  color: var(--grey);
+  text-decoration: none;
+  letter-spacing: 0.5em;
+  font-size: 13px;
+  border: 1px solid var(--grey);
+  padding: 11px 26px 10px 32px;
+  transition: 0.3s;
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.enter:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+@keyframes pulse {
+  50% { box-shadow: 0 0 0 6px rgba(210, 19, 25, 0.18); }
+}
+
+@keyframes flap {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.05); }
 }
 
 @keyframes flapL {
@@ -245,72 +312,6 @@ select:-webkit-autofill {
 @keyframes flapR {
   0%, 100% { transform: scaleY(1); }
   50% { transform: scaleY(1.05); }
-}
-
-/* Masked Pokémon Sprites */
-.s {
-  position: absolute;
-  background-image: var(--img);
-  background-repeat: no-repeat;
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 58%, transparent 76%);
-  mask-image: radial-gradient(ellipse at center, #000 58%, transparent 76%);
-  will-change: transform;
-  pointer-events: auto;
-}
-
-.jiggly {
-  left: 13.199%;
-  top: 34.771%;
-  width: 10.870%;
-  height: 18.081%;
-  background-size: 920.00% auto;
-  background-position: 14.808% 42.445%;
-  transform-origin: 50% 100%;
-  animation: sway 2.2s ease-in-out infinite;
-}
-
-.gengar {
-  left: 30.280%;
-  top: 43.811%;
-  width: 8.540%;
-  height: 14.604%;
-  background-size: 1170.91% auto;
-  background-position: 33.107% 51.303%;
-  transform-origin: 50% 60%;
-  animation: lean 3.6s ease-in-out infinite;
-}
-
-.pika {
-  left: 43.478%;
-  top: 49.374%;
-  width: 7.764%;
-  height: 13.908%;
-  background-size: 1288.00% auto;
-  background-position: 47.138% 57.351%;
-  transform-origin: 50% 100%;
-  animation: bounce 3.2s ease-in-out infinite;
-}
-
-.psy {
-  left: 81.910%;
-  top: 59.110%;
-  width: 8.929%;
-  height: 18.776%;
-  background-size: 1120.00% auto;
-  background-position: 89.940% 72.774%;
-  transform-origin: 50% 100%;
-  animation: rock 5s ease-in-out infinite;
-}
-
-.eevee {
-  left: 55.124%;
-  top: 73.018%;
-  width: 11.646%;
-  height: 9.736%;
-  background-size: 858.67% auto;
-  background-position: 62.390% 80.894%;
-  transform-origin: 50% 100%;
-  animation: breathe 3.6s ease-in-out infinite;
 }
 
 @keyframes breathe {

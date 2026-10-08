@@ -16,12 +16,26 @@ export function HeroSection({ onRegisterClick, onViewEventsClick }: HeroSectionP
         id="home"
         className="relative w-full min-h-[100dvh] min-h-screen h-[100dvh] flex flex-col justify-end pb-[max(1.75rem,env(safe-area-inset-bottom,1.75rem))] sm:pb-12 px-4 pointer-events-none select-none z-10"
       >
-        {/* Clean, Subtle Bottom Scroll Prompt */}
+        {/* Mobile Screen (< 768px): Theatrical ENTER Action from site */}
+        <div className="flex sm:hidden flex-col items-center gap-2.5 pointer-events-auto mb-3">
+          <button
+            type="button"
+            onClick={onViewEventsClick}
+            className="enter inline-flex items-center justify-center uppercase font-mono font-bold tracking-[0.45em] text-xs transition-all cursor-pointer backdrop-blur-sm bg-black/50 hover:bg-[#D21319] text-[#AFAEA2] hover:text-white"
+          >
+            ENTER
+          </button>
+          <span className="font-mono text-[9px] text-[#AFAEA2]/90 tracking-[0.2em] uppercase font-semibold drop-shadow">
+            EXPLORE THE 7 DISCIPLINES ↓
+          </span>
+        </div>
+
+        {/* Tablets & Laptops (>= 768px): Existing Clean Subtle Scroll Prompt */}
         <div
           onClick={onViewEventsClick}
-          className="mx-auto flex flex-col items-center gap-2 pointer-events-auto cursor-pointer group"
+          className="hidden sm:flex mx-auto flex-col items-center gap-2 pointer-events-auto cursor-pointer group"
         >
-          <span className="font-mono text-[10px] sm:text-xs text-white/90 tracking-[0.25em] uppercase font-bold group-hover:text-[#D21319] transition-colors drop-shadow-md">
+          <span className="font-mono text-xs text-white/90 tracking-[0.25em] uppercase font-bold group-hover:text-[#D21319] transition-colors drop-shadow-md">
             EXPLORE THE 7 DISCIPLINES
           </span>
           <div className="w-8 h-8 rounded-full bg-black/60 border border-white/30 backdrop-blur-sm flex items-center justify-center text-white group-hover:bg-[#D21319] group-hover:border-[#D21319] transition-all animate-bounce shadow-lg">
