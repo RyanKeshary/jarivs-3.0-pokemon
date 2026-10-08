@@ -21,11 +21,15 @@ export function RegistrationModal({
   preselectedEventId,
   initialJoinCode,
 }: RegistrationModalProps) {
+  // 3-Step Wizard Navigation State
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
   const [mode, setMode] = useState<'create' | 'join'>('create');
 
-  // Form State
+  // Step 1: Events Selection
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
-  const [teamName, setTeamName] = useState('');
+
+  // Step 2: Personal Information
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -33,16 +37,18 @@ export function RegistrationModal({
   const [department, setDepartment] = useState('');
   const [yearOfStudy, setYearOfStudy] = useState('3rd Year (TE)');
   const [collegeId, setCollegeId] = useState('');
-  const [honeypot, setHoneypot] = useState('');
 
-  // Join Mode State
+  // Step 3: Squad Details
+  const [teamName, setTeamName] = useState('');
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [targetTeam, setTargetTeam] = useState<any | null>(null);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
 
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [stepError, setStepError] = useState<string | null>(null);
   const [maxWarning, setMaxWarning] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
@@ -97,6 +103,7 @@ export function RegistrationModal({
     if (initialJoinCode) {
       setJoinCodeInput(initialJoinCode);
       setMode('join');
+      setCurrentStep(3);
       handleVerifyCode(initialJoinCode);
     }
   }, [preselectedEventId, initialJoinCode]);
@@ -104,6 +111,7 @@ export function RegistrationModal({
   // Toggle Event Selection with strict Max 2 rule
   const toggleEvent = (id: string) => {
     setMaxWarning(null);
+    setStepError(null);
     if (selectedEvents.includes(id)) {
       setSelectedEvents((prev) => prev.filter((item) => item !== id));
     } else {
@@ -150,15 +158,70 @@ export function RegistrationModal({
     if (!code) return;
 
     setIsVerifyingCode(true);
+    setStepError(null);
     setErrorMsg(null);
     const res = await getFestTeamByCode(code);
     setIsVerifyingCode(false);
 
     if (res.success && res.team) {
       setTargetTeam(res.team);
+      const evIds = (res.team as any).eventIds || (res.team as any).event_ids;
+      if (evIds && evIds.length > 0) {
+        setSelectedEvents(evIds);
+      }
     } else {
       setTargetTeam(null);
-      setErrorMsg(res.error || 'Squad not found. Please verify the code.');
+      setStepError(res.error || 'Squad not found. Please verify the code.');
+    }
+  };
+
+  // Step 1 Validation
+  const validateStep1 = () => {
+    if (mode === 'create' && selectedEvents.length === 0) {
+      setStepError('Please select at least 1 competition discipline (max 2) to continue.');
+      return false;
+    }
+    setStepError(null);
+    return true;
+  };
+
+  // Step 2 Validation
+  const validateStep2 = () => {
+    if (!fullName.trim()) {
+      setStepError('Please enter your full name.');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      setStepError('Please enter a valid email address.');
+      return false;
+    }
+    const cleanPhone = phone.trim().replace(/[^0-9+]/g, '');
+    if (cleanPhone.length < 10) {
+      setStepError('Please enter a valid 10-digit phone or WhatsApp number.');
+      return false;
+    }
+    if (!college.trim()) {
+      setStepError('Please specify your college or institution.');
+      return false;
+    }
+    if (!department.trim()) {
+      setStepError('Please specify your department or engineering branch.');
+      return false;
+    }
+    setStepError(null);
+    return true;
+  };
+
+  const handleNextFromStep1 = () => {
+    if (validateStep1()) {
+      setCurrentStep(2);
+    }
+  };
+
+  const handleNextFromStep2 = () => {
+    if (validateStep2()) {
+      setCurrentStep(3);
     }
   };
 
@@ -176,21 +239,33 @@ export function RegistrationModal({
     }
   };
 
-  // Submit Handler
+  // Final Submit Handler (Step 3)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setStepError(null);
+
+    if (mode === 'create') {
+      if (!teamName.trim()) {
+        const isSolo =
+          selectedEvents.length === 1 &&
+          FEST_EVENTS.find((ev) => ev.id === selectedEvents[0])?.maxSize === 1;
+        if (!isSolo) {
+          setErrorMsg('Please enter a squad name to represent your team.');
+          return;
+        }
+      }
+    } else {
+      if (!joinCodeInput.trim()) {
+        setErrorMsg('Please enter your 8-character squad join code.');
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
       if (mode === 'create') {
-        if (selectedEvents.length === 0) {
-          throw new Error('Please select at least 1 competition discipline (maximum 2).');
-        }
-        if (selectedEvents.length > 2) {
-          throw new Error('Disqualification Rule: You cannot register for more than 2 events.');
-        }
-
         const isSolo =
           selectedEvents.length === 1 &&
           FEST_EVENTS.find((ev) => ev.id === selectedEvents[0])?.maxSize === 1;
@@ -239,10 +314,6 @@ export function RegistrationModal({
         });
         launchCelebration();
       } else {
-        if (!joinCodeInput.trim()) {
-          throw new Error('Please enter your squad code.');
-        }
-
         const res = await joinFestTeam({
           code: joinCodeInput.trim(),
           member: {
@@ -280,6 +351,7 @@ export function RegistrationModal({
           type: 'joined',
           code: res.teamCode,
           name: res.teamName,
+          eventIds: targetTeam?.event_ids || selectedEvents,
         });
         launchCelebration();
       }
@@ -299,15 +371,15 @@ export function RegistrationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-3 sm:p-6 overflow-y-auto select-none">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center p-3 sm:p-6 overflow-y-auto select-none">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        exit={{ opacity: 0, scale: 0.96, y: 16 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
         className="relative w-full max-w-2xl bg-[#FAF9F5] text-black border-2 border-black shadow-[10px_10px_0px_#000] my-4 sm:my-8 p-5 sm:p-7 overflow-y-auto max-h-[92vh]"
       >
-        {/* HEADER BAR (LIGHT THEME) */}
+        {/* HEADER BAR */}
         <div className="relative flex items-center justify-between pb-3.5 mb-4 border-b-2 border-black">
           <div>
             <div className="flex items-center gap-2">
@@ -335,16 +407,16 @@ export function RegistrationModal({
           </button>
         </div>
 
-        {/* PROMINENT DISQUALIFICATION WARNING BANNER (LIGHT THEME) */}
-        <div className="relative mb-5 p-3.5 bg-red-50 border-2 border-[#D21319] shadow-[3px_3px_0px_rgba(210,19,25,0.25)] flex items-start gap-3 text-xs">
-          <span className="text-xl leading-none">⚠️</span>
+        {/* PROMINENT DISQUALIFICATION WARNING BANNER */}
+        <div className="relative mb-4 p-3 bg-red-50 border-2 border-[#D21319] shadow-[2px_2px_0px_rgba(210,19,25,0.25)] flex items-start gap-2.5 text-xs">
+          <span className="text-lg leading-none">⚠️</span>
           <div>
             <span className="font-bold text-[#b91c1c] uppercase tracking-wide block font-mono text-[11px]">
-              STRICT DISQUALIFICATION RULE: MAXIMUM 2 EVENTS PER MEMBER
+              STRICT RULE: MAXIMUM 2 EVENTS PER MEMBER
             </span>
             <span className="text-neutral-800 text-[11px] leading-relaxed block mt-0.5 font-sans">
               Each student can participate in a maximum of <strong>2 events</strong> across the fest.
-              Enrolling in more than 2 events will result in immediate disqualification of the participant.
+              Enrolling in more than 2 events will result in immediate disqualification.
             </span>
           </div>
         </div>
@@ -378,6 +450,39 @@ export function RegistrationModal({
               </div>
             </div>
 
+            {/* EVENT WHATSAPP GROUPS PROMINENT JOIN LINKS */}
+            {successData.eventIds && successData.eventIds.length > 0 && (
+              <div className="p-4 bg-emerald-50 border-2 border-emerald-800 shadow-[3px_3px_0px_#065f46] text-left space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">💬</span>
+                  <span className="font-mono text-xs font-bold text-emerald-900 uppercase">
+                    Join Your Event Official WhatsApp Groups:
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800">
+                  Stay updated with live slot calls, problem announcements, and round schedules:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {successData.eventIds.map((evId: string) => {
+                    const ev = FEST_EVENTS.find((e) => e.id === evId);
+                    if (!ev || !ev.whatsappLink) return null;
+                    return (
+                      <a
+                        key={evId}
+                        href={ev.whatsappLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2.5 bg-white border-2 border-black hover:bg-emerald-100 flex items-center justify-between gap-2 shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer"
+                      >
+                        <span className="truncate">{ev.title}</span>
+                        <span className="text-emerald-700 shrink-0">Join ➔</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {successData.type === 'created' && (
               <div className="space-y-3">
                 <p className="text-xs text-neutral-700 font-sans">
@@ -394,7 +499,7 @@ export function RegistrationModal({
 
                   <a
                     href={`https://wa.me/?text=${encodeURIComponent(
-                      `Join our team for Indigo Tech Fest (Jarvis 3.0)!\nTeam Name: ${successData.name}\nTeam Code: ${successData.code}\nJoin link: ${typeof window !== 'undefined' ? window.location.origin : ''}/join/${successData.code}`
+                      `Join our team for Indigo Tech Fest (Jarvis 3.0)!\nTeam Name: ${successData.name}\nTeam Code: ${successData.code}`
                     )}`}
                     target="_blank"
                     rel="noreferrer"
@@ -403,58 +508,89 @@ export function RegistrationModal({
                     Share on WhatsApp ➔
                   </a>
                 </div>
-
-                {successData.leaderToken && (
-                  <div className="pt-2">
-                    <a
-                      href={`/team/manage/${successData.leaderToken}`}
-                      className="inline-block text-xs font-mono font-bold text-[#0284c7] hover:underline"
-                    >
-                      Manage Squad Roster & Members [ ↗ ]
-                    </a>
-                  </div>
-                )}
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
               <button
                 onClick={() => {
                   setSuccessData(null);
                   onClose();
+                  router.push('/dashboard');
                 }}
                 className="w-full sm:w-auto px-8 py-3 bg-[#D21319] hover:bg-[#b00f14] text-white border-2 border-black shadow-[4px_4px_0px_#000] font-mono text-xs font-bold uppercase tracking-wider transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
               >
-                Done & Close Registration
+                Proceed to Dashboard ➔
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* MODE SWITCHER TABS (LIGHT EDITORIAL) */}
-            <div className="grid grid-cols-2 p-1 bg-[#EFECE6] border-2 border-black text-xs font-mono">
-              <button
-                type="button"
-                onClick={() => setMode('create')}
-                className={`py-2 px-3 text-xs font-bold transition-all cursor-pointer ${
-                  mode === 'create'
-                    ? 'bg-black text-white shadow-[2px_2px_0px_#000]'
-                    : 'text-neutral-700 hover:text-black'
-                }`}
-              >
-                1. Create a Team
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('join')}
-                className={`py-2 px-3 text-xs font-bold transition-all cursor-pointer ${
-                  mode === 'join'
-                    ? 'bg-black text-white shadow-[2px_2px_0px_#000]'
-                    : 'text-neutral-700 hover:text-black'
-                }`}
-              >
-                2. Join with Code
-              </button>
+          <div className="space-y-4">
+            {/* 3-STEP PROGRESS STEPPER */}
+            <div className="p-3 bg-[#EFECE6] border-2 border-black">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                {/* Step 1 */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className={`py-2 px-1 border border-black flex flex-col sm:flex-row items-center justify-center gap-1.5 transition cursor-pointer ${
+                    currentStep === 1
+                      ? 'bg-black text-white font-bold shadow-[2px_2px_0px_#000]'
+                      : currentStep > 1
+                      ? 'bg-green-100 text-green-900 font-bold'
+                      : 'bg-white text-neutral-600'
+                  }`}
+                >
+                  <span className="w-4 h-4 rounded-full bg-current text-[10px] flex items-center justify-center text-white shrink-0">
+                    {currentStep > 1 ? '✓' : '1'}
+                  </span>
+                  <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
+                    1. Events
+                  </span>
+                </button>
+
+                {/* Step 2 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (validateStep1()) setCurrentStep(2);
+                  }}
+                  className={`py-2 px-1 border border-black flex flex-col sm:flex-row items-center justify-center gap-1.5 transition cursor-pointer ${
+                    currentStep === 2
+                      ? 'bg-black text-white font-bold shadow-[2px_2px_0px_#000]'
+                      : currentStep > 2
+                      ? 'bg-green-100 text-green-900 font-bold'
+                      : 'bg-white text-neutral-600'
+                  }`}
+                >
+                  <span className="w-4 h-4 rounded-full bg-current text-[10px] flex items-center justify-center text-white shrink-0">
+                    {currentStep > 2 ? '✓' : '2'}
+                  </span>
+                  <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
+                    2. Personal
+                  </span>
+                </button>
+
+                {/* Step 3 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (validateStep1() && validateStep2()) setCurrentStep(3);
+                  }}
+                  className={`py-2 px-1 border border-black flex flex-col sm:flex-row items-center justify-center gap-1.5 transition cursor-pointer ${
+                    currentStep === 3
+                      ? 'bg-black text-white font-bold shadow-[2px_2px_0px_#000]'
+                      : 'bg-white text-neutral-600'
+                  }`}
+                >
+                  <span className="w-4 h-4 rounded-full bg-current text-[10px] flex items-center justify-center text-white shrink-0">
+                    3
+                  </span>
+                  <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
+                    3. Squad
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Error Message with Account Exists Warning */}
@@ -473,6 +609,14 @@ export function RegistrationModal({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  {errorMsg.toLowerCase().includes('account already exists') && (
+                    <a
+                      href="/dashboard"
+                      className="px-3 py-1.5 bg-[#D21319] text-white font-mono font-bold text-[11px] uppercase border border-black shadow-[2px_2px_0px_#000]"
+                    >
+                      Login to Dashboard ➔
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={() => setErrorMsg(null)}
@@ -482,6 +626,22 @@ export function RegistrationModal({
                     ✕
                   </button>
                 </div>
+              </div>
+            )}
+
+            {stepError && (
+              <div className="p-3 bg-red-50 border-2 border-red-500 text-red-900 text-xs flex items-center justify-between gap-2 font-mono">
+                <div className="flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{stepError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStepError(null)}
+                  className="font-bold cursor-pointer text-red-700"
+                >
+                  ✕
+                </button>
               </div>
             )}
 
@@ -504,290 +664,440 @@ export function RegistrationModal({
               />
             </div>
 
-            {mode === 'create' ? (
-              <>
-                {/* 1. EVENT SELECTION GRID (STRICT 2 EVENT ENFORCEMENT) */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-black tracking-wide uppercase font-mono">
-                      Select Events <span className="text-neutral-600 font-normal normal-case">(Pick 1 or 2 Only)</span>
-                    </label>
-
-                    {/* Counter Badge */}
-                    <span
-                      className={`text-[11px] font-mono px-2.5 py-0.5 border border-black shadow-[2px_2px_0px_#000] ${
-                        selectedEvents.length === 2
-                          ? 'bg-[#D21319] text-white font-bold'
-                          : selectedEvents.length === 1
-                          ? 'bg-green-100 text-green-900 font-bold'
-                          : 'bg-white text-black'
-                      }`}
-                    >
-                      {selectedEvents.length} / 2 Selected {selectedEvents.length === 2 && '• MAXIMUM LIMIT REACHED'}
-                    </span>
+            {/* STEP 1: EVENT SELECTION */}
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black uppercase font-sans text-black">
+                      Step 1: Select Your Competitions
+                    </h3>
+                    <p className="text-[11px] font-mono text-neutral-600">
+                      Pick 1 or 2 disciplines only. Teams are allocated per discipline.
+                    </p>
                   </div>
 
-                  {/* 7 Interactive Event Selection Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {FEST_EVENTS.map((ev) => {
-                      const isSelected = selectedEvents.includes(ev.id);
-                      const isLimitReached = selectedEvents.length >= 2 && !isSelected;
+                  {/* Counter Badge */}
+                  <span
+                    className={`text-[11px] font-mono px-2.5 py-1 border border-black shadow-[2px_2px_0px_#000] ${
+                      selectedEvents.length === 2
+                        ? 'bg-[#D21319] text-white font-bold'
+                        : selectedEvents.length === 1
+                        ? 'bg-green-100 text-green-900 font-bold'
+                        : 'bg-white text-black font-bold'
+                    }`}
+                  >
+                    {selectedEvents.length} / 2 Selected
+                  </span>
+                </div>
 
-                      return (
+                {/* 7 Interactive Event Selection Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {FEST_EVENTS.map((ev) => {
+                    const isSelected = selectedEvents.includes(ev.id);
+                    const isLimitReached = selectedEvents.length >= 2 && !isSelected;
+
+                    return (
+                      <div
+                        key={ev.id}
+                        onClick={() => toggleEvent(ev.id)}
+                        className={`p-3 border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 select-none ${
+                          isSelected
+                            ? 'bg-[#FFF5F5] border-[#D21319] shadow-[3px_3px_0px_#D21319] ring-1 ring-[#D21319]'
+                            : isLimitReached
+                            ? 'bg-neutral-100 border-neutral-300 opacity-50 cursor-not-allowed'
+                            : 'bg-white border-black hover:bg-[#F9F7F1] shadow-[2px_2px_0px_#000]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-10 h-10 border border-black bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
+                            <img
+                              src={ev.pokemonGif}
+                              alt={ev.pokemon}
+                              className="w-8 h-8 object-contain"
+                              style={{ imageRendering: 'pixelated' }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = ev.pokemonStatic;
+                              }}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-black truncate font-sans">
+                              {ev.title}
+                            </div>
+                            <div className="text-[10px] text-neutral-600 flex items-center gap-1.5 mt-0.5 font-mono">
+                              <span className="font-bold text-[#D21319]">{ev.dayTag}</span>
+                              <span>•</span>
+                              <span>{ev.teamSize}</span>
+                            </div>
+                            {ev.whatsappLink && (
+                              <div className="text-[9px] font-mono text-emerald-700 flex items-center gap-1 mt-0.5">
+                                <span>💬</span>
+                                <span className="font-bold">WhatsApp Group Active</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                         <div
-                          key={ev.id}
-                          onClick={() => toggleEvent(ev.id)}
-                          className={`p-2.5 border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 select-none ${
+                          className={`w-6 h-6 border-2 border-black flex items-center justify-center shrink-0 transition font-mono ${
                             isSelected
-                              ? 'bg-[#FFF5F5] border-[#D21319] shadow-[3px_3px_0px_#D21319] ring-1 ring-[#D21319]'
+                              ? 'bg-[#D21319] text-white font-bold text-xs'
                               : isLimitReached
-                              ? 'bg-neutral-100 border-neutral-300 opacity-50 cursor-not-allowed'
-                              : 'bg-white border-black hover:bg-[#F9F7F1] shadow-[2px_2px_0px_#000]'
+                              ? 'bg-neutral-200 text-neutral-500 text-xs'
+                              : 'bg-white'
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-9 h-9 border border-black bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
-                              <img
-                                src={ev.pokemonGif}
-                                alt={ev.pokemon}
-                                className="w-8 h-8 object-contain"
-                                style={{ imageRendering: 'pixelated' }}
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = ev.pokemonStatic;
-                                }}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-black truncate font-sans">
-                                {ev.name.split(':')[0]}
-                              </div>
-                              <div className="text-[10px] text-neutral-600 flex items-center gap-1.5 mt-0.5 font-mono">
-                                <span className="font-bold text-[#D21319]">{ev.dayTag}</span>
-                                <span>•</span>
-                                <span>{ev.teamSize}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div
-                            className={`w-5 h-5 border border-black flex items-center justify-center shrink-0 transition ${
-                              isSelected
-                                ? 'bg-[#D21319] text-white font-bold'
-                                : isLimitReached
-                                ? 'bg-neutral-200 text-neutral-500'
-                                : 'bg-white'
-                            }`}
-                          >
-                            {isSelected ? '✓' : isLimitReached ? '🔒' : ''}
-                          </div>
+                          {isSelected ? '✓' : isLimitReached ? '🔒' : ''}
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Schedule Clash Warning Alert */}
-                  {activeClashes.length > 0 && (
-                    <div className="mt-2.5 p-2.5 bg-amber-50 border-2 border-amber-600 text-amber-900 text-xs space-y-1">
-                      <span className="font-bold flex items-center gap-1.5 font-mono">
-                        <span>⚠️</span> Schedule Overlap Notice:
-                      </span>
-                      {activeClashes.map((c, i) => (
-                        <div key={i} className="text-[11px] pl-5 font-sans">
-                          • {c}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Squad / Team Name */}
-                <div>
-                  <label className="text-xs font-mono font-bold text-black tracking-wide uppercase block mb-1">
-                    Squad / Team Name <span className="text-[#D21319]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="e.g. Snorlax Protocol or Cyber Charizards"
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3.5 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
-                  />
-                </div>
-              </>
-            ) : (
-              /* JOIN SQUAD MODE */
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-mono font-bold text-black tracking-wide uppercase block mb-1">
-                    Enter Squad Code <span className="text-[#D21319]">*</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      value={joinCodeInput}
-                      onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                      placeholder="e.g. JRV-ABCD"
-                      className="flex-1 bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3.5 py-2 text-xs text-black font-mono uppercase tracking-widest placeholder:text-neutral-400 outline-none transition"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleVerifyCode()}
-                      disabled={isVerifyingCode || !joinCodeInput.trim()}
-                      className="px-4 py-2 bg-black hover:bg-[#D21319] text-white border-2 border-black shadow-[2px_2px_0px_#000] font-mono text-xs font-bold transition cursor-pointer disabled:opacity-50 active:translate-x-[1px] active:translate-y-[1px]"
-                    >
-                      {isVerifyingCode ? 'Checking...' : 'Verify Squad'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Verified Squad Preview */}
-                {targetTeam && (
-                  <div className="p-3.5 bg-white border-2 border-black shadow-[3px_3px_0px_#000] text-xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] bg-green-100 text-green-900 border border-black font-bold uppercase px-1.5 py-0.5">
-                        ✓ Squad Verified
-                      </span>
-                      <span className="font-mono text-xs text-black font-bold">{targetTeam.code}</span>
-                    </div>
-                    <div className="text-sm font-bold text-black font-sans">{targetTeam.name}</div>
-                    <div className="text-[11px] text-neutral-700 font-mono">
-                      Disciplines: {(targetTeam.event_ids || targetTeam.eventIds || []).join(', ')}
-                    </div>
+                {/* Schedule Clash Warning Alert */}
+                {activeClashes.length > 0 && (
+                  <div className="p-3 bg-amber-50 border-2 border-amber-600 text-amber-900 text-xs space-y-1">
+                    <span className="font-bold flex items-center gap-1.5 font-mono">
+                      <span>⚠️</span> Schedule Overlap Notice:
+                    </span>
+                    {activeClashes.map((c, i) => (
+                      <div key={i} className="text-[11px] pl-5 font-sans">
+                        • {c}
+                      </div>
+                    ))}
                   </div>
                 )}
+
+                {/* Step 1 Actions */}
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2.5 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextFromStep1}
+                    disabled={selectedEvents.length === 0}
+                    className="px-6 py-2.5 bg-[#D21319] hover:bg-[#b00f14] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-black shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Proceed to Personal Info</span>
+                    <span>➔</span>
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* PARTICIPANT CREDENTIALS SECTION */}
-            <div className="pt-3 border-t-2 border-black space-y-2.5">
-              <span className="text-xs font-mono font-bold text-black tracking-wide uppercase block">
-                {mode === 'create' ? 'Team Leader Information' : 'Participant Credentials'}
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* STEP 2: PERSONAL INFORMATION */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
                 <div>
-                  <label className="text-[11px] font-mono text-neutral-700 font-bold block mb-1">
-                    Full Name <span className="text-[#D21319]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Ada Lovelace"
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3 py-1.5 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
-                  />
+                  <h3 className="text-sm font-black uppercase font-sans text-black">
+                    Step 2: Personal Information & Credentials
+                  </h3>
+                  <p className="text-[11px] font-mono text-neutral-600">
+                    Official participant record for festival credentialing & badges.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-mono text-neutral-700 font-bold block mb-1">
-                    Email Address <span className="text-[#D21319]">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="ada@slrtce.in"
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3 py-1.5 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-4 border-2 border-black shadow-[2px_2px_0px_#000]">
+                  <div>
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Full Name <span className="text-[#D21319]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Ada Lovelace"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Email Address <span className="text-[#D21319]">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g. ada@slrtce.in"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Phone / WhatsApp Number <span className="text-[#D21319]">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+91 98200 00000"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      College / Institution <span className="text-[#D21319]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={college}
+                      onChange={(e) => setCollege(e.target.value)}
+                      placeholder="SLRTCE Mumbai"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Department / Branch <span className="text-[#D21319]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="Computer Engineering"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Year of Study <span className="text-[#D21319]">*</span>
+                    </label>
+                    <select
+                      value={yearOfStudy}
+                      onChange={(e) => setYearOfStudy(e.target.value)}
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition cursor-pointer font-sans"
+                    >
+                      <option value="1st Year (FE)">1st Year (FE)</option>
+                      <option value="2nd Year (SE)">2nd Year (SE)</option>
+                      <option value="3rd Year (TE)">3rd Year (TE)</option>
+                      <option value="4th Year (BE)">4th Year (BE)</option>
+                      <option value="Postgraduate">Postgraduate</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Roll No. / College ID (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={collegeId}
+                      onChange={(e) => setCollegeId(e.target.value)}
+                      placeholder="e.g. SLRTCE/2026/CS/042"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-mono text-neutral-700 font-bold block mb-1">
-                    Phone / WhatsApp <span className="text-[#D21319]">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 98200 00000"
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3 py-1.5 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-mono text-neutral-700 font-bold block mb-1">
-                    College / Institution <span className="text-[#D21319]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={college}
-                    onChange={(e) => setCollege(e.target.value)}
-                    placeholder="SLRTCE Mumbai"
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3 py-1.5 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-mono text-neutral-700 font-bold block mb-1">
-                    Department / Branch <span className="text-[#D21319]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    placeholder="Computer Engineering"
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3 py-1.5 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-mono text-neutral-700 font-bold block mb-1">
-                    Year of Study <span className="text-[#D21319]">*</span>
-                  </label>
-                  <select
-                    value={yearOfStudy}
-                    onChange={(e) => setYearOfStudy(e.target.value)}
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3 py-1.5 text-xs text-black outline-none transition cursor-pointer font-sans"
+                {/* Step 2 Actions */}
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className="px-4 py-2.5 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <option value="1st Year (FE)">1st Year (FE)</option>
-                    <option value="2nd Year (SE)">2nd Year (SE)</option>
-                    <option value="3rd Year (TE)">3rd Year (TE)</option>
-                    <option value="4th Year (BE)">4th Year (BE)</option>
-                    <option value="Postgraduate">Postgraduate</option>
-                  </select>
-                </div>
+                    <span>←</span>
+                    <span>Back to Events</span>
+                  </button>
 
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-mono text-neutral-700 font-bold block mb-1">
-                    Roll No. / College ID (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={collegeId}
-                    onChange={(e) => setCollegeId(e.target.value)}
-                    placeholder="e.g. SLRTCE/2026/CS/042"
-                    className="w-full bg-white border-2 border-black shadow-[2px_2px_0px_#000] focus:border-[#D21319] px-3 py-1.5 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
-                  />
+                  <button
+                    type="button"
+                    onClick={handleNextFromStep2}
+                    className="px-6 py-2.5 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-black shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Proceed to Squad Setup</span>
+                    <span>➔</span>
+                  </button>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* ACTION SUBMIT BUTTON */}
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={submitting || (mode === 'create' && selectedEvents.length === 0)}
-                className="w-full py-3 bg-[#D21319] hover:bg-[#b00f14] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-black shadow-[4px_4px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] cursor-pointer flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <span>Recording Credentials...</span>
-                ) : mode === 'create' ? (
-                  <span>
-                    Confirm Registration ({selectedEvents.length} Event{selectedEvents.length === 1 ? '' : 's'}) ➔
-                  </span>
+            {/* STEP 3: JOIN OR CREATE SQUAD & SUBMIT */}
+            {currentStep === 3 && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-black uppercase font-sans text-black">
+                    Step 3: Squad Alliance & Enlistment
+                  </h3>
+                  <p className="text-[11px] font-mono text-neutral-600">
+                    Create a fresh squad or join with an existing team code.
+                  </p>
+                </div>
+
+                {/* Mode Selector */}
+                <div className="grid grid-cols-2 p-1 bg-[#EFECE6] border-2 border-black text-xs font-mono">
+                  <button
+                    type="button"
+                    onClick={() => setMode('create')}
+                    className={`py-2 px-3 text-xs font-bold transition-all cursor-pointer ${
+                      mode === 'create'
+                        ? 'bg-black text-white shadow-[2px_2px_0px_#000]'
+                        : 'text-neutral-700 hover:text-black'
+                    }`}
+                  >
+                    1. Create a Team
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('join')}
+                    className={`py-2 px-3 text-xs font-bold transition-all cursor-pointer ${
+                      mode === 'join'
+                        ? 'bg-black text-white shadow-[2px_2px_0px_#000]'
+                        : 'text-neutral-700 hover:text-black'
+                    }`}
+                  >
+                    2. Join with Code
+                  </button>
+                </div>
+
+                {mode === 'create' ? (
+                  <div className="p-4 bg-white border-2 border-black shadow-[2px_2px_0px_#000] space-y-3">
+                    <div>
+                      <label className="text-xs font-mono font-bold text-black tracking-wide uppercase block mb-1">
+                        Squad / Team Name <span className="text-[#D21319]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={teamName}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        placeholder="e.g. Snorlax Protocol or Cyber Charizards"
+                        className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3.5 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans font-bold"
+                      />
+                    </div>
+                    <p className="text-[11px] text-neutral-600 font-mono">
+                      ✦ You will become the <strong>Team Leader</strong> and receive a unique 8-character code to invite squad teammates.
+                    </p>
+                  </div>
                 ) : (
-                  <span>Join Squad Roster ➔</span>
+                  <div className="p-4 bg-white border-2 border-black shadow-[2px_2px_0px_#000] space-y-3">
+                    <div>
+                      <label className="text-xs font-mono font-bold text-black tracking-wide uppercase block mb-1">
+                        Enter Squad Code <span className="text-[#D21319]">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          value={joinCodeInput}
+                          onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                          placeholder="e.g. JRV-ABCD"
+                          className="flex-1 bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3.5 py-2 text-xs text-black font-mono uppercase tracking-widest placeholder:text-neutral-400 outline-none transition"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyCode()}
+                          disabled={isVerifyingCode || !joinCodeInput.trim()}
+                          className="px-4 py-2 bg-black hover:bg-[#D21319] text-white border-2 border-black shadow-[2px_2px_0px_#000] font-mono text-xs font-bold transition cursor-pointer disabled:opacity-50 active:translate-x-[1px] active:translate-y-[1px]"
+                        >
+                          {isVerifyingCode ? 'Checking...' : 'Verify Squad'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Verified Squad Preview */}
+                    {targetTeam && (
+                      <div className="p-3 bg-neutral-50 border-2 border-black text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-[10px] bg-green-100 text-green-900 border border-black font-bold uppercase px-1.5 py-0.5">
+                            ✓ Squad Verified
+                          </span>
+                          <span className="font-mono text-xs text-black font-bold">{targetTeam.code}</span>
+                        </div>
+                        <div className="text-sm font-bold text-black font-sans">{targetTeam.name}</div>
+                        <div className="text-[11px] text-neutral-700 font-mono">
+                          Disciplines: {(targetTeam.event_ids || targetTeam.eventIds || []).join(', ')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </button>
-            </div>
-          </form>
+
+                {/* REVIEW SUMMARY CARD */}
+                <div className="p-3.5 bg-[#EFECE6] border-2 border-black text-xs space-y-2 font-mono">
+                  <div className="flex items-center justify-between border-b border-black/20 pb-1.5">
+                    <span className="font-bold uppercase text-neutral-700">Enlistment Summary</span>
+                    <span className="text-[10px] text-neutral-600">{fullName} ({email})</span>
+                  </div>
+
+                  <div className="space-y-1 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-neutral-600">Selected Disciplines:</span>
+                      <span className="font-bold text-black">{selectedEvents.length} Event(s)</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {selectedEvents.map((evId) => {
+                        const ev = FEST_EVENTS.find((e) => e.id === evId);
+                        if (!ev) return null;
+                        return (
+                          <div
+                            key={evId}
+                            className="px-2 py-0.5 bg-white border border-black text-[10px] font-bold flex items-center gap-1.5"
+                          >
+                            <span>{ev.title}</span>
+                            {ev.whatsappLink && (
+                              <a
+                                href={ev.whatsappLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-700 hover:underline"
+                                title="WhatsApp Link"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                [💬 WA]
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3 Actions */}
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(2)}
+                    className="px-4 py-2.5 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>←</span>
+                    <span>Back to Personal</span>
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={submitting || (mode === 'create' && selectedEvents.length === 0)}
+                    className="flex-1 py-3 bg-[#D21319] hover:bg-[#b00f14] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-black shadow-[4px_4px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {submitting ? (
+                      <span>Enlisting Squad Roster...</span>
+                    ) : (
+                      <span>Confirm & Complete Registration ➔</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
       </motion.div>
     </div>

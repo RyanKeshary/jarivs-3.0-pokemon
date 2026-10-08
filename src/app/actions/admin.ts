@@ -14,26 +14,23 @@ async function requireAdmin() {
 
   const profileRows = await sql`SELECT * FROM public.profiles WHERE id = ${user.id}`;
   let profile = profileRows[0];
-  const isMasterEmail =
-    user.email === 'ryankeshary@gmail.com' ||
-    user.email === 'shrey.sleeps@gmail.com';
+  const userEmail = (user.email || '').toLowerCase().trim();
+  
+  // STRICT RULE: ONLY ryankeshary@gmail.com and shrey.sleeps@gmail.com are masters
+  const isMasterUser = userEmail === 'ryankeshary@gmail.com' || userEmail === 'shrey.sleeps@gmail.com';
 
-  if (!profile && isMasterEmail && user.email) {
-    const byEmail = await sql`SELECT * FROM public.profiles WHERE email = ${user.email as string}`;
+  if (!profile && isMasterUser && user.email) {
+    const byEmail = await sql`SELECT * FROM public.profiles WHERE LOWER(email) = ${userEmail}`;
     profile = byEmail[0] || { id: user.id, email: user.email, role: 'master', full_name: 'Master Organizer' };
   }
 
-  const isMasterUser =
-    profile?.role === 'master' ||
-    profile?.role === 'manager' ||
-    isMasterEmail;
-  const isAdminUser = isMasterUser || profile?.role === 'admin';
+  const isAdminUser = isMasterUser || profile?.role === 'admin' || profile?.role === 'manager' || profile?.role === 'master';
 
   if (!isAdminUser) {
     throw new Error('Forbidden: Admin access required');
   }
 
-  return { user, profile: profile || { id: user.id, email: user.email, role: 'master' }, isMaster: isMasterUser };
+  return { user, profile: profile || { id: user.id, email: user.email, role: isMasterUser ? 'master' : 'admin' }, isMaster: isMasterUser };
 }
 
 // Dedicated server actions for admin auth
@@ -430,6 +427,120 @@ export async function resetAdminPassword(targetUserId: string) {
   return { success: true };
 }
 
+// 10. Master Appoint New Administrator with default password password@67
+export async function masterAddAdmin(email: string, fullName: string) {
+  const { user, isMaster } = await requireAdmin();
+  if (!isMaster) {
+    throw new Error('Forbidden: Only Master Administrators can appoint new admin officers.');
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanName = fullName.trim() || cleanEmail.split('@')[0];
+
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw new Error('Please provide a valid administrator email address.');
+  }
+
+  const defaultPassword = 'password@67';
+  let targetUserId: string | null = null;
+
+  try {
+    const adminClient = createAdminClient();
+    const { data: created, error } = await adminClient.auth.admin.createUser({
+      email: cleanEmail,
+      password: defaultPassword,
+      email_confirm: true,
+      user_metadata: { full_name: cleanName },
+    });
+    if (created?.user) {
+      targetUserId = created.user.id;
+    }
+  } catch (err: any) {
+    // Fallback if user already exists
+  }
+
+  if (!targetUserId) {
+    const existing = await sql`SELECT id FROM auth.users WHERE LOWER(email) = ${cleanEmail}`;
+    if (existing.length > 0) {
+      targetUserId = existing[0].id;
+      await sql`
+        UPDATE auth.users
+        SET encrypted_password = crypt(${defaultPassword}, gen_salt('bf', 10)),
+            updated_at = NOW()
+        WHERE id = ${targetUserId}::uuid
+      `;
+    } else {
+      const inserted = await sql`
+        INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+        VALUES (
+          gen_random_uuid(),
+          ${cleanEmail},
+          crypt(${defaultPassword}, gen_salt('bf', 10)),
+          NOW(),
+          '{"provider":"email","providers":["email"]}'::jsonb,
+          ${JSON.stringify({ full_name: cleanName })}::jsonb,
+          NOW(),
+          NOW()
+        )
+        RETURNING id
+      `;
+      targetUserId = inserted[0].id;
+    }
+  }
+
+  // Upsert into public.profiles with role 'admin'
+  await sql`
+    INSERT INTO public.profiles (id, email, full_name, role)
+    VALUES (${targetUserId}::uuid, ${cleanEmail}, ${cleanName}, 'admin')
+    ON CONFLICT (id) DO UPDATE SET
+      email = EXCLUDED.email,
+      full_name = EXCLUDED.full_name,
+      role = 'admin'
+  `;
+
+  await logAudit(user.id, user.email || '', 'MASTER_APPOINT_ADMIN', 'profiles', targetUserId as string, {
+    appointedEmail: cleanEmail,
+    defaultPassword: 'password@67',
+  });
+
+  revalidatePath('/admin');
+  return { success: true, userId: targetUserId };
+}
+
+// 11. Master Revoke Administrator Privileges
+export async function masterRemoveAdmin(targetAdminId: string) {
+  const { user, isMaster } = await requireAdmin();
+  if (!isMaster) {
+    throw new Error('Forbidden: Only Master Administrators can revoke admin credentials.');
+  }
+
+  const targetRows = await sql`SELECT email FROM public.profiles WHERE id = ${targetAdminId}::uuid`;
+  const targetEmail = (targetRows[0]?.email || '').toLowerCase();
+
+  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+  if (MASTER_EMAILS.includes(targetEmail)) {
+    throw new Error('Action Prohibited: Cannot revoke access for a Master Administrator.');
+  }
+
+  // Remove or demote from public.profiles
+  await sql`DELETE FROM public.profiles WHERE id = ${targetAdminId}::uuid`;
+
+  // Remove from auth.users
+  try {
+    const adminClient = createAdminClient();
+    await adminClient.auth.admin.deleteUser(targetAdminId);
+  } catch (e) {
+    await sql`DELETE FROM auth.users WHERE id = ${targetAdminId}::uuid`;
+  }
+
+  await logAudit(user.id, user.email || '', 'MASTER_REVOKE_ADMIN', 'profiles', targetAdminId, {
+    revokedEmail: targetEmail,
+  });
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
 // =============================================================================
 // INDIGO TECH FEST SPECIFIC ADMIN SUITE
 // =============================================================================
@@ -442,7 +553,8 @@ export async function getFestAdminData() {
     teams,
     events,
     announcements,
-    auditLogs
+    auditLogs,
+    adminUsers
   ] = await Promise.all([
     sql`
       SELECT 
@@ -477,7 +589,13 @@ export async function getFestAdminData() {
     `,
     sql`SELECT * FROM public.fest_events ORDER BY created_at ASC`,
     sql`SELECT * FROM public.fest_announcements ORDER BY created_at DESC`,
-    sql`SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 50`
+    sql`SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 50`,
+    sql`
+      SELECT id, email, full_name, role, created_at
+      FROM public.profiles
+      WHERE role IN ('admin', 'manager', 'master') OR LOWER(email) IN ('ryankeshary@gmail.com', 'shrey.sleeps@gmail.com')
+      ORDER BY created_at ASC
+    `
   ]);
 
   // Derived metrics
@@ -537,7 +655,8 @@ export async function getFestAdminData() {
     teams,
     events,
     announcements,
-    auditLogs
+    auditLogs,
+    adminUsers
   };
 }
 
@@ -757,12 +876,22 @@ export async function adminUpdateEvent(id: string, data: {
 // Admin Announcements
 export async function adminPostFestAnnouncement(title: string, content: string) {
   const { user } = await requireAdmin();
-  await sql`
+  const res = await sql`
     INSERT INTO public.fest_announcements (title, content, is_active)
     VALUES (${title.trim()}, ${content.trim()}, true)
+    RETURNING id
   `;
-  await logAudit(user.id, user.email || '', 'POST_FEST_ANNOUNCEMENT', 'fest_announcements', 'new', { title });
+  try {
+    await sql`
+      INSERT INTO public.announcements (id, title, content, priority, created_by)
+      VALUES (${res[0].id}, ${title.trim()}, ${content.trim()}, 'normal', ${user.id})
+    `;
+  } catch (e) {
+    // non-fatal if table schema differs
+  }
+  await logAudit(user.id, user.email || '', 'POST_FEST_ANNOUNCEMENT', 'fest_announcements', res[0].id as string, { title });
   revalidatePath('/admin');
+  revalidatePath('/dashboard');
   revalidatePath('/');
   return { success: true };
 }
@@ -770,8 +899,12 @@ export async function adminPostFestAnnouncement(title: string, content: string) 
 export async function adminDeleteFestAnnouncement(id: string) {
   const { user } = await requireAdmin();
   await sql`DELETE FROM public.fest_announcements WHERE id = ${id}`;
+  try {
+    await sql`DELETE FROM public.announcements WHERE id = ${id}`;
+  } catch (e) {}
   await logAudit(user.id, user.email || '', 'DELETE_FEST_ANNOUNCEMENT', 'fest_announcements', id);
   revalidatePath('/admin');
+  revalidatePath('/dashboard');
   revalidatePath('/');
   return { success: true };
 }

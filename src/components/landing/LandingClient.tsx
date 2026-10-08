@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { AnimatePresence } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { DynamicStage } from '@/components/landing/DynamicStage';
 import { EventsLedger } from '@/components/sections/EventsLedger';
+import { AnnouncementsSection } from '@/components/sections/AnnouncementsSection';
 import { DaysTimeline } from '@/components/sections/DaysTimeline';
 import { HowToJoin } from '@/components/sections/HowToJoin';
 import { FaqAndCta } from '@/components/sections/FaqAndCta';
@@ -117,10 +119,12 @@ export function LandingClient({ settings }: LandingClientProps) {
         }}
       />
 
-      {/* 1008.mp4 Fullscreen Video Intro with Skip & Ribbon Wipe */}
-      {showVideoIntro && (
-        <VideoIntroScene onComplete={() => setShowVideoIntro(false)} />
-      )}
+      {/* 1008.mp4 Fullscreen Video Intro with Skip & Smooth Direct Reveal */}
+      <AnimatePresence mode="wait">
+        {showVideoIntro && (
+          <VideoIntroScene onComplete={() => setShowVideoIntro(false)} />
+        )}
+      </AnimatePresence>
 
       {/* Floating Header (Zero Spacer, Ethereal Transparency) */}
       <Navbar
@@ -159,7 +163,10 @@ export function LandingClient({ settings }: LandingClientProps) {
           onSelectEventForRegistration={(evId) => handleOpenRegistration(evId)}
         />
 
-        {/* 3. Chronology / Two-Day Schedule Timeline */}
+        {/* 3. Central Bulletins & Announcements Section */}
+        <AnnouncementsSection />
+
+        {/* 4. Chronology / Two-Day Schedule Timeline */}
         <DaysTimeline />
 
         {/* 4. How To Join Protocol (3-Stage Sequence) */}

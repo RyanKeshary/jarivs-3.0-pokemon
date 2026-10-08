@@ -449,6 +449,19 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            {event.whatsappLink && (
+              <a
+                href={event.whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-1.5"
+                title="Join Event WhatsApp Group"
+              >
+                <span>💬</span>
+                <span>WhatsApp Group</span>
+              </a>
+            )}
+
             <button
               onClick={onClose}
               className="flex-1 sm:flex-none px-4 py-2 bg-white hover:bg-neutral-100 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"

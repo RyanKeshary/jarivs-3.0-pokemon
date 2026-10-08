@@ -27,6 +27,7 @@ export interface FestEventItem {
   accentColor: string;
   rules: string[];
   rounds: string[];
+  whatsappLink: string;
 }
 
 export const FEST_EVENTS: FestEventItem[] = [
@@ -51,6 +52,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     pokemonStatic: '/assets/events/porygon.png',
     bgGradient: 'from-[#0b2447] via-[#19376d] to-[#04152d]',
     accentColor: '#38bdf8',
+    whatsappLink: 'https://chat.whatsapp.com/B5eqtUDwxiWALkV1hH9pbv',
     rules: [
       'Each squad must demonstrate a live physical apparatus or working deployed software demonstration.',
       'Projects must feature documented Git commits, architectural schema, and original engineering.',
@@ -70,7 +72,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     description: 'Autonomous wheeled robotic vehicles navigate high-curvature precision tracks with closed-loop PID microcontroller calibration.',
     dayTag: 'DAY 1',
     isMultiDay: false,
-    mode: 'OFFLINE',
+    mode: 'ROBOTICS',
     category: 'ROBOTICS',
     teamSize: '1 to 3 Members',
     minSize: 1,
@@ -82,6 +84,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     pokemonStatic: '/assets/events/pidgeotto.png',
     bgGradient: 'from-[#422006] via-[#78350f] to-[#1c1917]',
     accentColor: '#f59e0b',
+    whatsappLink: 'https://chat.whatsapp.com/KJllRsU3JRQ87PoA4D5gX1',
     rules: [
       'Robots must operate fully autonomously with on-board computing, sensors, and power storage.',
       '30mm black line course with right-angle bends, grid intersections, and hairpin turns.',
@@ -113,6 +116,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     pokemonStatic: '/assets/events/meowth.png',
     bgGradient: 'from-[#2e1065] via-[#4c1d95] to-[#0f172a]',
     accentColor: '#c084fc',
+    whatsappLink: 'https://chat.whatsapp.com/JYeI7DPqWiR1jfRS4jw1QK',
     rules: [
       'Teams decipher sequential technical ciphers and physical clue checkpoints.',
       'Speed, strategic routing, and puzzle-solving accuracy dictate point totals.',
@@ -144,6 +148,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     pokemonStatic: '/assets/events/squirtle.png',
     bgGradient: 'from-[#082f49] via-[#0369a1] to-[#0f172a]',
     accentColor: '#38bdf8',
+    whatsappLink: 'https://chat.whatsapp.com/Ga4Y8cnDQpQFOBer59TvLG',
     rules: [
       'Squads must strictly comprise exactly two individuals.',
       'Zero external communication devices or reference aids permitted.',
@@ -175,6 +180,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     pokemonStatic: '/assets/events/bulbasaur.png',
     bgGradient: 'from-[#064e3b] via-[#047857] to-[#022c22]',
     accentColor: '#34d399',
+    whatsappLink: 'https://chat.whatsapp.com/J02b7lEni4FAmTd8XxGVwq',
     rules: [
       'Day 1 allows unrestricted online libraries, research publications, and external API gateways.',
       'Day 2 is strictly air-gapped without internet access to evaluate fundamental local compilation and debugging.',
@@ -206,6 +212,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     pokemonStatic: '/assets/events/snorlax.png',
     bgGradient: 'from-[#1e1b4b] via-[#312e81] to-[#0f172a]',
     accentColor: '#818cf8',
+    whatsappLink: 'https://chat.whatsapp.com/K6JyDBRX4EO4rzk6jJvgFF',
     rules: [
       'All footage must be recorded on campus grounds during Day 1 of the fest.',
       'Final video running length must strictly fall between 45 and 90 seconds.',
@@ -237,6 +244,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     pokemonStatic: '/assets/events/charmander.png',
     bgGradient: 'from-[#7f1d1d] via-[#b91c1c] to-[#450a0a]',
     accentColor: '#f87171',
+    whatsappLink: 'https://chat.whatsapp.com/EUXkeEbWpJ0JlhCqhyVJzs',
     rules: [
       'Official CAD laboratory workstations provided with certified modeling environments.',
       'Absolute adherence to geometric dimensioning, tolerancing (GD&T), and projection conventions.',
@@ -398,6 +406,17 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
 
                     {/* Action Buttons */}
                     <div className="flex items-center gap-2">
+                      <a
+                        href={event.whatsappLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1.5 border-2 border-emerald-800 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#065f46] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1"
+                        title="Join Official WhatsApp Group"
+                      >
+                        <span>💬</span>
+                        <span className="hidden sm:inline">GROUP</span>
+                      </a>
+
                       <button
                         onClick={() => setActiveModalEvent(event)}
                         className="px-3 py-1.5 border-2 border-black bg-white hover:bg-neutral-100 text-black font-mono font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"

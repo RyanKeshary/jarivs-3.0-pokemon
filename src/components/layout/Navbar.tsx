@@ -54,12 +54,12 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
     const handleScroll = () => {
       setScrolled(window.scrollY > 40);
       const scrollPos = window.scrollY + 200;
-      const sections = ['join', 'events', 'schedule', 'home'] as const;
+      const sections = ['join', 'schedule', 'announcements', 'events', 'home'] as const;
 
       for (const section of sections) {
         const el = document.getElementById(section);
         if (el && el.offsetTop <= scrollPos) {
-          setActiveSection(section);
+          setActiveSection(section as any);
           break;
         }
       }
@@ -78,7 +78,8 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   };
 
   const navLinks = [
-    { id: 'events', label: 'THE 6 DISCIPLINES' },
+    { id: 'events', label: 'THE 7 DISCIPLINES' },
+    { id: 'announcements', label: 'NOTICES' },
     { id: 'schedule', label: 'SCHEDULE' },
     { id: 'join', label: 'HOW TO JOIN' },
   ];

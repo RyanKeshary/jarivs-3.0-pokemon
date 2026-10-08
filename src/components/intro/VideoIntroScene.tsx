@@ -40,21 +40,22 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
   }, []);
 
-  const [isMorphing, setIsMorphing] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
   const handleFinishOrSkip = useCallback(() => {
-    if (isMorphing) return;
-    setIsMorphing(true);
+    if (isExiting) return;
+    setIsExiting(true);
     playTacticalChime(880, 'triangle');
     try {
       sessionStorage.setItem('indigo_vid_intro_seen', 'true');
     } catch {
       // ignore
     }
+    // Instant cinematic fade directly into the hero section with zero intermediate card
     setTimeout(() => {
       onComplete();
-    }, 750);
-  }, [isMorphing, onComplete, playTacticalChime]);
+    }, 450);
+  }, [isExiting, onComplete, playTacticalChime]);
 
   const handleToggleSound = useCallback(() => {
     if (!videoRef.current) return;
@@ -125,7 +126,16 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
   const strokeOffset = circumference - (circumference * progressPercent) / 100;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070913] flex items-center justify-center overflow-hidden select-none">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{
+        opacity: isExiting ? 0 : 1,
+        scale: isExiting ? 1.08 : 1,
+        filter: isExiting ? 'blur(12px) brightness(1.25)' : 'blur(0px) brightness(1)',
+      }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed inset-0 z-50 bg-[#070913] flex items-center justify-center overflow-hidden select-none pointer-events-auto"
+    >
       
       {/* 1. Cinematic Background Video Canvas */}
       <div className="relative w-full h-full cursor-pointer" onClick={handleTogglePlay}>
@@ -331,37 +341,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
 
 
-      {/* 8. Glassmorphic Morphism Transition Reveal */}
-      <AnimatePresence>
-        {isMorphing && (
-          <motion.div
-            initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-            animate={{ opacity: 1, backdropFilter: 'blur(36px)' }}
-            exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] bg-white/20 dark:bg-black/40 backdrop-blur-3xl flex flex-col items-center justify-center pointer-events-none"
-          >
-            {/* Ethereal Frosted Glass Morphism Plate */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 15 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="bg-white/45 dark:bg-black/60 border border-white/60 dark:border-white/20 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.35)] px-8 py-6 rounded-2xl flex flex-col items-center gap-3 text-center"
-            >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#D21319] to-red-400 flex items-center justify-center shadow-[0_0_20px_rgba(210,19,25,0.5)]">
-                <div className="w-3.5 h-3.5 rounded-full bg-white animate-pulse" />
-              </div>
-              <span className="font-serif tracking-[0.3em] text-neutral-900 dark:text-white uppercase text-xs sm:text-sm font-black">
-                INDIGO TECH FEST · JARVIS 3.0
-              </span>
-              <span className="font-mono text-[10px] text-neutral-700 dark:text-neutral-300 tracking-widest uppercase">
-                ENTERING THE CONVOCATION
-              </span>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-    </div>
+    </motion.div>
   );
 }

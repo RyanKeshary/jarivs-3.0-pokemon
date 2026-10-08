@@ -29,7 +29,8 @@ import {
   ExternalLink,
   Layers,
   Sparkles,
-  UserCheck
+  UserCheck,
+  Crown
 } from 'lucide-react';
 import {
   adminUpdateParticipantStatus,
@@ -44,7 +45,10 @@ import {
   adminPostFestAnnouncement,
   adminDeleteFestAnnouncement,
   changeAdminPassword,
-  adminLogoutAction
+  adminLogoutAction,
+  masterAddAdmin,
+  masterRemoveAdmin,
+  resetAdminPassword
 } from '@/app/actions/admin';
 
 interface IndigoAdminDashboardProps {
@@ -54,7 +58,7 @@ interface IndigoAdminDashboardProps {
 
 export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'registrations' | 'teams' | 'checkin' | 'events' | 'announcements' | 'audit' | 'password'
+    'dashboard' | 'registrations' | 'teams' | 'checkin' | 'events' | 'announcements' | 'audit' | 'master' | 'password'
   >('dashboard');
 
   // Registrations Filter & Search State
@@ -99,7 +103,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   // Editing Event Settings State
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
 
-  const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser } = data;
+  // Master Admin Officer Management State
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminName, setNewAdminName] = useState('');
+  const [masterNotice, setMasterNotice] = useState<string | null>(null);
+
+  const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers } = data;
 
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
@@ -312,6 +321,60 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     if (onRefresh) onRefresh();
   };
 
+  // Master Admin Handlers
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminEmail.trim()) return;
+    setIsProcessing(true);
+    setMasterNotice(null);
+    try {
+      const res = await masterAddAdmin(newAdminEmail.trim(), newAdminName.trim());
+      if (res.success) {
+        setMasterNotice(`Administrator ${newAdminEmail.trim()} appointed successfully! Default password is set to password@67`);
+        setNewAdminEmail('');
+        setNewAdminName('');
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      setMasterNotice(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRevokeAdmin = async (adminId: string, email: string) => {
+    if (!confirm(`Are you sure you want to revoke admin privileges for ${email}?`)) return;
+    setIsProcessing(true);
+    setMasterNotice(null);
+    try {
+      const res = await masterRemoveAdmin(adminId);
+      if (res.success) {
+        setMasterNotice(`Admin access revoked for ${email}.`);
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      setMasterNotice(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleResetAdminPass = async (adminId: string, email: string) => {
+    if (!confirm(`Reset credentials for ${email} to default password@67?`)) return;
+    setIsProcessing(true);
+    setMasterNotice(null);
+    try {
+      const res = await resetAdminPassword(adminId);
+      if (res.success) {
+        setMasterNotice(`Credentials successfully reset to password@67 for ${email}.`);
+      }
+    } catch (err: any) {
+      setMasterNotice(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Status Badge Helper
   const renderStatusBadge = (status: string) => {
     switch (status) {
@@ -435,6 +498,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               { id: 'events', label: 'Disciplines', icon: Settings },
               { id: 'announcements', label: 'Notices', icon: Bell },
               { id: 'audit', label: 'Audit Log', icon: FileText },
+              ...(currentUser?.isMaster ? [{ id: 'master', label: 'Master Console', icon: Crown }] : []),
               { id: 'password', label: 'Security', icon: KeyRound },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -1281,11 +1345,58 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         {activeTab === 'audit' && (
           <div className="space-y-4">
             <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
-              <h2 className="text-base font-bold text-slate-900">Administrative Audit Trail</h2>
-              <p className="text-xs text-slate-500">Chronological history of status updates, deletions, and overrides</p>
+              <h2 className="text-base font-bold text-slate-900">Administrative Audit Trail & Officer Roster</h2>
+              <p className="text-xs text-slate-500">Official registry of appointed administrators and chronological audit trail</p>
             </div>
 
+            {/* Appointed Administrators Roster Card (Required by Audit view) */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold font-mono uppercase text-slate-900">Active Festival Administrators</h3>
+                  <p className="text-[11px] text-slate-500 font-sans">Officers with administrative console privileges</p>
+                </div>
+                <span className="text-[11px] font-mono bg-white px-2.5 py-0.5 border border-slate-200 rounded font-bold text-slate-700">
+                  {(adminUsers || []).length} Officers Appointed
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100 font-mono text-xs">
+                {(adminUsers || []).map((admin: any) => {
+                  const isMasterOfficer =
+                    admin.email?.toLowerCase() === 'ryankeshary@gmail.com' ||
+                    admin.email?.toLowerCase() === 'shrey.sleeps@gmail.com';
+                  return (
+                    <div key={admin.id || admin.email} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${isMasterOfficer ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' : 'bg-emerald-500'}`} />
+                        <div>
+                          <div className="font-bold text-slate-900 flex items-center gap-2">
+                            <span>{admin.full_name || 'Admin Officer'}</span>
+                            <span className={`px-2 py-0.2 text-[10px] rounded uppercase font-bold ${
+                              isMasterOfficer
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}>
+                              {isMasterOfficer ? 'MASTER' : 'ADMIN'}
+                            </span>
+                          </div>
+                          <div className="text-slate-500 text-[11px] font-sans">{admin.email}</div>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {admin.created_at ? new Date(admin.created_at).toLocaleDateString() : 'System'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Audit Logs List */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-xs divide-y divide-slate-100 font-mono text-xs overflow-hidden">
+              <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-800">
+                Action Event Trail
+              </div>
               {auditLogs.map((log: any) => (
                 <div key={log.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50 transition-colors">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1303,6 +1414,156 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   No audit entries recorded yet.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB: MASTER CONSOLE (MASTERS ONLY)
+           ======================================================== */}
+        {activeTab === 'master' && currentUser?.isMaster && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-neutral-900 to-black text-white p-6 rounded-xl shadow-sm border border-neutral-800">
+              <div className="flex items-center gap-2 mb-1">
+                <Crown size={18} className="text-amber-400" />
+                <span className="font-mono text-xs uppercase tracking-widest text-amber-400 font-bold">
+                  MASTER ORGANIZER CONSOLE
+                </span>
+              </div>
+              <h2 className="text-lg font-bold font-sans">Appoint & Manage Festival Administrators</h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Exclusive privileges restricted to ryankeshary@gmail.com and shrey.sleeps@gmail.com.
+                Other admins cannot view or access this console.
+              </p>
+            </div>
+
+            {masterNotice && (
+              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-lg text-xs font-mono text-amber-900 flex items-center justify-between">
+                <span>{masterNotice}</span>
+                <button
+                  type="button"
+                  onClick={() => setMasterNotice(null)}
+                  className="font-bold text-amber-700 hover:text-black cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Appoint New Administrator Form */}
+            <form onSubmit={handleAddAdmin} className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs space-y-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Appoint New Administrator Officer</h3>
+                <p className="text-xs text-slate-500">
+                  Provision admin privileges. Newly appointed admins will default to password: <strong className="text-black font-mono">password@67</strong>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Admin Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    placeholder="e.g. officer@slrtce.in"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Officer Full Name</label>
+                  <input
+                    type="text"
+                    value={newAdminName}
+                    onChange={(e) => setNewAdminName(e.target.value)}
+                    placeholder="e.g. Prof. Alan Turing"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-[11px] font-mono text-slate-500">
+                  ✦ Default credentials: Email + <strong className="text-slate-800">password@67</strong>
+                </span>
+
+                <button
+                  type="submit"
+                  disabled={isProcessing || !newAdminEmail.trim()}
+                  className="px-5 py-2.5 bg-black hover:bg-[#D21319] disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Crown size={13} />
+                  <span>Appoint Administrator</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Active Administrators Roster Table */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Current Administrative Officers</h3>
+                  <p className="text-xs text-slate-500">Manage credentials and access privileges</p>
+                </div>
+                <span className="text-xs font-mono bg-white px-2 py-0.5 border border-slate-200 rounded">
+                  {(adminUsers || []).length} Officers
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-100 font-mono text-xs">
+                {(adminUsers || []).map((admin: any) => {
+                  const isMasterOfficer =
+                    admin.email?.toLowerCase() === 'ryankeshary@gmail.com' ||
+                    admin.email?.toLowerCase() === 'shrey.sleeps@gmail.com';
+                  return (
+                    <div key={admin.id || admin.email} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
+                      <div>
+                        <div className="font-bold text-slate-900 flex items-center gap-2">
+                          <span>{admin.full_name || 'Admin Officer'}</span>
+                          <span className={`px-2 py-0.2 text-[10px] rounded uppercase font-bold ${
+                            isMasterOfficer ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {isMasterOfficer ? 'MASTER ORGANIZER' : 'ADMIN OFFICER'}
+                          </span>
+                        </div>
+                        <div className="text-slate-500 text-xs font-sans mt-0.5">{admin.email}</div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!isMasterOfficer && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleResetAdminPass(admin.id, admin.email)}
+                              disabled={isProcessing}
+                              className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer"
+                              title="Reset password to password@67"
+                            >
+                              Reset to password@67
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeAdmin(admin.id, admin.email)}
+                              disabled={isProcessing}
+                              className="px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-600 bg-rose-50 rounded border border-rose-200 transition-colors cursor-pointer"
+                              title="Revoke Admin Access"
+                            >
+                              Revoke Access
+                            </button>
+                          </>
+                        )}
+                        {isMasterOfficer && (
+                          <span className="text-[11px] text-amber-700 font-bold font-sans">
+                            Master Account (Immutable)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
