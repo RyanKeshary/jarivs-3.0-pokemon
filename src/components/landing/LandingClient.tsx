@@ -59,9 +59,9 @@ export function LandingClient({ settings }: LandingClientProps) {
           const progress = Math.min(1, Math.max(0, (sy - 20) / 300));
           if (overlayEl) {
             overlayEl.style.opacity = String(progress);
-            overlayEl.style.backgroundColor = `rgba(255, 255, 255, ${progress * 0.85})`;
-            overlayEl.style.backdropFilter = progress > 0.05 ? `blur(${progress * 18}px)` : 'none';
-            (overlayEl.style as any).webkitBackdropFilter = progress > 0.05 ? `blur(${progress * 18}px)` : 'none';
+            overlayEl.style.backgroundColor = `rgba(246, 247, 250, ${progress * 0.72})`;
+            overlayEl.style.backdropFilter = progress > 0.05 ? `blur(${progress * 7}px)` : 'none';
+            (overlayEl.style as any).webkitBackdropFilter = progress > 0.05 ? `blur(${progress * 7}px)` : 'none';
           }
           ticking = false;
         });

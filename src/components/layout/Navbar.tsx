@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, ChevronRight } from 'lucide-react';
+import { X, ChevronRight, Play } from 'lucide-react';
 import { playRetroBeep } from '@/lib/sound';
 
 interface NavbarProps {
@@ -11,18 +11,29 @@ interface NavbarProps {
   onReplayIntro?: () => void;
 }
 
+type NavAnimationPhase = 'closed' | 'opening' | 'open' | 'closing';
+
 export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   const [activeSection, setActiveSection] = useState<'home' | 'events' | 'schedule' | 'join'>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [hasMaxEvents, setHasMaxEvents] = useState(false);
 
-  // Pokeball hover / deploy state
-  const [isHovered, setIsHovered] = useState(false);
+  // Animation phase state machine
+  const [phase, setPhase] = useState<NavAnimationPhase>('closed');
+  const [isFocused, setIsFocused] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
-  const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isOpen = isHovered || isPinned || mobileMenuOpen;
+  // Timers
+  const leaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const sequenceTimersRef = useRef<NodeJS.Timeout[]>([]);
+
+  const isExpanded = phase === 'opening' || phase === 'open' || mobileMenuOpen;
+
+  // Clear all pending transition timers
+  const clearSequenceTimers = () => {
+    sequenceTimersRef.current.forEach((t) => clearTimeout(t));
+    sequenceTimersRef.current = [];
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -57,12 +68,13 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
       isMounted = false;
       window.removeEventListener('storage', handleCustomEvent);
       window.removeEventListener('auth_state_change', handleCustomEvent);
+      clearSequenceTimers();
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
     };
   }, []);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 40);
       const scrollPos = window.scrollY + 200;
       const sections = ['join', 'schedule', 'announcements', 'events', 'home'] as const;
 
@@ -79,43 +91,114 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Keyboard accessibility: Escape to collapse, Space/Enter to toggle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isExpanded) {
+        handleCollapse();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isExpanded]);
+
+  /* ========================================================
+     ANIMATION TRIGGER LOGIC
+     ======================================================== */
+  const handleOpenSequence = () => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+
+    if (phase === 'open' || phase === 'opening') return;
+
+    clearSequenceTimers();
+    setPhase('opening');
+
+    try {
+      playRetroBeep(780, 'square', 0.04);
+    } catch {}
+
+    // Phase 1 (0-120ms): Rotation
+    // Phase 2 (120-270ms): Split top/bottom halves
+    // Phase 3 (200-450ms): Emergence of navbar & disappearance of Pokéball
+    const tOpen = setTimeout(() => {
+      setPhase('open');
+    }, 450);
+
+    sequenceTimersRef.current.push(tOpen);
+  };
+
+  const handleCollapse = () => {
+    clearSequenceTimers();
+    setIsPinned(false);
+    setMobileMenuOpen(false);
+
+    if (phase === 'closed') return;
+
+    setPhase('closing');
+
+    // Reverse animation takes ~360ms:
+    // Navbar collapses to center, halves rejoin, reverse rotation settle
+    const tClose = setTimeout(() => {
+      setPhase('closed');
+    }, 360);
+
+    sequenceTimersRef.current.push(tClose);
+  };
+
+  const handleMouseEnter = () => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    handleOpenSequence();
+  };
+
+  const handleMouseLeave = () => {
+    if (isPinned || mobileMenuOpen) return;
+
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+
+    // 160ms grace window so cursor movement between items never flickers or drops
+    leaveTimerRef.current = setTimeout(() => {
+      handleCollapse();
+    }, 160);
+  };
+
+  const handlePokeballFocus = () => {
+    setIsFocused(true);
+    handleOpenSequence();
+  };
+
+  const handlePokeballBlur = () => {
+    setIsFocused(false);
+    if (!isPinned && !mobileMenuOpen) {
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = setTimeout(() => {
+        handleCollapse();
+      }, 200);
+    }
+  };
+
+  const handlePokeballClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (phase === 'closed') {
+      handleOpenSequence();
+    } else {
+      setIsPinned((prev) => !prev);
+    }
+  };
+
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
-    setIsPinned(false);
-    setIsHovered(false);
+    handleCollapse();
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
-  };
-
-  const handleMouseEnter = () => {
-    if (leaveTimeoutRef.current) {
-      clearTimeout(leaveTimeoutRef.current);
-      leaveTimeoutRef.current = null;
-    }
-    if (!isOpen) {
-      try {
-        playRetroBeep(780, 'square', 0.04);
-      } catch (e) {}
-    }
-    setIsHovered(true);
-  };
-
-  const handleMouseLeave = () => {
-    if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
-    // Fast 220ms grace window so fast cursor motion across buttons does not jitter
-    leaveTimeoutRef.current = setTimeout(() => {
-      setIsHovered(false);
-    }, 220);
-  };
-
-  const togglePin = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsPinned((prev) => !prev);
-    try {
-      playRetroBeep(880, 'triangle', 0.05);
-    } catch (e) {}
   };
 
   const navLinks: { id: string; label: string; href?: string }[] = [
@@ -127,190 +210,252 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   ];
 
   return (
-    <header className="fixed top-2 sm:top-3 left-0 right-0 z-40 select-none px-3 sm:px-6 pointer-events-none flex justify-center">
+    <header className="fixed top-2 sm:top-3.5 left-0 right-0 z-40 select-none px-3 sm:px-6 pointer-events-none flex justify-center">
       
-      {/* Outer Interactive Container */}
+      {/* 
+        PARENT INTERACTION CONTAINER:
+        - When closed: Compact hit area around the single Pokéball.
+        - When expanded: Spans the full width of the navbar so moving cursor to any
+          link keeps the navigation open seamlessly without jitter.
+      */}
       <div
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="pointer-events-auto relative w-full flex justify-center max-w-7xl"
+        className={`pointer-events-auto relative flex items-center justify-center transition-all duration-200 ${
+          isExpanded ? 'w-full max-w-7xl' : 'w-[56px] h-[56px]'
+        }`}
       >
-        <AnimatePresence mode="wait">
-          {!isOpen ? (
-            /* ========================================================
-               DEFAULT STATE: CLOSED POKÉBALL CAPSULE DOCK
-               ======================================================== */
-            <motion.div
-              key="closed-pokeball"
-              initial={{ scale: 0.85, opacity: 0, y: -10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              onClick={togglePin}
-              className="group flex items-center gap-3 px-3.5 py-1.5 bg-[#161A35]/95 hover:bg-[#1A1F3F] backdrop-blur-xl border border-white/20 hover:border-[#D21319] rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.6)] cursor-pointer transition-all duration-200 hover:shadow-[0_0_25px_rgba(210,19,25,0.45)] hover:scale-105 active:scale-95"
-              title="Hover or click Pokéball to open navigation"
-            >
-              {/* Closed Pokéball: Top Half + Bottom Half assembled seamlessly */}
-              <div className="relative w-[44px] h-[44px] flex flex-col items-center justify-center shrink-0">
-                {/* Top Half */}
-                <img
-                  src="/assets/pokeball-top.png"
-                  alt="Pokéball Top Half"
-                  className="w-[44px] h-[22px] object-contain block select-none pointer-events-none group-hover:-translate-y-0.5 transition-transform duration-200"
-                  style={{ imageRendering: 'pixelated' }}
-                />
-                {/* Bottom Half */}
-                <img
-                  src="/assets/pokeball-bottom.png"
-                  alt="Pokéball Bottom Half"
-                  className="w-[44px] h-[22px] object-contain block select-none pointer-events-none group-hover:translate-y-0.5 transition-transform duration-200"
-                  style={{ imageRendering: 'pixelated' }}
-                />
-              </div>
 
-              {/* Capsule Label */}
-              <div className="flex flex-col pr-2 text-left">
-                <span className="font-serif text-xs font-black text-white tracking-wider uppercase flex items-center gap-1.5 leading-none">
-                  INDIGO CODEX
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D21319] animate-pulse" />
-                </span>
-                <span className="font-mono text-[9px] text-[#AFAEA2] tracking-widest uppercase mt-0.5 group-hover:text-amber-400 transition-colors">
-                  HOVER TO DEPLOY
-                </span>
-              </div>
+        {/* ========================================================
+            1. THE POKÉBALL INTERACTION ELEMENT
+            Visible when closed, rotating, splitting, or closing.
+            Disappears completely once the navbar reaches its final position.
+           ======================================================== */}
+        <div
+          className={`absolute z-30 transition-all ${
+            phase === 'open' ? 'pointer-events-none opacity-0 invisible' : 'opacity-100 visible'
+          }`}
+        >
+          {/* Pokéball Container with keyboard accessibility */}
+          <button
+            type="button"
+            tabIndex={0}
+            onClick={handlePokeballClick}
+            onFocus={handlePokeballFocus}
+            onBlur={handlePokeballBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (phase === 'closed') handleOpenSequence();
+                else handleCollapse();
+              }
+            }}
+            aria-label="Toggle Navigation Menu"
+            aria-expanded={isExpanded}
+            className="group relative w-[48px] h-[48px] flex flex-col items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#D21319] focus-visible:ring-offset-2 rounded-full p-0 bg-transparent border-0"
+            style={{
+              perspective: '600px',
+            }}
+            title="Hover or focus Pokéball to open navigation"
+          >
+            {/* The Rotating Pokéball Core Wrapper */}
+            <motion.div
+              animate={
+                phase === 'opening'
+                  ? {
+                      rotateY: [0, 360],
+                      scale: [1, 1.05, 1],
+                      transition: { duration: 0.14, ease: [0.4, 0, 0.2, 1] },
+                    }
+                  : phase === 'closing'
+                  ? {
+                      rotateY: [360, 0],
+                      scale: [1, 1],
+                      transition: { duration: 0.12, ease: 'easeOut', delay: 0.14 },
+                    }
+                  : { rotateY: 0, scale: 1 }
+              }
+              className="relative w-[48px] h-[48px] flex flex-col items-center justify-center"
+            >
+              {/* TOP HALF: Slides UP symmetrically immediately after rotation */}
+              <motion.img
+                src="/assets/pokeball-top.png"
+                alt="Pokéball Top Half"
+                animate={
+                  phase === 'opening'
+                    ? {
+                        y: [0, 0, -38, -48],
+                        opacity: [1, 1, 1, 0],
+                        transition: {
+                          times: [0, 0.28, 0.65, 1],
+                          duration: 0.44,
+                          ease: [0.16, 1, 0.3, 1],
+                        },
+                      }
+                    : phase === 'closing'
+                    ? {
+                        y: [-38, 0],
+                        opacity: [1, 1],
+                        transition: { duration: 0.16, ease: 'easeInOut' },
+                      }
+                    : { y: 0, opacity: 1 }
+                }
+                className="w-[48px] h-[24px] object-contain block select-none pointer-events-none group-hover:-translate-y-0.5 transition-transform duration-150"
+                style={{ imageRendering: 'pixelated' }}
+              />
+
+              {/* BOTTOM HALF: Slides DOWN symmetrically immediately after rotation */}
+              <motion.img
+                src="/assets/pokeball-bottom.png"
+                alt="Pokéball Bottom Half"
+                animate={
+                  phase === 'opening'
+                    ? {
+                        y: [0, 0, 38, 48],
+                        opacity: [1, 1, 1, 0],
+                        transition: {
+                          times: [0, 0.28, 0.65, 1],
+                          duration: 0.44,
+                          ease: [0.16, 1, 0.3, 1],
+                        },
+                      }
+                    : phase === 'closing'
+                    ? {
+                        y: [38, 0],
+                        opacity: [1, 1],
+                        transition: { duration: 0.16, ease: 'easeInOut' },
+                      }
+                    : { y: 0, opacity: 1 }
+                }
+                className="w-[48px] h-[24px] object-contain block select-none pointer-events-none group-hover:translate-y-0.5 transition-transform duration-150 -mt-[1px]"
+                style={{ imageRendering: 'pixelated' }}
+              />
             </motion.div>
-          ) : (
-            /* ========================================================
-               ACTIVE STATE: POKÉBALL ROTATES, SPLITS, DISAPPEARS &
-               ALL THE NAVBAR POPS OUT OF THE POKÉBALL
-               ======================================================== */
+          </button>
+        </div>
+
+
+        {/* ========================================================
+            2. THE EXPANDED NAVBAR
+            Emerges from the center of the Pokéball as it opens.
+            Smooth scale + opacity + translate emergence with staggered items.
+           ======================================================== */}
+        <AnimatePresence>
+          {isExpanded && (
             <motion.div
-              key="opened-navbar"
-              initial={{ scale: 0.35, opacity: 0, y: -6 }}
+              key="expanded-navbar-bar"
+              initial={{ scale: 0.25, opacity: 0, y: 0 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.4, opacity: 0, y: -6 }}
+              exit={{ scale: 0.25, opacity: 0, y: 0 }}
               transition={{
-                type: 'spring',
-                stiffness: 440,
-                damping: 26,
-                mass: 0.7,
-                duration: 0.24,
+                duration: 0.22,
+                delay: phase === 'opening' ? 0.16 : 0,
+                ease: [0.16, 1, 0.3, 1],
               }}
-              className="relative w-full bg-[#161A35]/95 backdrop-blur-2xl border border-white/20 shadow-[0_24px_70px_rgba(0,0,0,0.8)] rounded-2xl p-3 sm:px-6 overflow-hidden"
+              className="relative w-full bg-[#161A35]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.85),_0_0_20px_rgba(210,19,25,0.25)] rounded-2xl p-2.5 sm:px-6 overflow-hidden z-20"
             >
-              {/* Transient Opening Animation: Pokéball rotates once & splits apart */}
-              <motion.div
-                initial={{ opacity: 1, scale: 1, rotate: 0 }}
-                animate={{ opacity: 0, scale: 1.25, rotate: 360 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
-              >
-                <div className="relative w-[52px] h-[52px] flex flex-col items-center justify-center">
-                  {/* Top Half slides UP */}
-                  <motion.img
-                    src="/assets/pokeball-top.png"
-                    alt="Pokeball Top"
-                    initial={{ y: 0, opacity: 1 }}
-                    animate={{ y: -50, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    className="w-[52px] h-[26px] object-contain select-none"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                  {/* Bottom Half slides DOWN */}
-                  <motion.img
-                    src="/assets/pokeball-bottom.png"
-                    alt="Pokeball Bottom"
-                    initial={{ y: 0, opacity: 1 }}
-                    animate={{ y: 50, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    className="w-[52px] h-[26px] object-contain select-none"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                  {/* Radiant Burst Flash */}
-                  <motion.div
-                    initial={{ scale: 0.2, opacity: 1 }}
-                    animate={{ scale: 3.5, opacity: 0 }}
-                    transition={{ duration: 0.24, ease: 'easeOut' }}
-                    className="absolute inset-0 rounded-full bg-radial from-white via-[#D21319] to-transparent pointer-events-none"
-                  />
-                </div>
-              </motion.div>
-
-              {/* The Popped-Out Navbar Content */}
-              <div className="flex items-center justify-between gap-4 relative z-20">
+              <div className="flex items-center justify-between gap-4">
                 
-                {/* Left: Serif Brandmark */}
-                <Link
-                  href="/"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    scrollToSection('home');
-                  }}
-                  className="flex items-center gap-2.5 group cursor-pointer shrink-0"
+                {/* BRANDMARK (Emerges Staggered) */}
+                <motion.div
+                  initial={{ opacity: 0, x: -12, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ duration: 0.2, delay: 0.22 }}
+                  className="shrink-0"
                 >
-                  <span className="w-2.5 h-2.5 bg-[#D21319] group-hover:scale-125 transition-transform rounded-xs shadow-xs" />
-                  <div className="flex flex-col">
-                    <span className="font-serif text-base sm:text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
-                      INDIGO TECH FEST
-                    </span>
-                    <span className="label-editorial text-[8px] text-[#AFAEA2] tracking-[0.25em] mt-0.5">
-                      JARVIS 3.0 · CODEX MMXXVI
-                    </span>
-                  </div>
-                </Link>
+                  <Link
+                    href="/"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      scrollToSection('home');
+                    }}
+                    className="flex items-center gap-2.5 group cursor-pointer"
+                  >
+                    <span className="w-2.5 h-2.5 bg-[#D21319] group-hover:scale-125 transition-transform rounded-xs shadow-xs" />
+                    <div className="flex flex-col">
+                      <span className="font-serif text-base sm:text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
+                        INDIGO TECH FEST
+                      </span>
+                      <span className="label-editorial text-[8px] text-[#AFAEA2] tracking-[0.25em] mt-0.5">
+                        JARVIS 3.0 · CODEX MMXXVI
+                      </span>
+                    </div>
+                  </Link>
+                </motion.div>
 
-                {/* Center Navigation Links */}
+                {/* CENTER NAVIGATION LINKS (Staggered 25ms each) */}
                 <nav className="hidden md:flex items-center gap-6">
-                  {navLinks.map((link) => {
+                  {navLinks.map((link, index) => {
                     const isActive = activeSection === link.id;
+                    const delay = 0.24 + index * 0.025;
+
                     if (link.href) {
                       return (
-                        <Link
+                        <motion.div
                           key={link.id}
-                          href={link.href}
-                          onClick={() => {
-                            setIsPinned(false);
-                            setIsHovered(false);
-                          }}
-                          className="relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap text-[#AFAEA2] hover:text-white"
+                          initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ duration: 0.18, delay }}
                         >
-                          {link.label}
-                        </Link>
+                          <Link
+                            href={link.href}
+                            onClick={() => handleCollapse()}
+                            className="relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap text-[#AFAEA2] hover:text-white"
+                          >
+                            {link.label}
+                          </Link>
+                        </motion.div>
                       );
                     }
+
                     return (
-                      <button
+                      <motion.div
                         key={link.id}
-                        onClick={() => scrollToSection(link.id)}
-                        className={`relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap ${
-                          isActive
-                            ? 'text-white font-bold'
-                            : 'text-[#AFAEA2] hover:text-white'
-                        }`}
+                        initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.18, delay }}
                       >
-                        {link.label}
-                        {isActive && (
-                          <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D21319] shadow-[0_0_8px_#D21319]" />
-                        )}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => scrollToSection(link.id)}
+                          className={`relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap ${
+                            isActive
+                              ? 'text-white font-bold'
+                              : 'text-[#AFAEA2] hover:text-white'
+                          }`}
+                        >
+                          {link.label}
+                          {isActive && (
+                            <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D21319] shadow-[0_0_8px_#D21319]" />
+                          )}
+                        </button>
+                      </motion.div>
                     );
                   })}
                 </nav>
 
-                {/* Right Action Triggers */}
-                <div className="flex items-center gap-2.5 shrink-0">
+                {/* RIGHT ACTION TRIGGERS */}
+                <motion.div
+                  initial={{ opacity: 0, x: 12, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ duration: 0.2, delay: 0.34 }}
+                  className="flex items-center gap-2.5 shrink-0"
+                >
                   {onReplayIntro && (
                     <button
+                      type="button"
                       onClick={onReplayIntro}
                       className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-[#E9E6DA] bg-black/40 hover:bg-[#D21319] hover:text-white border border-[#AFAEA2]/40 hover:border-[#D21319] rounded-lg transition-all cursor-pointer"
                       title="Play 1008.mp4 Intro Video"
                     >
-                      <span>▷ INTRO FILM</span>
+                      <Play size={11} className="fill-current" />
+                      <span>INTRO FILM</span>
                     </button>
                   )}
 
                   {!hasMaxEvents && (
                     <button
+                      type="button"
                       onClick={onRegisterClick}
                       className="px-4 py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-lg shadow-sm active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1.5"
                     >
@@ -329,11 +474,8 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
 
                   {/* Manual Close / Repack Button */}
                   <button
-                    onClick={() => {
-                      setIsPinned(false);
-                      setIsHovered(false);
-                      setMobileMenuOpen(false);
-                    }}
+                    type="button"
+                    onClick={handleCollapse}
                     className="p-1.5 text-[#AFAEA2] hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                     title="Close navigation back to Pokéball"
                   >
@@ -342,13 +484,14 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
 
                   {/* Mobile Menu Toggle Button */}
                   <button
+                    type="button"
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="md:hidden p-1.5 text-[#AFAEA2] hover:text-white border border-white/20 rounded-lg ml-0.5"
+                    className="md:hidden p-1.5 text-[#AFAEA2] hover:text-white border border-white/20 rounded-lg ml-0.5 cursor-pointer"
                     aria-label="Toggle Mobile Menu"
                   >
                     <ChevronRight size={16} className={mobileMenuOpen ? 'rotate-90 transition-transform' : ''} />
                   </button>
-                </div>
+                </motion.div>
 
               </div>
 
@@ -363,8 +506,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                           href={link.href}
                           onClick={() => {
                             setMobileMenuOpen(false);
-                            setIsPinned(false);
-                            setIsHovered(false);
+                            handleCollapse();
                           }}
                           className="block w-full text-left font-serif text-xs uppercase tracking-wider text-white py-1.5 border-b border-white/5"
                         >
@@ -375,8 +517,9 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                     return (
                       <button
                         key={link.id}
+                        type="button"
                         onClick={() => scrollToSection(link.id)}
-                        className="block w-full text-left font-serif text-xs uppercase tracking-wider text-white py-1.5 border-b border-white/5"
+                        className="block w-full text-left font-serif text-xs uppercase tracking-wider text-white py-1.5 border-b border-white/5 cursor-pointer"
                       >
                         {link.label}
                       </button>
@@ -385,13 +528,13 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                   <div className="pt-2 flex flex-col gap-2">
                     {onReplayIntro && (
                       <button
+                        type="button"
                         onClick={() => {
                           setMobileMenuOpen(false);
-                          setIsPinned(false);
-                          setIsHovered(false);
+                          handleCollapse();
                           onReplayIntro();
                         }}
-                        className="text-left font-mono text-xs text-amber-400 py-1"
+                        className="text-left font-mono text-xs text-amber-400 py-1 cursor-pointer"
                       >
                         [ ▷ PLAY INTRO FILM ]
                       </button>
@@ -400,8 +543,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                       href="/admin"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setIsPinned(false);
-                        setIsHovered(false);
+                        handleCollapse();
                       }}
                       className="text-left font-mono text-xs text-[#AFAEA2] py-1"
                     >
@@ -413,6 +555,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
 
     </header>
