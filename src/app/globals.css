@@ -605,3 +605,13 @@ select:-webkit-autofill {
     animation: none !important;
   }
 }
+
+/* Custom scrollbar utility for clean mobile scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

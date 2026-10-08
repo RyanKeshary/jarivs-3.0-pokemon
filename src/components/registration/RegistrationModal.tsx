@@ -455,18 +455,20 @@ export function RegistrationModal({
           </button>
         </div>
 
-        {/* COMPACT DISQUALIFICATION WARNING BANNER */}
-        <div className="relative mb-2 px-2.5 py-1.5 bg-red-50 border-2 border-[#D21319] flex items-center justify-between gap-2 text-xs flex-shrink-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base leading-none shrink-0">⚠️</span>
-            <span className="font-mono text-[11px] font-bold text-[#b91c1c] uppercase tracking-wide truncate">
-              STRICT RULE: MAX 2 EVENTS PER MEMBER
-            </span>
-            <span className="hidden sm:inline text-neutral-700 text-[10px] font-sans truncate">
-              (Disqualification if enrolled in &gt; 2 events)
-            </span>
+        {/* COMPACT DISQUALIFICATION WARNING BANNER - NO TRUNCATION */}
+        <div className="relative mb-2 px-2.5 py-1.5 bg-red-50 border-2 border-[#D21319] flex items-center justify-between gap-1.5 text-xs flex-shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className="text-sm leading-none shrink-0">⚠️</span>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 leading-tight">
+              <span className="font-mono text-[10px] sm:text-[11px] font-black text-[#b91c1c] uppercase tracking-tight whitespace-normal">
+                STRICT RULE: MAX 2 EVENTS PER MEMBER
+              </span>
+              <span className="hidden md:inline text-neutral-700 text-[9px] font-sans">
+                (Disqualification if enrolled in &gt; 2 events)
+              </span>
+            </div>
           </div>
-          <span className="text-[9px] font-mono font-bold bg-[#D21319] text-white px-1.5 py-0.5 shrink-0 border border-black">
+          <span className="text-[9px] font-mono font-black bg-[#D21319] text-white px-1.5 py-0.5 shrink-0 border border-black shadow-[1px_1px_0px_#000]">
             MAX 2
           </span>
         </div>
@@ -578,12 +580,12 @@ export function RegistrationModal({
           <div className="flex-1 overflow-y-auto space-y-2.5 pr-0.5">
             {/* 3-STEP PROGRESS STEPPER */}
             <div className="p-1 bg-[#EFECE6] border-2 border-black flex-shrink-0">
-              <div className="grid grid-cols-3 gap-1.5 text-center text-xs font-mono">
+              <div className="grid grid-cols-3 gap-1 text-center font-mono">
                 {/* Step 1 */}
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className={`py-1.5 px-1 border border-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-1.5 px-0.5 sm:px-1 border border-black flex items-center justify-center gap-1 transition cursor-pointer ${
                     currentStep === 1
                       ? 'bg-black text-white font-bold shadow-[1.5px_1.5px_0px_#000]'
                       : currentStep > 1
@@ -591,10 +593,10 @@ export function RegistrationModal({
                       : 'bg-white text-neutral-600'
                   }`}
                 >
-                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[9px] flex items-center justify-center text-white shrink-0 font-bold">
+                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[8.5px] flex items-center justify-center text-white shrink-0 font-bold">
                     {currentStep > 1 ? '✓' : '1'}
                   </span>
-                  <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
+                  <span className="text-[9.5px] sm:text-xs uppercase tracking-wider whitespace-nowrap">
                     1. Events
                   </span>
                 </button>
@@ -605,7 +607,7 @@ export function RegistrationModal({
                   onClick={() => {
                     if (validateStep1()) setCurrentStep(2);
                   }}
-                  className={`py-1.5 px-1 border border-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-1.5 px-0.5 sm:px-1 border border-black flex items-center justify-center gap-1 transition cursor-pointer ${
                     currentStep === 2
                       ? 'bg-black text-white font-bold shadow-[1.5px_1.5px_0px_#000]'
                       : currentStep > 2
@@ -613,11 +615,12 @@ export function RegistrationModal({
                       : 'bg-white text-neutral-600'
                   }`}
                 >
-                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[9px] flex items-center justify-center text-white shrink-0 font-bold">
+                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[8.5px] flex items-center justify-center text-white shrink-0 font-bold">
                     {currentStep > 2 ? '✓' : '2'}
                   </span>
-                  <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
-                    2. Personal
+                  <span className="text-[9.5px] sm:text-xs uppercase tracking-wider whitespace-nowrap">
+                    <span className="hidden xs:inline">2. Personal</span>
+                    <span className="xs:hidden">2. You</span>
                   </span>
                 </button>
 
@@ -627,16 +630,16 @@ export function RegistrationModal({
                   onClick={() => {
                     if (validateStep1() && validateStep2()) setCurrentStep(3);
                   }}
-                  className={`py-1.5 px-1 border border-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-1.5 px-0.5 sm:px-1 border border-black flex items-center justify-center gap-1 transition cursor-pointer ${
                     currentStep === 3
                       ? 'bg-black text-white font-bold shadow-[1.5px_1.5px_0px_#000]'
                       : 'bg-white text-neutral-600'
                   }`}
                 >
-                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[9px] flex items-center justify-center text-white shrink-0 font-bold">
+                  <span className="w-3.5 h-3.5 rounded-full bg-current text-[8.5px] flex items-center justify-center text-white shrink-0 font-bold">
                     3
                   </span>
-                  <span className="text-[10px] sm:text-xs uppercase tracking-wider truncate">
+                  <span className="text-[9.5px] sm:text-xs uppercase tracking-wider whitespace-nowrap">
                     3. Squad
                   </span>
                 </button>
@@ -717,19 +720,19 @@ export function RegistrationModal({
             {/* STEP 1: EVENT SELECTION (COMPACT FIT) */}
             {currentStep === 1 && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between pb-0.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1">
                   <div>
                     <h3 className="text-xs font-black uppercase font-sans text-black">
                       Step 1: Select Your Competitions
                     </h3>
-                    <p className="text-[10px] font-mono text-neutral-600">
+                    <p className="text-[10px] font-mono text-neutral-600 leading-tight">
                       Pick 1 or 2 disciplines only. Teams are allocated per discipline.
                     </p>
                   </div>
 
                   {/* Counter Badge */}
                   <span
-                    className={`text-[10px] font-mono px-2 py-0.5 border border-black shadow-[1.5px_1.5px_0px_#000] ${
+                    className={`self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 border border-black shadow-[1.5px_1.5px_0px_#000] shrink-0 ${
                       selectedEvents.length === 2
                         ? 'bg-[#D21319] text-white font-bold'
                         : selectedEvents.length === 1

@@ -25,6 +25,9 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = type;
@@ -57,14 +60,31 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }, 450);
   }, [isExiting, onComplete, playTacticalChime]);
 
+  const unmuteAndPlay = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.muted = false;
+    videoRef.current.volume = 1.0;
+    const playPromise = videoRef.current.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('Audio unmute retry:', err);
+      });
+    }
+    setSoundOn(true);
+    playTacticalChime(659.25, 'triangle');
+  }, [playTacticalChime]);
+
   const handleToggleSound = useCallback(() => {
     if (!videoRef.current) return;
     const nextSound = !soundOn;
-    videoRef.current.muted = !nextSound;
-    videoRef.current.volume = 1.0;
-    setSoundOn(nextSound);
-    playTacticalChime(nextSound ? 659.25 : 329.63);
-  }, [soundOn, playTacticalChime]);
+    if (nextSound) {
+      unmuteAndPlay();
+    } else {
+      videoRef.current.muted = true;
+      setSoundOn(false);
+      playTacticalChime(329.63, 'sine');
+    }
+  }, [soundOn, unmuteAndPlay, playTacticalChime]);
 
   const handleTogglePlay = useCallback(() => {
     if (!videoRef.current) return;
@@ -79,6 +99,37 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     feedbackTimeoutRef.current = setTimeout(() => setShowCenterFeedback(null), 800);
+  }, []);
+
+  // Screen click handler: on mobile, if muted, the first touch UNMUTES sound!
+  const handleScreenClick = () => {
+    if (!soundOn) {
+      unmuteAndPlay();
+      return;
+    }
+    handleTogglePlay();
+  };
+
+  // Attempt initial unmuted playback, fallback to muted if browser blocks
+  useEffect(() => {
+    if (!videoRef.current) return;
+    videoRef.current.volume = 1.0;
+    videoRef.current.muted = false;
+    const playPromise = videoRef.current.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setSoundOn(true);
+        })
+        .catch(() => {
+          // Autoplay policy prevented unmuted audio; start muted and wait for tap
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            videoRef.current.play().catch(() => {});
+          }
+          setSoundOn(false);
+        });
+    }
   }, []);
 
   // Keyboard navigation shortcuts
@@ -138,12 +189,14 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     >
       
       {/* 1. Cinematic Background Video Canvas */}
-      <div className="relative w-full h-full cursor-pointer" onClick={handleTogglePlay}>
+      <div className="relative w-full h-full cursor-pointer" onClick={handleScreenClick}>
         <video
           ref={videoRef}
           src="/media/intro-vid.mp4"
           autoPlay
           playsInline
+          {...({ 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
+          preload="auto"
           muted={!soundOn}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleTimeUpdate}
@@ -211,30 +264,58 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
         </AnimatePresence>
       </div>
 
+      {/* Center Tap-to-Unmute Prompt on Mobile/Muted */}
+      <AnimatePresence>
+        {!soundOn && (
+          <motion.div
+            initial={{ opacity: 0, y: 15, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              unmuteAndPlay();
+            }}
+            className="absolute bottom-16 sm:bottom-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5 px-4 py-2.5 bg-black/90 hover:bg-black border-2 border-[#D21319] text-white shadow-[0_0_30px_rgba(210,19,25,0.8)] backdrop-blur-xl rounded-full cursor-pointer group active:scale-95 transition-all select-none"
+          >
+            <Volume2 className="w-4 h-4 text-[#D21319] animate-bounce shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="font-mono text-[11px] sm:text-xs font-black uppercase tracking-wider text-white whitespace-nowrap">
+                TAP ANYWHERE FOR SOUND 🔊
+              </span>
+              <span className="font-mono text-[8.5px] sm:text-[9px] text-[#AFAEA2] whitespace-nowrap">
+                Tap anywhere to start festival audio
+              </span>
+            </div>
+            <span className="w-2 h-2 rounded-full bg-[#D21319] animate-ping ml-1 shrink-0" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 6. TOP CONTROL DOCK (Glassmorphic, Editorial, High-Tech) */}
-      <header className="absolute top-0 left-0 right-0 p-4 sm:p-6 sm:px-8 flex items-center justify-between z-30 pointer-events-auto">
+      <header className="absolute top-0 left-0 right-0 p-2.5 sm:p-6 sm:px-8 flex items-center justify-between z-30 pointer-events-auto">
         
         {/* Left: Festival Transmission Telemetry */}
-        <div className="flex items-center gap-3.5 bg-black/60 hover:bg-black/80 backdrop-blur-xl border border-white/20 p-2 sm:px-4 sm:py-2.5 shadow-[0_4px_25px_rgba(0,0,0,0.7)] transition-all">
+        <div className="flex items-center gap-2 sm:gap-3.5 bg-black/60 hover:bg-black/80 backdrop-blur-xl border border-white/20 p-1.5 sm:px-4 sm:py-2.5 shadow-[0_4px_25px_rgba(0,0,0,0.7)] transition-all">
           {/* Pulsing REC Indicator */}
-          <div className="flex items-center gap-1.5 pr-2.5 border-r border-white/20">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#D21319] shadow-[0_0_8px_#D21319] animate-pulse" />
-            <span className="font-mono text-[10px] font-bold tracking-wider text-red-500 uppercase">
+          <div className="flex items-center gap-1 sm:gap-1.5 pr-1.5 sm:pr-2.5 border-r border-white/20">
+            <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-[#D21319] shadow-[0_0_8px_#D21319] animate-pulse" />
+            <span className="font-mono text-[9px] sm:text-[10px] font-bold tracking-wider text-red-500 uppercase">
               REC
             </span>
           </div>
 
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                INDIGO TECH FEST
+            <div className="flex items-center gap-1.5">
+              <span className="font-serif text-[11px] sm:text-sm font-black uppercase tracking-wider text-white">
+                INDIGO FEST
               </span>
               <span className="hidden sm:inline font-mono text-[9px] text-[#AFAEA2] tracking-widest uppercase">
                 · JARVIS 3.0
               </span>
             </div>
-            <div className="flex items-center gap-2 text-[9px] font-mono text-[#AFAEA2]">
-              <span className="text-[#D21319] font-bold">PROLOGUE FEED</span>
+            <div className="flex items-center gap-1.5 text-[8.5px] sm:text-[9px] font-mono text-[#AFAEA2]">
+              <span className="text-[#D21319] font-bold">FEED</span>
               <span>·</span>
               <span className="tabular-nums tracking-widest">{formatTimecode(currentTime)}</span>
             </div>
@@ -242,7 +323,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
         </div>
 
         {/* Right: Master Control Actions */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           
           {/* Sound Toggle (Interactive Animated Equalizer) */}
           <button
@@ -250,32 +331,32 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
               e.stopPropagation();
               handleToggleSound();
             }}
-            className={`flex items-center gap-2.5 px-3.5 py-2 sm:px-4 sm:py-2.5 backdrop-blur-xl border transition-all cursor-pointer shadow-[0_4px_20px_rgba(0,0,0,0.5)] ${
+            className={`flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1.5 sm:px-4 sm:py-2.5 backdrop-blur-xl border transition-all cursor-pointer shadow-[0_4px_20px_rgba(0,0,0,0.5)] ${
               soundOn
                 ? 'bg-black/75 hover:bg-black/90 border-[#D21319]/80 text-white shadow-[0_0_15px_rgba(210,19,25,0.3)]'
-                : 'bg-black/60 hover:bg-black/80 border-white/20 text-[#E9E6DA] hover:border-white/40'
+                : 'bg-black/70 hover:bg-black/90 border-amber-500/60 text-[#FFCB05] shadow-[0_0_12px_rgba(255,203,5,0.3)]'
             }`}
             title="Toggle Audio (Hotkey: M)"
           >
             {soundOn ? (
               <>
-                <Volume2 className="w-4 h-4 text-[#D21319]" />
+                <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D21319]" />
                 {/* Dancing Equalizer Frequency Bars */}
-                <div className="flex items-end gap-0.5 h-3.5 w-4">
+                <div className="flex items-end gap-0.5 h-3.5 w-3.5 sm:w-4">
                   <span className="w-0.5 bg-[#D21319] animate-[bounce_0.6s_ease-in-out_infinite]" style={{ height: '70%' }} />
                   <span className="w-0.5 bg-[#D21319] animate-[bounce_0.4s_ease-in-out_infinite]" style={{ height: '100%', animationDelay: '-0.2s' }} />
                   <span className="w-0.5 bg-[#D21319] animate-[bounce_0.7s_ease-in-out_infinite]" style={{ height: '50%', animationDelay: '-0.4s' }} />
                   <span className="w-0.5 bg-[#D21319] animate-[bounce_0.5s_ease-in-out_infinite]" style={{ height: '85%', animationDelay: '-0.1s' }} />
                 </div>
-                <span className="font-mono text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
-                  SOUND ACTIVE
+                <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider hidden xs:inline">
+                  SOUND ON
                 </span>
               </>
             ) : (
               <>
-                <VolumeX className="w-4 h-4 text-[#AFAEA2]" />
-                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#AFAEA2]">
-                  UNMUTE
+                <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FFCB05]" />
+                <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#FFCB05]">
+                  UNMUTE 🔊
                 </span>
               </>
             )}
@@ -290,12 +371,12 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
               e.stopPropagation();
               handleFinishOrSkip();
             }}
-            className="group relative flex items-center gap-2.5 sm:gap-3 pl-3.5 pr-4 py-2 sm:py-2.5 bg-gradient-to-r from-[#D21319] via-[#b91c1c] to-[#991b1b] hover:from-[#e11d48] hover:to-[#D21319] text-white font-sans font-bold text-xs uppercase tracking-wider border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-[5px_5px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] transition-all cursor-pointer"
+            className="group relative flex items-center gap-1.5 sm:gap-3 px-2.5 py-1.5 sm:pl-3.5 sm:pr-4 sm:py-2.5 bg-gradient-to-r from-[#D21319] via-[#b91c1c] to-[#991b1b] hover:from-[#e11d48] hover:to-[#D21319] text-white font-sans font-bold text-[10px] sm:text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#000] sm:shadow-[4px_4px_0px_#000] hover:shadow-[5px_5px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer"
             title="Skip Prologue (Hotkey: ESC or SPACE)"
           >
             {/* Circular Progress Ring */}
-            <div className="relative w-6 h-6 flex items-center justify-center">
-              <svg className="w-6 h-6 -rotate-90" viewBox="0 0 28 28">
+            <div className="relative w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 -rotate-90" viewBox="0 0 28 28">
                 {/* Background Track */}
                 <circle
                   cx="14"
@@ -322,9 +403,9 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
               <FastForward className="w-2.5 h-2.5 text-white absolute" />
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <span className="font-black tracking-widest text-[11px] sm:text-xs">
-                SKIP INTRO
+            <div className="flex items-center gap-1">
+              <span className="font-black tracking-widest text-[10px] sm:text-xs">
+                SKIP
               </span>
               <span className="text-white group-hover:translate-x-1 transition-transform">
                 →
