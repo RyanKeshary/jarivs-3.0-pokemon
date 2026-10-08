@@ -55,7 +55,7 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
   };
 
   return (
-    <section id="faq" className="relative w-full py-10 sm:py-14 bg-white/30 backdrop-blur-sm select-none border-b border-black/10">
+    <section id="faq" className="relative w-full py-10 sm:py-14 bg-[#dcecfe]/45 backdrop-blur-sm select-none border-b border-black/10">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         
         {/* Curatorial Header */}

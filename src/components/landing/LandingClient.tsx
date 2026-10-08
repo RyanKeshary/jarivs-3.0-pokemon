@@ -60,7 +60,8 @@ export function LandingClient({ settings }: LandingClientProps) {
           const progress = Math.min(1, Math.max(0, (sy - 20) / 300));
           if (overlayEl) {
             overlayEl.style.opacity = String(progress);
-            overlayEl.style.backgroundColor = `rgba(246, 247, 250, ${progress * 0.72})`;
+            // Elegant cool bluish wash (soft indigo/azure tint) instead of washed-out white
+            overlayEl.style.backgroundColor = `rgba(202, 224, 250, ${progress * 0.78})`;
             overlayEl.style.backdropFilter = progress > 0.05 ? `blur(${progress * 7}px)` : 'none';
             (overlayEl.style as any).webkitBackdropFilter = progress > 0.05 ? `blur(${progress * 7}px)` : 'none';
           }
@@ -108,13 +109,13 @@ export function LandingClient({ settings }: LandingClientProps) {
         </div>
       </div>
 
-      {/* 2. SCROLL-DRIVEN TRANSLUCENT WHITE OVERSHADOWING SCREEN WITH BLUR */}
+      {/* 2. SCROLL-DRIVEN TRANSLUCENT COOL BLUISH OVERSHADOWING SCREEN WITH BLUR */}
       <div
         id="scroll-blur-overlay"
         className="fixed inset-0 z-[1] pointer-events-none transition-all duration-150"
         style={{
           opacity: 0,
-          backgroundColor: 'rgba(255, 255, 255, 0)',
+          backgroundColor: 'rgba(202, 224, 250, 0)',
           backdropFilter: 'none',
           WebkitBackdropFilter: 'none',
         }}

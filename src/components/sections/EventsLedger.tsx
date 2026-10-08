@@ -270,7 +270,7 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
   const [activeModalEvent, setActiveModalEvent] = useState<FestEventItem | null>(null);
 
   return (
-    <section id="events" className="relative w-full py-20 sm:py-28 bg-white/30 backdrop-blur-sm select-none border-b border-black/10">
+    <section id="events" className="relative w-full py-20 sm:py-28 bg-[#dcecfe]/45 backdrop-blur-sm select-none border-b border-black/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         
         {/* Curatorial Header */}
