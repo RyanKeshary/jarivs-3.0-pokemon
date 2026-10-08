@@ -292,48 +292,31 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
           </div>
         </div>
 
-        {/* NAVIGATION TABS (LIGHT EDITORIAL - NO SCROLLBAR ARROWS) */}
-        <div className="flex border-b-2 border-black bg-[#EFECE6] px-3 sm:px-4 gap-1 flex-shrink-0 overflow-x-auto text-xs font-mono scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            onClick={() => setActiveTab('rules')}
-            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
-              activeTab === 'rules'
-                ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
-                : 'border-transparent text-neutral-600 hover:text-black'
-            }`}
-          >
-            📜 Rules & Protocol
-          </button>
-          <button
-            onClick={() => setActiveTab('rounds')}
-            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
-              activeTab === 'rounds'
-                ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
-                : 'border-transparent text-neutral-600 hover:text-black'
-            }`}
-          >
-            ⚡ Rounds & Stages
-          </button>
-          <button
-            onClick={() => setActiveTab('prizes')}
-            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
-              activeTab === 'prizes'
-                ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
-                : 'border-transparent text-neutral-600 hover:text-black'
-            }`}
-          >
-            🏆 Prize Laurels
-          </button>
-          <button
-            onClick={() => setActiveTab('judging')}
-            className={`py-2 px-3 font-bold border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
-              activeTab === 'judging'
-                ? 'border-black text-black bg-white -mb-[2px] border-t border-x'
-                : 'border-transparent text-neutral-600 hover:text-black'
-            }`}
-          >
-            ⚖️ Adjudication
-          </button>
+        {/* RESPONSIVE NAVIGATION TABS (SEGMENTED GRID - NO HORIZONTAL SCROLL) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-2 sm:p-2.5 border-b-2 border-black bg-[#EFECE6] flex-shrink-0 font-mono text-xs">
+          {[
+            { id: 'rules' as const, label: 'Rules & Protocol', icon: '📜' },
+            { id: 'rounds' as const, label: 'Rounds & Stages', icon: '⚡' },
+            { id: 'prizes' as const, label: 'Prize Laurels', icon: '🏆' },
+            { id: 'judging' as const, label: 'Adjudication', icon: '⚖️' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-2 px-2 rounded-xs border font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center text-[11px] sm:text-xs select-none active:scale-[0.98] ${
+                  isActive
+                    ? 'bg-white text-black border-black shadow-[2px_2px_0px_#000] -translate-x-[0.5px] -translate-y-[0.5px]'
+                    : 'bg-[#FAF8F5] text-neutral-600 border-neutral-300 hover:text-black hover:border-black/50 hover:bg-white'
+                }`}
+              >
+                <span className="text-sm shrink-0">{tab.icon}</span>
+                <span className="truncate">{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* TAB CONTENT (LIGHT THEME) */}
