@@ -207,9 +207,9 @@ export async function getAdminData(userOverride?: any) {
     sql`SELECT * FROM public.event_settings WHERE id = 1`,
     isMaster ? sql`SELECT * FROM public.master_allowlist ORDER BY created_at DESC` : Promise.resolve([]),
     sql`
-      SELECT id, trainer_id, full_name, email, role, created_at 
+      SELECT id, trainer_id, full_name, email, role::text as role, created_at 
       FROM public.profiles 
-      WHERE role = 'admin' OR role = 'master'
+      WHERE role::text = 'admin' OR role::text = 'master'
       ORDER BY created_at ASC
     `,
     sql`SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 100`,
@@ -405,7 +405,7 @@ export async function demoteAdmin(targetId: string) {
   await sql`
     UPDATE public.profiles
     SET role = 'participant', updated_at = NOW()
-    WHERE id = ${targetId} AND role = 'admin'
+    WHERE id = ${targetId} AND role::text = 'admin'
   `;
 
   await logAudit(user.id, user.email || '', 'DEMOTE_ADMIN', 'profiles', targetId);
@@ -855,15 +855,15 @@ export async function getFestAdminData(userOverride?: any) {
     sql`SELECT * FROM public.fest_announcements ORDER BY created_at DESC`,
     sql`SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 50`,
     sql`
-      SELECT id, email, full_name, role, created_at
+      SELECT id, email, full_name, role::text as role, created_at
       FROM public.profiles
-      WHERE role IN ('admin', 'manager', 'master') OR LOWER(email) IN ('ryankeshary@gmail.com', 'shrey.sleeps@gmail.com')
+      WHERE role::text IN ('admin', 'manager', 'master') OR LOWER(email) IN ('ryankeshary@gmail.com', 'shrey.sleeps@gmail.com')
       ORDER BY created_at ASC
     `,
     sql`
-      SELECT id, email, full_name, role, created_at
+      SELECT id, email, full_name, role::text as role, created_at
       FROM public.profiles
-      WHERE role = 'coordinator'
+      WHERE role::text = 'coordinator'
       ORDER BY created_at DESC
     `,
   ]);
