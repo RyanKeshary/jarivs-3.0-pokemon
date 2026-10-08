@@ -34,10 +34,12 @@ export function RegistrationModal({
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [college, setCollege] = useState('');
+  const [college, setCollege] = useState('SLRTCE Mumbai');
   const [department, setDepartment] = useState('');
   const [yearOfStudy, setYearOfStudy] = useState('3rd Year (TE)');
-  const [collegeId, setCollegeId] = useState('');
+  const [division, setDivision] = useState('');
+  const [rollNo, setRollNo] = useState('');
+  const [referenceId, setReferenceId] = useState('');
 
   // Step 3: Squad Details
   const [teamName, setTeamName] = useState('');
@@ -82,6 +84,9 @@ export function RegistrationModal({
         if (parsed.college) setCollege(parsed.college);
         if (parsed.department) setDepartment(parsed.department);
         if (parsed.yearOfStudy) setYearOfStudy(parsed.yearOfStudy);
+        if (parsed.division) setDivision(parsed.division);
+        if (parsed.rollNo) setRollNo(parsed.rollNo);
+        if (parsed.referenceId) setReferenceId(parsed.referenceId);
         if (parsed.teamName) setTeamName(parsed.teamName);
         if (parsed.fullName || parsed.email) setDraftRestored(true);
       }
@@ -102,13 +107,16 @@ export function RegistrationModal({
           college,
           department,
           yearOfStudy,
+          division,
+          rollNo,
+          referenceId,
           teamName,
         })
       );
     } catch {
       // ignore
     }
-  }, [fullName, email, phone, college, department, yearOfStudy, teamName]);
+  }, [fullName, email, phone, college, department, yearOfStudy, division, rollNo, referenceId, teamName]);
 
   // Preselection & Join Code handling
   useEffect(() => {
@@ -207,14 +215,19 @@ export function RegistrationModal({
       setStepError('Please enter your full name.');
       return false;
     }
+    const emailTrimmed = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim() || !emailRegex.test(email.trim())) {
+    if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
       setStepError('Please enter a valid email address.');
       return false;
     }
-    const cleanPhone = phone.trim().replace(/[^0-9+]/g, '');
-    if (cleanPhone.length < 10) {
-      setStepError('Please enter a valid 10-digit phone or WhatsApp number.');
+    if (!emailTrimmed.endsWith('@slrtce.in')) {
+      setStepError('Only official SLRTCE institutional email addresses (@slrtce.in) are allowed.');
+      return false;
+    }
+    const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setStepError('Please enter a valid 10-digit WhatsApp/phone number (numbers only).');
       return false;
     }
     if (!college.trim()) {
@@ -223,6 +236,18 @@ export function RegistrationModal({
     }
     if (!department.trim()) {
       setStepError('Please specify your department or engineering branch.');
+      return false;
+    }
+    if (!division.trim()) {
+      setStepError('Please specify your division (e.g. A, B, C).');
+      return false;
+    }
+    if (!rollNo.trim()) {
+      setStepError('Please specify your roll number.');
+      return false;
+    }
+    if (!referenceId.trim()) {
+      setStepError('Please enter your Reference ID from your college ID card.');
       return false;
     }
     setStepError(null);
@@ -291,13 +316,16 @@ export function RegistrationModal({
           teamName: finalTeamName,
           eventIds: selectedEvents,
           leader: {
-            fullName,
-            email,
-            phone,
-            college,
-            department,
-            yearOfStudy,
-            collegeId,
+            fullName: fullName.trim(),
+            email: email.trim().toLowerCase(),
+            phone: phone.trim().replace(/\D/g, '').slice(0, 10),
+            college: college.trim(),
+            department: department.trim(),
+            yearOfStudy: yearOfStudy.trim(),
+            division: division.trim().toUpperCase(),
+            rollNo: rollNo.trim(),
+            referenceId: referenceId.trim(),
+            collegeId: referenceId.trim(),
           },
           honeypot,
         });
@@ -333,13 +361,16 @@ export function RegistrationModal({
         const res = await joinFestTeam({
           code: joinCodeInput.trim(),
           member: {
-            fullName,
-            email,
-            phone,
-            college,
-            department,
-            yearOfStudy,
-            collegeId,
+            fullName: fullName.trim(),
+            email: email.trim().toLowerCase(),
+            phone: phone.trim().replace(/\D/g, '').slice(0, 10),
+            college: college.trim(),
+            department: department.trim(),
+            yearOfStudy: yearOfStudy.trim(),
+            division: division.trim().toUpperCase(),
+            rollNo: rollNo.trim(),
+            referenceId: referenceId.trim(),
+            collegeId: referenceId.trim(),
           },
           honeypot,
         });
@@ -831,30 +862,39 @@ export function RegistrationModal({
 
                   <div>
                     <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
-                      Email Address <span className="text-[#D21319]">*</span>
+                      SLRTCE Email ID <span className="text-[#D21319]">*</span>
                     </label>
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. ada@slrtce.in"
+                      placeholder="e.g. yourname.dept25@slrtce.in"
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
                     />
+                    <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
+                      Must end with @slrtce.in
+                    </span>
                   </div>
 
                   <div>
                     <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
-                      Phone / WhatsApp Number <span className="text-[#D21319]">*</span>
+                      WhatsApp Number <span className="text-[#D21319]">*</span>
                     </label>
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
                       required
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 98200 00000"
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="e.g. 9876543210 (10 digits)"
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
                     />
+                    <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
+                      Numbers only (10 digits)
+                    </span>
                   </div>
 
                   <div>
@@ -902,17 +942,49 @@ export function RegistrationModal({
                     </select>
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
-                      Roll No. / College ID (Optional)
+                      Division <span className="text-[#D21319]">*</span>
                     </label>
                     <input
                       type="text"
-                      value={collegeId}
-                      onChange={(e) => setCollegeId(e.target.value)}
-                      placeholder="e.g. SLRTCE/2026/CS/042"
+                      required
+                      value={division}
+                      onChange={(e) => setDivision(e.target.value.toUpperCase())}
+                      placeholder="e.g. A / B / C"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans uppercase"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Roll No. <span className="text-[#D21319]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={rollNo}
+                      onChange={(e) => setRollNo(e.target.value)}
+                      placeholder="e.g. 42"
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
                     />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
+                      Reference ID (from your ID card) <span className="text-[#D21319]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={referenceId}
+                      onChange={(e) => setReferenceId(e.target.value)}
+                      placeholder="e.g. Reference ID printed on your college ID card"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                    />
+                    <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
+                      Mandatory · Enter the reference ID as printed on your SLRTCE ID card
+                    </span>
                   </div>
                 </div>
 

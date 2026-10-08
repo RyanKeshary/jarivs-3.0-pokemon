@@ -23,6 +23,9 @@ export interface ParticipantInput {
   department: string;
   yearOfStudy: string;
   collegeId?: string;
+  division?: string;
+  rollNo?: string;
+  referenceId?: string;
 }
 
 export interface CreateTeamPayload {
@@ -54,17 +57,34 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       throw new Error('Disqualification Rule: A participant or squad can participate in a maximum of 2 events.');
     }
 
-    // Email & Phone sanitization
+    // Email sanitization & strict SLRTCE domain restriction
     const email = leader.email.trim().toLowerCase();
-    const phone = leader.phone.trim().replace(/[^0-9+]/g, '');
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       throw new Error('Please enter a valid email address.');
     }
+    if (!email.endsWith('@slrtce.in')) {
+      throw new Error('Only official SLRTCE institutional email addresses (@slrtce.in) are permitted.');
+    }
 
-    if (phone.length < 10) {
-      throw new Error('Please enter a valid contact phone or WhatsApp number.');
+    // Phone / WhatsApp: strictly digits only, exactly 10 digits
+    const phone = leader.phone.trim().replace(/\D/g, '');
+    if (phone.length !== 10) {
+      throw new Error('Please enter a valid 10-digit WhatsApp/phone number (numbers only).');
+    }
+
+    // Reference ID from ID Card, Division, Roll No are mandatory
+    const referenceId = (leader.referenceId || leader.collegeId || '').trim();
+    if (!referenceId) {
+      throw new Error('Reference ID (from your ID card) is required.');
+    }
+    const division = (leader.division || '').trim().toUpperCase();
+    if (!division) {
+      throw new Error('Division is required.');
+    }
+    const rollNo = (leader.rollNo || '').trim();
+    if (!rollNo) {
+      throw new Error('Roll Number is required.');
     }
 
     // 1. Strict duplicate account check: prevent registering twice with the same email
@@ -155,6 +175,9 @@ export async function createFestTeam(payload: CreateTeamPayload) {
         department,
         year_of_study,
         college_id,
+        reference_id,
+        division,
+        roll_no,
         status
       ) VALUES (
         ${newTeam.id},
@@ -166,7 +189,10 @@ export async function createFestTeam(payload: CreateTeamPayload) {
         ${leader.college.trim()},
         ${leader.department.trim()},
         ${leader.yearOfStudy.trim()},
-        ${leader.collegeId ? leader.collegeId.trim() : null},
+        ${referenceId},
+        ${referenceId},
+        ${division},
+        ${rollNo},
         'Confirmed'
       );
     `;
@@ -313,14 +339,30 @@ export async function joinFestTeam(payload: {
 
     const member = payload.member;
     const email = member.email.trim().toLowerCase();
-    const phone = member.phone.trim().replace(/[^0-9+]/g, '');
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       throw new Error('Please enter a valid email address.');
     }
-    if (phone.length < 10) {
-      throw new Error('Please enter a valid phone or WhatsApp number.');
+    if (!email.endsWith('@slrtce.in')) {
+      throw new Error('Only official SLRTCE institutional email addresses (@slrtce.in) are permitted.');
+    }
+
+    const phone = member.phone.trim().replace(/\D/g, '');
+    if (phone.length !== 10) {
+      throw new Error('Please enter a valid 10-digit WhatsApp/phone number (numbers only).');
+    }
+
+    const referenceId = (member.referenceId || member.collegeId || '').trim();
+    if (!referenceId) {
+      throw new Error('Reference ID (from your ID card) is required.');
+    }
+    const division = (member.division || '').trim().toUpperCase();
+    if (!division) {
+      throw new Error('Division is required.');
+    }
+    const rollNo = (member.rollNo || '').trim();
+    if (!rollNo) {
+      throw new Error('Roll Number is required.');
     }
 
     // 1. Strict duplicate account check: prevent registering twice with the same email
@@ -396,6 +438,9 @@ export async function joinFestTeam(payload: {
         department,
         year_of_study,
         college_id,
+        reference_id,
+        division,
+        roll_no,
         status
       ) VALUES (
         ${team.id},
@@ -407,7 +452,10 @@ export async function joinFestTeam(payload: {
         ${member.college.trim()},
         ${member.department.trim()},
         ${member.yearOfStudy.trim()},
-        ${member.collegeId ? member.collegeId.trim() : null},
+        ${referenceId},
+        ${referenceId},
+        ${division},
+        ${rollNo},
         'Confirmed'
       );
     `;

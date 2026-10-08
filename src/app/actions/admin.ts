@@ -686,9 +686,13 @@ export async function adminUpdateParticipantDetails(id: string, data: {
   department: string;
   yearOfStudy: string;
   collegeId?: string;
+  division?: string;
+  rollNo?: string;
+  referenceId?: string;
   status: string;
 }) {
   const { user } = await requireAdmin();
+  const refId = data.referenceId || data.collegeId || null;
   await sql`
     UPDATE public.fest_registrations
     SET 
@@ -698,7 +702,10 @@ export async function adminUpdateParticipantDetails(id: string, data: {
       college = ${data.college.trim()},
       department = ${data.department.trim()},
       year_of_study = ${data.yearOfStudy.trim()},
-      college_id = ${data.collegeId ? data.collegeId.trim() : null},
+      college_id = ${refId ? refId.trim() : null},
+      reference_id = ${refId ? refId.trim() : null},
+      division = ${data.division ? data.division.trim().toUpperCase() : null},
+      roll_no = ${data.rollNo ? data.rollNo.trim() : null},
       status = ${data.status}
     WHERE id = ${id}
   `;
@@ -726,6 +733,9 @@ export async function adminCreateManualParticipant(data: {
   department: string;
   yearOfStudy: string;
   collegeId?: string;
+  division?: string;
+  rollNo?: string;
+  referenceId?: string;
   status: string;
 }) {
   const { user } = await requireAdmin();
@@ -762,14 +772,18 @@ export async function adminCreateManualParticipant(data: {
 
   const teamIdToInsert = targetTeamId || '';
   const teamCodeToInsert = targetTeamCode || 'ON-SPOT';
+  const refId = data.referenceId || data.collegeId || null;
 
   await sql`
     INSERT INTO public.fest_registrations (
-      team_id, team_code, is_leader, full_name, email, phone, college, department, year_of_study, college_id, status
+      team_id, team_code, is_leader, full_name, email, phone, college, department, year_of_study, college_id, reference_id, division, roll_no, status
     ) VALUES (
       ${teamIdToInsert}, ${teamCodeToInsert}, ${Boolean(data.isLeader)}, ${data.fullName.trim()}, ${data.email.trim().toLowerCase()},
       ${data.phone.trim()}, ${data.college.trim()}, ${data.department.trim()}, ${data.yearOfStudy.trim()},
-      ${data.collegeId || null}, ${data.status || 'Confirmed'}
+      ${refId ? refId.trim() : null}, ${refId ? refId.trim() : null},
+      ${data.division ? data.division.trim().toUpperCase() : null},
+      ${data.rollNo ? data.rollNo.trim() : null},
+      ${data.status || 'Confirmed'}
     )
   `;
 

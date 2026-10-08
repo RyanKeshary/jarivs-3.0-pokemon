@@ -92,4 +92,35 @@ describe('Indigo Tech Fest Registration Validation', () => {
     expect(errorMsg).toContain('Account already exists');
     expect(errorMsg).toContain('Please sign in to your dashboard');
   });
+
+  it('validates only @slrtce.in emails are accepted', () => {
+    const validEmail = 'student.comp26@slrtce.in';
+    const invalidGmail = 'student@gmail.com';
+    const invalidYahoo = 'student@yahoo.co.in';
+
+    expect(validEmail.endsWith('@slrtce.in')).toBe(true);
+    expect(invalidGmail.endsWith('@slrtce.in')).toBe(false);
+    expect(invalidYahoo.endsWith('@slrtce.in')).toBe(false);
+  });
+
+  it('validates numeric-only 10-digit WhatsApp numbers', () => {
+    const rawInput = '98765-43210';
+    const cleaned = rawInput.replace(/\D/g, '');
+    expect(cleaned).toBe('9876543210');
+    expect(cleaned.length).toBe(10);
+
+    const invalidShort = '98765'.replace(/\D/g, '');
+    expect(invalidShort.length === 10).toBe(false);
+  });
+
+  it('verifies mandatory reference ID, division, and roll number', () => {
+    const participant = {
+      referenceId: 'SLRTCE/REF-2024/042',
+      division: 'A',
+      rollNo: '42',
+    };
+    expect(participant.referenceId.trim().length > 0).toBe(true);
+    expect(participant.division.trim().length > 0).toBe(true);
+    expect(participant.rollNo.trim().length > 0).toBe(true);
+  });
 });

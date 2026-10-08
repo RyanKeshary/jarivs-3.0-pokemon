@@ -22,10 +22,12 @@ export default function JoinTeamPage({
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [college, setCollege] = useState('');
+  const [college, setCollege] = useState('SLRTCE Mumbai');
   const [department, setDepartment] = useState('');
-  const [yearOfStudy, setYearOfStudy] = useState('3rd Year');
-  const [collegeId, setCollegeId] = useState('');
+  const [yearOfStudy, setYearOfStudy] = useState('3rd Year (TE)');
+  const [division, setDivision] = useState('');
+  const [rollNo, setRollNo] = useState('');
+  const [referenceId, setReferenceId] = useState('');
   const [honeypot, setHoneypot] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -48,19 +50,50 @@ export default function JoinTeamPage({
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
     setErrorMsg(null);
+
+    const emailTrimmed = email.trim().toLowerCase();
+    if (!emailTrimmed.endsWith('@slrtce.in')) {
+      setErrorMsg('Only official SLRTCE institutional email addresses (@slrtce.in) are permitted.');
+      return;
+    }
+
+    const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setErrorMsg('Please enter a valid 10-digit WhatsApp/phone number (numbers only).');
+      return;
+    }
+
+    if (!division.trim()) {
+      setErrorMsg('Please specify your division (e.g. A, B, C).');
+      return;
+    }
+
+    if (!rollNo.trim()) {
+      setErrorMsg('Please specify your roll number.');
+      return;
+    }
+
+    if (!referenceId.trim()) {
+      setErrorMsg('Please enter your Reference ID from your college ID card.');
+      return;
+    }
+
+    setSubmitting(true);
 
     const res = await joinFestTeam({
       code,
       member: {
-        fullName,
-        email,
-        phone,
-        college,
-        department,
-        yearOfStudy,
-        collegeId,
+        fullName: fullName.trim(),
+        email: emailTrimmed,
+        phone: cleanPhone,
+        college: college.trim(),
+        department: department.trim(),
+        yearOfStudy: yearOfStudy.trim(),
+        division: division.trim().toUpperCase(),
+        rollNo: rollNo.trim(),
+        referenceId: referenceId.trim(),
+        collegeId: referenceId.trim(),
       },
       honeypot,
     });
@@ -164,31 +197,40 @@ export default function JoinTeamPage({
                   </div>
 
                   <div>
-                    <label className="label-editorial text-[8px] block mb-1">EMAIL ADDRESS</label>
+                    <label className="label-editorial text-[8px] block mb-1">SLRTCE EMAIL ADDRESS *</label>
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="jane@slrtce.in"
+                      placeholder="jane.dept25@slrtce.in"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
+                    <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
+                      Must end with @slrtce.in
+                    </span>
                   </div>
 
                   <div>
-                    <label className="label-editorial text-[8px] block mb-1">PHONE / WHATSAPP</label>
+                    <label className="label-editorial text-[8px] block mb-1">WHATSAPP NUMBER *</label>
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
                       required
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 98200 00000"
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="9876543210 (10 digits)"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
+                    <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
+                      Digits only · 10 digits
+                    </span>
                   </div>
 
                   <div>
-                    <label className="label-editorial text-[8px] block mb-1">COLLEGE / INSTITUTION</label>
+                    <label className="label-editorial text-[8px] block mb-1">COLLEGE / INSTITUTION *</label>
                     <input
                       type="text"
                       required
@@ -200,7 +242,7 @@ export default function JoinTeamPage({
                   </div>
 
                   <div>
-                    <label className="label-editorial text-[8px] block mb-1">DEPARTMENT / BRANCH</label>
+                    <label className="label-editorial text-[8px] block mb-1">DEPARTMENT / BRANCH *</label>
                     <input
                       type="text"
                       required
@@ -212,29 +254,57 @@ export default function JoinTeamPage({
                   </div>
 
                   <div>
-                    <label className="label-editorial text-[8px] block mb-1">YEAR OF STUDY</label>
+                    <label className="label-editorial text-[8px] block mb-1">YEAR OF STUDY *</label>
                     <select
                       value={yearOfStudy}
                       onChange={(e) => setYearOfStudy(e.target.value)}
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     >
-                      <option value="1st Year">1st Year (FE)</option>
-                      <option value="2nd Year">2nd Year (SE)</option>
-                      <option value="3rd Year">3rd Year (TE)</option>
-                      <option value="4th Year">4th Year (BE)</option>
+                      <option value="1st Year (FE)">1st Year (FE)</option>
+                      <option value="2nd Year (SE)">2nd Year (SE)</option>
+                      <option value="3rd Year (TE)">3rd Year (TE)</option>
+                      <option value="4th Year (BE)">4th Year (BE)</option>
                       <option value="Postgraduate">Postgraduate</option>
                     </select>
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="label-editorial text-[8px] block mb-1">COLLEGE ID / ROLL NO (OPTIONAL)</label>
+                  <div>
+                    <label className="label-editorial text-[8px] block mb-1">DIVISION *</label>
                     <input
                       type="text"
-                      value={collegeId}
-                      onChange={(e) => setCollegeId(e.target.value)}
-                      placeholder="e.g. SLRTCE/2026/088"
+                      required
+                      value={division}
+                      onChange={(e) => setDivision(e.target.value.toUpperCase())}
+                      placeholder="e.g. A / B / C"
+                      className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none uppercase"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label-editorial text-[8px] block mb-1">ROLL NO. *</label>
+                    <input
+                      type="text"
+                      required
+                      value={rollNo}
+                      onChange={(e) => setRollNo(e.target.value)}
+                      placeholder="e.g. 42"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="label-editorial text-[8px] block mb-1">REFERENCE ID (FROM YOUR ID CARD) *</label>
+                    <input
+                      type="text"
+                      required
+                      value={referenceId}
+                      onChange={(e) => setReferenceId(e.target.value)}
+                      placeholder="e.g. Reference ID printed on your college ID card"
+                      className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
+                    />
+                    <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
+                      Mandatory · Enter the reference ID as printed on your SLRTCE ID card
+                    </span>
                   </div>
                 </div>
 
