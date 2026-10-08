@@ -11,7 +11,7 @@ const FAQS = [
   },
   {
     q: 'How does progression work for two-day disciplines?',
-    a: 'Competitions including Quiz-tle, Build-asor, and Cad-Mander span both 16 Oct (Day 1) and 17 Oct (Day 2). Enlisting once covers the entire tournament arc. Candidates advancing to Day 2 stages are automatically seeded into the adjudication registry.'
+    a: 'Competitions including Quiz-tle, Builda-saur, and Cad-Mander span both 16 Oct (Day 1) and 17 Oct (Day 2). Enlisting once covers the entire tournament arc. Candidates advancing to Day 2 stages are automatically seeded into the adjudication registry.'
   },
   {
     q: 'Is there an entry fee or registration tariff?',
@@ -55,36 +55,37 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
   };
 
   return (
-    <section id="faq" className="relative w-full py-20 sm:py-28 bg-white/30 backdrop-blur-sm select-none border-b border-black/10">
+    <section id="faq" className="relative w-full py-10 sm:py-14 bg-white/30 backdrop-blur-sm select-none border-b border-black/10">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         
         {/* Curatorial Header */}
-        <div className="border-b border-black/20 pb-5 mb-8">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="border-b border-black/20 pb-3 mb-5">
+          <div className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 bg-[#D21319]" />
-            <span className="font-mono text-xs font-bold tracking-wider text-neutral-600 uppercase">
+            <span className="font-mono text-[11px] font-bold tracking-wider text-neutral-600 uppercase">
               QUAESTIONES FREQUENTES · PLATE VI
             </span>
           </div>
-          <h2 className="font-sans text-3xl sm:text-5xl text-black uppercase font-black tracking-tight">
+          <h2 className="font-sans text-2xl sm:text-4xl text-black uppercase font-black tracking-tight leading-none">
             FREQUENTLY ASKED INQUIRIES
           </h2>
         </div>
 
-        {/* Clean Accordion */}
-        <div className="border-2 border-black divide-y-2 divide-black/10 bg-white shadow-[6px_6px_0px_#000] mb-16">
+        {/* Compact Clean Accordion */}
+        <div className="border-2 border-black divide-y-2 divide-black/10 bg-white shadow-[4px_4px_0px_#000] mb-8">
           {FAQS.map((item, idx) => {
             const isOpen = openIdx === idx;
             return (
               <div key={idx}>
                 <button
+                  type="button"
                   onClick={() => toggle(idx)}
-                  className="w-full text-left p-5 sm:p-6 flex items-start justify-between gap-4 hover:bg-neutral-50 transition-colors cursor-pointer"
+                  className="w-full text-left py-3 px-4 sm:px-5 flex items-start justify-between gap-3 hover:bg-neutral-50 transition-colors cursor-pointer"
                 >
-                  <span className="font-sans text-base sm:text-lg text-black font-bold pr-2">
+                  <span className="font-sans text-sm sm:text-base text-black font-bold pr-2">
                     {item.q}
                   </span>
-                  <span className="font-mono text-xs text-[#D21319] font-black mt-1">
+                  <span className="font-mono text-xs text-[#D21319] font-black shrink-0 mt-0.5">
                     {isOpen ? '[ — ]' : '[ + ]'}
                   </span>
                 </button>
@@ -95,10 +96,10 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden border-t-2 border-black/10 bg-neutral-50"
+                      transition={{ duration: 0.16 }}
+                      className="overflow-hidden border-t border-black/10 bg-[#FAF8F5]"
                     >
-                      <p className="p-5 sm:p-6 text-xs sm:text-sm text-neutral-700 font-sans leading-relaxed">
+                      <p className="py-3 px-4 sm:px-5 text-xs sm:text-[13px] text-neutral-700 font-sans leading-relaxed">
                         {item.a}
                       </p>
                     </motion.div>
@@ -109,34 +110,36 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
           })}
         </div>
 
-        {/* CLOSING CONVOCATION FINALE CARD */}
-        <div className="border-2 border-black bg-black text-white p-8 sm:p-14 text-center relative shadow-[8px_8px_0px_#D21319]">
+        {/* REDESIGNED ELEGANT LIGHT THEME CONVOCATION FINALE CARD */}
+        <div className="border-2 border-black bg-[#FAF8F5] text-black p-6 sm:p-10 text-center relative shadow-[5px_5px_0px_#000]">
+          
           {/* Engraved Phoenix Motif */}
-          <div className="flex justify-center mb-6">
-            <EngravedPhoenix size={130} className="w-28 sm:w-36 opacity-90" />
+          <div className="flex justify-center mb-3">
+            <EngravedPhoenix size={95} className="w-20 sm:w-24 opacity-95" />
           </div>
 
-          <span className="font-mono text-[10px] text-neutral-400 block mb-2 tracking-[0.3em] uppercase">
+          <span className="font-mono text-[10px] text-[#D21319] block mb-1.5 tracking-[0.25em] font-bold uppercase">
             CONVOCATION FINALE · CODEX MMXXVI
           </span>
 
-          <h2 className="font-sans text-4xl sm:text-6xl text-[#D21319] uppercase font-black tracking-tight mb-4">
+          <h2 className="font-serif text-3xl sm:text-5xl text-black uppercase font-black tracking-tight mb-2.5">
             ENLIST IN THE CODEX
           </h2>
 
-          <p className="font-sans text-xs sm:text-sm text-neutral-300 max-w-lg mx-auto leading-relaxed mb-8">
+          <p className="font-sans text-xs sm:text-sm text-neutral-600 max-w-lg mx-auto leading-relaxed mb-6">
             The grand convocation of Indigo Tech Fest (Jarvis 3.0) awaits. Mobilize your squad, secure your chosen disciplines, and compete on 16 and 17 October 2026.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             {hasMaxEvents ? (
-              <div className="w-full sm:w-auto px-10 py-4 bg-neutral-900 text-[#E9E6DA] font-sans font-black text-xs tracking-widest uppercase border-2 border-[#AFAEA2]/40 shadow-[4px_4px_0px_#000]">
+              <div className="w-full sm:w-auto px-8 py-3 bg-neutral-100 text-neutral-800 font-sans font-black text-xs tracking-wider uppercase border border-black shadow-[2px_2px_0px_#000]">
                 <span>REGISTRATION COMPLETE (2/2 EVENTS ENROLLED)</span>
               </div>
             ) : (
               <button
+                type="button"
                 onClick={onRegisterClick}
-                className="w-full sm:w-auto px-10 py-4 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs tracking-widest uppercase border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-3 bg-[#D21319] hover:bg-black text-white font-sans font-black text-xs tracking-wider uppercase border-2 border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#D21319] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center justify-center gap-2"
               >
                 <span>ENROLL YOUR SQUAD NOW</span>
                 <span>→</span>
@@ -144,7 +147,7 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
             )}
           </div>
 
-          <div className="mt-8 pt-4 border-t border-[#AFAEA2]/20 text-xs text-[#AFAEA2] font-mono">
+          <div className="mt-5 pt-3 border-t border-black/10 text-[10px] sm:text-[11px] text-neutral-500 font-mono">
             VENUE: SLRTCE CAMPUS, MIRA ROAD, MUMBAI · OCTOBER 16–17, 2026
           </div>
         </div>
