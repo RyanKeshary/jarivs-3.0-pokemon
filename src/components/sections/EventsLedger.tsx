@@ -1,8 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EventThemedModal } from '@/components/events/EventThemedModal';
+
+const EventThemedModal = dynamic(
+  () => import('@/components/events/EventThemedModal').then((mod) => mod.EventThemedModal),
+  { ssr: false }
+);
 
 export interface FestEventItem {
   id: string;
@@ -353,10 +358,12 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
                     style={{ backgroundColor: event.accentColor }}
                   />
 
-                  {/* Pixelated Sprite (Zoomed In) */}
+                  {/* Pixelated Sprite (Zoomed In with Lazy Loading) */}
                   <img
                     src={event.pokemonGif}
                     alt={event.pokemon}
+                    loading="lazy"
+                    decoding="async"
                     className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] scale-110 group-hover:scale-125 transition-transform duration-300"
                     style={{ imageRendering: 'pixelated' }}
                     onError={(e) => {

@@ -213,6 +213,7 @@ export function Footer() {
                 muted={isMuted}
                 loop
                 playsInline
+                preload="metadata"
                 className="w-full h-full object-contain"
               />
             </div>
