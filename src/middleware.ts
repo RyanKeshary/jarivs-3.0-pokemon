@@ -49,38 +49,32 @@ export async function middleware(request: NextRequest) {
 
   // Protect /admin and /master
   if (pathname.startsWith('/admin') || pathname.startsWith('/master')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/auth?mode=login', request.url));
-    }
+    if (user) {
+      const isMasterEmail =
+        user.email === 'ryankeshary@gmail.com' ||
+        user.email === 'shrey.sleeps@gmail.com';
 
-    const isMasterEmail =
-      user.email === 'ryankeshary@gmail.com' ||
-      user.email === 'shrey.sleeps@gmail.com';
+      let role = isMasterEmail ? 'master' : null;
 
-    let role = isMasterEmail ? 'master' : null;
+      if (!isMasterEmail) {
+        // Check user role in profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        role = profile?.role;
+      }
 
-    if (!isMasterEmail) {
-      // Check user role in profiles
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      role = profile?.role;
-    }
+      const isStaff =
+        isMasterEmail ||
+        role === 'admin' ||
+        role === 'master' ||
+        role === 'manager';
 
-    const isStaff =
-      isMasterEmail ||
-      role === 'admin' ||
-      role === 'master' ||
-      role === 'manager';
-
-    if (pathname.startsWith('/master') && role !== 'master' && role !== 'manager' && !isMasterEmail) {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
-
-    if (pathname.startsWith('/admin') && !isStaff) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      if (!isStaff) {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
     }
   }
 

@@ -1,27 +1,26 @@
 import type { Metadata } from 'next';
-import { Inter, Press_Start_2P } from 'next/font/google';
+import { Bodoni_Moda, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 
-const inter = Inter({
+const bodoni = Bodoni_Moda({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-serif',
   display: 'swap',
 });
 
-const pressStart = Press_Start_2P({
-  weight: '400',
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  variable: '--font-pixel',
+  variable: '--font-grotesk',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://jarivs-3-0-pokemon.vercel.app'),
-  title: 'Kento League · Jarvis Hackathon 3.0',
-  description: 'Where Code Meets the Pokémon League — Hackathon 3.0 at SLRTCE',
+  title: 'INDIGO TECH FEST · Jarvis 3.0',
+  description: 'An editorial vintage natural-history tech fest of algorithmic craft. 16 - 17 October 2026.',
   icons: {
-    icon: '/assets/placeholders/pokeball-top-red.png',
+    icon: '/favicon.ico',
   },
 };
 
@@ -31,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${pressStart.variable}`}>
-      <body className="min-h-screen bg-[#F8F9FA] text-[#1E232A] antialiased selection:bg-[#FFCB05] selection:text-[#1E232A]">
+    <html lang="en" className={`${bodoni.variable} ${spaceGrotesk.variable}`}>
+      <body className="min-h-screen bg-[#1B1E4A] text-[#E9E6DA] font-sans antialiased selection:bg-[#D21319] selection:text-[#E9E6DA]">
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>

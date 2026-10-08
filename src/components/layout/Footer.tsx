@@ -2,122 +2,109 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { RotateCcw, Heart, Shield, Mail, ExternalLink } from 'lucide-react';
-import { playRetroBeep } from '@/lib/sound';
 
 export function Footer() {
-  const handleReplayIntro = () => {
-    localStorage.removeItem('kento_intro_seen');
-    document.cookie = 'kento_intro_seen=; path=/; max-age=0';
-    playRetroBeep(440, 'square', 0.05);
-    window.location.reload();
-  };
-
   return (
-    <footer className="bg-[#1E232A] text-white border-t-4 border-[#1E232A]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand info */}
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-[#EE1515] border-2 border-white flex items-center justify-center">
-                <div className="w-3 h-3 rounded-full bg-white border-2 border-[#1E232A]" />
-              </div>
-              <span className="font-pixel text-sm text-[#FFCB05] tracking-wider">
-                KENTO LEAGUE · JARVIS 3.0
-              </span>
-            </div>
-            <p className="text-sm text-gray-400 max-w-md leading-relaxed font-sans">
-              The flagship Pokémon-themed hackathon of Shree L. R. Tiwari College of Engineering (SLRTCE). 24 hours of innovation, teamwork, and championship glory.
+    <footer id="contact" className="w-full bg-[#1B1E4A] border-t border-[#AFAEA2] text-[#E9E6DA] py-14 px-4 sm:px-6 select-none">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Top Ledger Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-12 border-b border-[#AFAEA2]/30">
+          
+          {/* Col 1: Tech Fest Wordmark & Metadata */}
+          <div className="space-y-3">
+            <span className="font-serif text-2xl font-bold text-[#D21319] uppercase block tracking-tight">
+              INDIGO TECH FEST
+            </span>
+            <span className="label-editorial text-[9px] block text-[#AFAEA2]">
+              JARVIS 3.0 · MMXXVI
+            </span>
+            <p className="font-grotesk text-xs text-[#AFAEA2] leading-relaxed">
+              An editorial natural-history convocation of software engineering, robotics, and algorithmic design.
             </p>
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={handleReplayIntro}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#475569] text-gray-200 font-pixel text-[10px] rounded-lg border border-gray-600 transition-all cursor-pointer"
-              >
-                <RotateCcw size={12} />
-                <span>REPLAY INTRO SCENE</span>
-              </button>
+          </div>
+
+          {/* Col 2: Organisers & Venue */}
+          <div>
+            <span className="label-editorial text-[10px] block mb-3 text-[#AFAEA2]">
+              ORGANISERS & LOCATION
+            </span>
+            <ul className="space-y-1.5 text-xs text-[#E9E6DA] font-mono">
+              <li>Organised by: [CLUB/COLLEGE]</li>
+              <li>Technical Student Council</li>
+              <li>Venue: [VENUE]</li>
+              <li>SLRTCE Campus, Mumbai</li>
+              <li>Dates: 16 - 17 October 2026</li>
+            </ul>
+          </div>
+
+          {/* Col 3: Direct Inquiries / Contact */}
+          <div>
+            <span className="label-editorial text-[10px] block mb-3 text-[#AFAEA2]">
+              CONTACT & INQUIRIES
+            </span>
+            <ul className="space-y-1.5 text-xs font-mono">
+              <li>
+                <span className="text-[#AFAEA2]">Email: </span>
+                <a href="mailto:fest@slrtce.in" className="hover:text-[#D21319] underline">
+                  fest@slrtce.in
+                </a>
+              </li>
+              <li>
+                <span className="text-[#AFAEA2]">Admin: </span>
+                <a href="mailto:shrey.sleeps@gmail.com" className="hover:text-[#D21319] underline">
+                  shrey.sleeps@gmail.com
+                </a>
+              </li>
+              <li>
+                <span className="text-[#AFAEA2]">Desk: </span>
+                <span>+91 98200 00000 / +91 98300 00000</span>
+              </li>
+              <li>
+                <span className="text-[#AFAEA2]">Hours: </span>
+                <span>08:30 AM - 06:00 PM IST</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Col 4: Socials as Plain Text Links */}
+          <div>
+            <span className="label-editorial text-[10px] block mb-3 text-[#AFAEA2]">
+              SOCIAL CHRONICLES
+            </span>
+            <div className="flex flex-col space-y-2 text-xs font-mono text-[#E9E6DA]">
+              <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-[#D21319]">
+                [ GITHUB ARCHIVE ]
+              </a>
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:text-[#D21319]">
+                [ INSTAGRAM FEED ]
+              </a>
+              <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-[#D21319]">
+                [ LINKEDIN DISPATCH ]
+              </a>
+              <a href="https://discord.com" target="_blank" rel="noreferrer" className="hover:text-[#D21319]">
+                [ DISCORD COUNCIL ]
+              </a>
+              <Link href="/admin" className="hover:text-[#D21319] pt-2 border-t border-[#AFAEA2]/20 text-[#AFAEA2]">
+                [ MASTER CONSOLE / ADMIN ]
+              </Link>
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <span className="font-pixel text-xs text-[#FFCB05] block mb-4 uppercase">
-              LEAGUE DIRECTORY
-            </span>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li>
-                <Link href="/#about" className="hover:text-white transition-colors">
-                  Arena Overview
-                </Link>
-              </li>
-              <li>
-                <Link href="/#prizes" className="hover:text-white transition-colors">
-                  Prizes & Bounties
-                </Link>
-              </li>
-              <li>
-                <Link href="/#tracks" className="hover:text-white transition-colors">
-                  Gym Battle Tracks
-                </Link>
-              </li>
-              <li>
-                <Link href="/#timeline" className="hover:text-white transition-colors">
-                  Route Map
-                </Link>
-              </li>
-              <li>
-                <Link href="/#rules" className="hover:text-white transition-colors">
-                  Rules & Eligibility
-                </Link>
-              </li>
-            </ul>
-          </div>
+        </div>
 
-          {/* Trainer Portal & Admin */}
+        {/* Bottom Bar */}
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-[#AFAEA2] gap-4">
           <div>
-            <span className="font-pixel text-xs text-[#FFCB05] block mb-4 uppercase">
-              TRAINER PORTAL
-            </span>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li>
-                <Link href="/auth?mode=login" className="hover:text-white transition-colors">
-                  Trainer Login
-                </Link>
-              </li>
-              <li>
-                <Link href="/auth?mode=register" className="hover:text-white transition-colors">
-                  Trainer Registration
-                </Link>
-              </li>
-              <li>
-                <Link href="/dashboard" className="hover:text-white transition-colors">
-                  Pokémon Center Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/auth?mode=master"
-                  className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 pt-2 border-t border-gray-700 font-mono"
-                >
-                  <Shield size={12} />
-                  <span>Master Command Gate</span>
-                </Link>
-              </li>
-            </ul>
+            <span>© MMXXVI INDIGO TECH FEST · JARVIS 3.0 · ALL RIGHTS RESERVED.</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span>NATURAL HISTORY PRINT CODEX</span>
+            <span>·</span>
+            <span>SLRTCE CAMPUS</span>
           </div>
         </div>
 
-        {/* Disclaimer & Credits */}
-        <div className="mt-12 pt-6 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-400 font-mono">
-          <p>
-            © 2026 Kento League Hackathon · Organised by SLRTCE Jarvis Team.
-          </p>
-          <p className="text-[11px] text-gray-500 max-w-xl text-center md:text-right">
-            Disclaimer: Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc., and GAME FREAK inc. This event is a non-profit collegiate hackathon.
-          </p>
-        </div>
       </div>
     </footer>
   );
