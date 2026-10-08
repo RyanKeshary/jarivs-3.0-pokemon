@@ -220,6 +220,15 @@ export function Footer() {
                   Frequently Asked Inquiries
                 </button>
               </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="hover:text-white transition-colors text-amber-400 font-mono text-xs font-bold flex items-center gap-1.5"
+                >
+                  <span>Technical Helplines & Contacts</span>
+                  <span>→</span>
+                </Link>
+              </li>
               <li className="pt-2 border-t border-white/10">
                 <Link
                   href="/admin"

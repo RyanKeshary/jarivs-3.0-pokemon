@@ -118,11 +118,12 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
     } catch (e) {}
   };
 
-  const navLinks = [
+  const navLinks: { id: string; label: string; href?: string }[] = [
     { id: 'events', label: 'THE 7 DISCIPLINES' },
     { id: 'announcements', label: 'NOTICES' },
     { id: 'schedule', label: 'SCHEDULE' },
     { id: 'join', label: 'HOW TO JOIN' },
+    { id: 'contact', label: 'HELPLINE', href: '/contact' },
   ];
 
   return (
@@ -262,6 +263,21 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 <nav className="hidden md:flex items-center gap-6">
                   {navLinks.map((link) => {
                     const isActive = activeSection === link.id;
+                    if (link.href) {
+                      return (
+                        <Link
+                          key={link.id}
+                          href={link.href}
+                          onClick={() => {
+                            setIsPinned(false);
+                            setIsHovered(false);
+                          }}
+                          className="relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap text-[#AFAEA2] hover:text-white"
+                        >
+                          {link.label}
+                        </Link>
+                      );
+                    }
                     return (
                       <button
                         key={link.id}
@@ -339,15 +355,33 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
               {/* Mobile Expanded Menu Rows */}
               {mobileMenuOpen && (
                 <div className="md:hidden mt-3 pt-3 border-t border-white/10 space-y-2">
-                  {navLinks.map((link) => (
-                    <button
-                      key={link.id}
-                      onClick={() => scrollToSection(link.id)}
-                      className="block w-full text-left font-serif text-xs uppercase tracking-wider text-white py-1.5 border-b border-white/5"
-                    >
-                      {link.label}
-                    </button>
-                  ))}
+                  {navLinks.map((link) => {
+                    if (link.href) {
+                      return (
+                        <Link
+                          key={link.id}
+                          href={link.href}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            setIsPinned(false);
+                            setIsHovered(false);
+                          }}
+                          className="block w-full text-left font-serif text-xs uppercase tracking-wider text-white py-1.5 border-b border-white/5"
+                        >
+                          {link.label}
+                        </Link>
+                      );
+                    }
+                    return (
+                      <button
+                        key={link.id}
+                        onClick={() => scrollToSection(link.id)}
+                        className="block w-full text-left font-serif text-xs uppercase tracking-wider text-white py-1.5 border-b border-white/5"
+                      >
+                        {link.label}
+                      </button>
+                    );
+                  })}
                   <div className="pt-2 flex flex-col gap-2">
                     {onReplayIntro && (
                       <button
