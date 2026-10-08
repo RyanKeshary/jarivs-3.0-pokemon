@@ -151,8 +151,8 @@ export function HeroTitleCard({ onRegisterClick, onEventsClick }: HeroTitleCardP
           {/* Hairline metadata footer on the print card */}
           <div className="mt-8 pt-4 border-t border-[#AFAEA2]/40 flex flex-col sm:flex-row items-center justify-between text-xs text-[#AFAEA2] gap-2 font-mono">
             <span>DATES: DAY 1 (16 OCT 2026) · DAY 2 (17 OCT 2026)</span>
-            <span>VENUE: [VENUE] · SLRTCE CAMPUS</span>
-            <span>ORGANISED BY: [CLUB/COLLEGE]</span>
+            <span>VENUE: SLRTCE CAMPUS, MIRA ROAD</span>
+            <span>ORGANISED BY: TECHNICAL COUNCIL & DEPT. OF COMP ENGG</span>
           </div>
 
         </div>

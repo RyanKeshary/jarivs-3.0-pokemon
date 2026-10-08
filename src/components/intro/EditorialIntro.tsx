@@ -84,7 +84,7 @@ export function EditorialIntro({ onComplete }: EditorialIntroProps) {
 
         {/* Footer plate mark */}
         <div className="mt-8 pt-4 border-t border-[#AFAEA2]/40 text-[10px] text-[#AFAEA2] font-mono tracking-widest">
-          DEPARTMENT OF COMPUTER ENGINEERING · [VENUE]
+          DEPARTMENT OF COMPUTER ENGINEERING · SLRTCE CAMPUS, MUMBAI
         </div>
       </motion.div>
 

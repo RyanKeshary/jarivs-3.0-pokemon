@@ -145,7 +145,7 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
           </div>
 
           <div className="mt-8 pt-4 border-t border-[#AFAEA2]/20 text-xs text-[#AFAEA2] font-mono">
-            VENUE: [VENUE] · SLRTCE CAMPUS, MUMBAI · OCTOBER 16–17, 2026
+            VENUE: SLRTCE CAMPUS, MIRA ROAD, MUMBAI · OCTOBER 16–17, 2026
           </div>
         </div>
 

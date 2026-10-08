@@ -175,10 +175,10 @@ export function LandingClient({ settings }: LandingClientProps) {
         {/* 5. Inquiries & Convocation Finale Card */}
         <FaqAndCta onRegisterClick={() => handleOpenRegistration()} />
 
-      </main>
+        {/* Valid Production Footer */}
+        <Footer />
 
-      {/* Editorial Colophon / Footer */}
-      <Footer />
+      </main>
 
       {/* Working Registration System Modal */}
       <RegistrationModal
