@@ -90,3 +90,36 @@ export function playVictoryChime() {
     });
   } catch {}
 }
+
+export function playBlastOffSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    // Ascending slide whistle
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(260, now);
+    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.35);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+
+    // High anime twinkle "ting"
+    const ping = ctx.createOscillator();
+    const pingGain = ctx.createGain();
+    ping.type = 'triangle';
+    ping.frequency.setValueAtTime(2093, now + 0.35);
+    pingGain.gain.setValueAtTime(0.09, now + 0.35);
+    pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    ping.connect(pingGain);
+    pingGain.connect(ctx.destination);
+    ping.start(now + 0.35);
+    ping.stop(now + 0.7);
+  } catch {}
+}
+

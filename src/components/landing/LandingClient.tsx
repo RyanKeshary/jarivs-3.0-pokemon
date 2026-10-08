@@ -12,6 +12,7 @@ import { DaysTimeline } from '@/components/sections/DaysTimeline';
 import { HowToJoin } from '@/components/sections/HowToJoin';
 import { FaqAndCta } from '@/components/sections/FaqAndCta';
 import { Footer } from '@/components/layout/Footer';
+import { TeamRocketBlastOff } from '@/components/effects/TeamRocketBlastOff';
 
 // Lazy load heavy interactive components for instantaneous initial page load
 const VideoIntroScene = dynamic(
@@ -131,6 +132,9 @@ export function LandingClient({ settings }: LandingClientProps) {
         onRegisterClick={() => handleOpenRegistration()}
         onReplayIntro={handleReplayIntro}
       />
+
+      {/* Team Rocket Blasting Off Scroll-Driven Trajectory */}
+      <TeamRocketBlastOff />
 
       {/* FOREGROUND SCROLLABLE CONTENT */}
       <main className="flex-1 relative z-10">
