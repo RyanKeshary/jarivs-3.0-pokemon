@@ -77,7 +77,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPos = window.scrollY + 280;
+      const scrollPos = window.scrollY + 200;
       const sections = ['join', 'schedule', 'announcements', 'events', 'home'] as const;
 
       for (const section of sections) {
@@ -86,9 +86,13 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
           (section === 'join' ? document.getElementById('how-to-join') : null) ||
           (section === 'schedule' ? document.getElementById('timeline') : null);
 
-        if (el && el.offsetTop <= scrollPos) {
-          setActiveSection(section);
-          break;
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const elementDocTop = rect.top + window.scrollY;
+          if (elementDocTop <= scrollPos) {
+            setActiveSection(section);
+            break;
+          }
         }
       }
     };
@@ -235,30 +239,20 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   ];
 
   return (
-    <header className="fixed top-2 sm:top-3.5 left-0 right-0 z-40 select-none px-2 sm:px-6 pointer-events-none flex justify-center">
-      {/* 
-        PARENT INTERACTION CONTAINER:
-        - When closed: Compact hit area around the single Pokéball.
-        - When expanded: Spans the full width of the navbar so moving cursor to any
-          link keeps the navigation open seamlessly without jitter.
-      */}
+    <header className="fixed top-0 left-0 right-0 z-40 select-none pointer-events-none">
+      {/* ========================================================
+          1. THE FLOATING POKÉBALL (VISIBLE WHEN CLOSED OR ANIMATING)
+          Centered with top padding so it floats gracefully at top.
+         ======================================================== */}
       <div
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className={`pointer-events-auto relative flex items-center justify-center transition-all duration-200 z-20 ${
-          isExpanded ? 'w-full max-w-7xl' : 'w-[56px] h-[56px]'
+        className={`pt-2 sm:pt-3.5 flex justify-center w-full transition-all duration-200 ${
+          phase === 'open' ? 'pointer-events-none opacity-0 invisible' : 'pointer-events-auto opacity-100 visible'
         }`}
       >
-
-        {/* ========================================================
-            1. THE POKÉBALL INTERACTION ELEMENT
-            Visible when closed, rotating, splitting, or closing.
-            Disappears completely once the navbar reaches its final position.
-           ======================================================== */}
         <div
-          className={`absolute z-30 transition-all ${
-            phase === 'open' ? 'pointer-events-none opacity-0 invisible' : 'opacity-100 visible'
-          }`}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          className="relative flex items-center justify-center w-[56px] h-[56px] z-30"
         >
           {/* Pokéball Container with keyboard accessibility */}
           <button
@@ -358,30 +352,29 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
             </motion.div>
           </button>
         </div>
+      </div>
 
-
-        {/* ========================================================
-            2. THE EXPANDED NAVBAR
-            Emerges from the center of the Pokéball as it opens.
-            Full responsive design: fits all mobile proportions without clipping.
-           ======================================================== */}
-        {/* ========================================================
-            2. DESKTOP EXPANDED FLOATING NAVBAR (>= lg: 1024px)
-            Emerges from the center of the Pokéball as it opens.
-           ======================================================== */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              key="desktop-expanded-navbar"
-              initial={{ scale: 0.25, opacity: 0, y: 0 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.25, opacity: 0, y: 0 }}
-              transition={{
-                duration: 0.22,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              className="hidden lg:flex relative w-full max-w-7xl bg-[#121633]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.9),_0_0_25px_rgba(210,19,25,0.25)] rounded-2xl p-2.5 px-6 items-center justify-between gap-4 z-20"
-            >
+      {/* ========================================================
+          2. DESKTOP EXPANDED DOCKED TOP NAVBAR (>= lg: 1024px)
+          Seamless top dock: completely covers top edge so no scrolled
+          content can ever leak or peek through above the navbar.
+         ======================================================== */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            key="desktop-expanded-navbar"
+            initial={{ y: -64, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -64, opacity: 0 }}
+            transition={{
+              duration: 0.22,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className="hidden lg:flex fixed top-0 left-0 right-0 w-full bg-[#121633]/95 backdrop-blur-2xl border-b border-white/20 shadow-[0_15px_40px_rgba(0,0,0,0.85),_0_0_25px_rgba(210,19,25,0.25)] px-4 sm:px-6 lg:px-8 py-2.5 z-40 pointer-events-auto"
+          >
+            <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-3 xl:gap-6">
               {/* BRANDMARK */}
               <Link
                 href="/"
@@ -393,48 +386,49 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                     handleCollapse();
                   }
                 }}
-                className="flex items-center gap-2.5 group cursor-pointer shrink-0"
+                className="flex items-center gap-2 xl:gap-2.5 group cursor-pointer shrink-0"
               >
                 <img
                   src="/logo.png"
                   alt="Indigo Logo"
-                  className="w-8 h-8 rounded-full object-contain shrink-0 ring-1 ring-white/20 group-hover:ring-[#D21319] group-hover:scale-105 transition-all shadow-[0_0_10px_rgba(210,19,25,0.3)]"
+                  className="w-7 h-7 xl:w-8 xl:h-8 rounded-full object-contain shrink-0 ring-1 ring-white/20 group-hover:ring-[#D21319] group-hover:scale-105 transition-all shadow-[0_0_10px_rgba(210,19,25,0.3)]"
                 />
                 <div className="flex flex-col">
-                  <span className="font-serif text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
+                  <span className="font-serif text-base xl:text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
                     INDIGO TECH FEST
                   </span>
-                  <span className="label-editorial text-[8px] text-[#AFAEA2] tracking-[0.25em] mt-0.5">
+                  <span className="label-editorial text-[7.5px] xl:text-[8px] text-[#AFAEA2] tracking-[0.22em] xl:tracking-[0.25em] mt-0.5">
                     JARVIS 3.0
                   </span>
                 </div>
               </Link>
 
               {/* DESKTOP NAV LINKS */}
-              <nav className="flex items-center gap-6">
+              <nav className="flex items-center gap-2.5 lg:gap-3 xl:gap-5 2xl:gap-6 shrink-0">
                 {navLinks.map((link, index) => {
                   const isActive = activeSection === link.id;
-                  const delay = 0.06 + index * 0.025;
+                  const delay = 0.04 + index * 0.02;
 
                   if (link.href) {
                     const isLinkActive = pathname === link.href || activeSection === link.id;
                     return (
                       <motion.div
                         key={link.id}
-                        initial={{ opacity: 0, y: 6, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ duration: 0.18, delay }}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.16, delay }}
                       >
                         <Link
                           href={link.href}
                           onClick={() => handleCollapse()}
-                          className={`relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 whitespace-nowrap ${
+                          className={`relative font-grotesk text-[11px] xl:text-xs uppercase tracking-[0.14em] xl:tracking-[0.2em] transition-colors py-1 whitespace-nowrap ${
                             isLinkActive
                               ? 'text-white font-bold'
                               : 'text-[#AFAEA2] hover:text-white'
                           }`}
                         >
-                          {link.label}
+                          <span className="hidden xl:inline">{link.label}</span>
+                          <span className="xl:hidden">{link.shortLabel}</span>
                           {isLinkActive && (
                             <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D21319] shadow-[0_0_8px_#D21319]" />
                           )}
@@ -446,20 +440,21 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                   return (
                     <motion.div
                       key={link.id}
-                      initial={{ opacity: 0, y: 6, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.18, delay }}
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.16, delay }}
                     >
                       <button
                         type="button"
                         onClick={() => scrollToSection(link.id)}
-                        className={`relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap ${
+                        className={`relative font-grotesk text-[11px] xl:text-xs uppercase tracking-[0.14em] xl:tracking-[0.2em] transition-colors py-1 cursor-pointer whitespace-nowrap ${
                           isActive
                             ? 'text-white font-bold'
                             : 'text-[#AFAEA2] hover:text-white'
                         }`}
                       >
-                        {link.label}
+                        <span className="hidden xl:inline">{link.label}</span>
+                        <span className="xl:hidden">{link.shortLabel}</span>
                         {isActive && (
                           <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D21319] shadow-[0_0_8px_#D21319]" />
                         )}
@@ -470,16 +465,17 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
               </nav>
 
               {/* DESKTOP RIGHT ACTIONS */}
-              <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex items-center gap-1.5 xl:gap-2.5 shrink-0">
                 {onReplayIntro && (
                   <button
                     type="button"
                     onClick={onReplayIntro}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-[#E9E6DA] bg-black/40 hover:bg-[#D21319] hover:text-white border border-[#AFAEA2]/40 hover:border-[#D21319] rounded-lg transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 xl:px-3 py-1.5 text-[11px] xl:text-xs font-mono font-bold text-[#E9E6DA] bg-black/40 hover:bg-[#D21319] hover:text-white border border-[#AFAEA2]/40 hover:border-[#D21319] rounded-lg transition-all cursor-pointer whitespace-nowrap"
                     title="Play 1008.mp4 Intro Video"
                   >
-                    <Play size={11} className="fill-current text-[#D21319] hover:text-white" />
-                    <span>INTRO FILM</span>
+                    <Play size={10} className="fill-current text-[#D21319] hover:text-white" />
+                    <span className="hidden xl:inline">INTRO FILM</span>
+                    <span className="xl:hidden">FILM</span>
                   </button>
                 )}
 
@@ -487,16 +483,17 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                   <button
                     type="button"
                     onClick={onRegisterClick}
-                    className="px-4 py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-xs uppercase tracking-wider rounded-lg shadow-[0_0_12px_rgba(210,19,25,0.4)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-3 xl:px-4 py-1.5 xl:py-2 bg-[#D21319] hover:bg-[#a80d12] text-white font-sans font-black text-[11px] xl:text-xs uppercase tracking-wider rounded-lg shadow-[0_0_12px_rgba(210,19,25,0.4)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1 xl:gap-1.5 whitespace-nowrap"
                   >
-                    <span>ENLIST SQUAD</span>
+                    <span className="hidden xl:inline">ENLIST SQUAD</span>
+                    <span className="xl:hidden">ENLIST</span>
                     <span>→</span>
                   </button>
                 )}
 
                 <Link
                   href="/admin"
-                  className="inline-flex items-center px-3 py-2 text-xs font-mono font-bold text-[#AFAEA2] hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-colors cursor-pointer"
+                  className="inline-flex items-center px-2.5 xl:px-3 py-1.5 xl:py-2 text-[11px] xl:text-xs font-mono font-bold text-[#AFAEA2] hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                   title="Curator & Admin Panel"
                 >
                   [ ADMIN ]
@@ -511,11 +508,10 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                   <X size={16} />
                 </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ========================================================
           3. MOBILE MINIMALISTIC SIDEBAR (< lg: 1024px)
