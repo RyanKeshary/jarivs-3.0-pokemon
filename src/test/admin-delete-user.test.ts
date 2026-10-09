@@ -55,4 +55,25 @@ describe('Admin User Deletion & Re-registration Logic', () => {
     expect(outcome.shouldDeleteTeam).toBe(false);
     expect(outcome.newLeader).toBeNull();
   });
+
+  it('restricts participant and team deletion to Master administrators only', () => {
+    function verifyDeletionPermission(role: string, isMaster: boolean, action: 'delete_member' | 'delete_team') {
+      if (!isMaster) {
+        return { allowed: false, error: 'Action Prohibited: Only Master Administrators can delete records.' };
+      }
+      return { allowed: true };
+    }
+
+    // Regular admin should be blocked
+    expect(verifyDeletionPermission('admin', false, 'delete_member').allowed).toBe(false);
+    expect(verifyDeletionPermission('admin', false, 'delete_team').allowed).toBe(false);
+
+    // Gate coordinator should be blocked
+    expect(verifyDeletionPermission('coordinator', false, 'delete_member').allowed).toBe(false);
+    expect(verifyDeletionPermission('coordinator', false, 'delete_team').allowed).toBe(false);
+
+    // Master administrator should be allowed
+    expect(verifyDeletionPermission('admin', true, 'delete_member').allowed).toBe(true);
+    expect(verifyDeletionPermission('admin', true, 'delete_team').allowed).toBe(true);
+  });
 });

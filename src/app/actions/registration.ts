@@ -414,6 +414,14 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       // non-fatal if user already exists in auth
     }
 
+    try {
+      await sql`
+        INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+        VALUES (${email.toLowerCase().trim()}, ${leader.fullName.trim()}, 'participant', ${defaultPassword}, NOW())
+        ON CONFLICT (email) DO NOTHING
+      `;
+    } catch {}
+
     return {
       success: true,
       team: createdTeams[0],
@@ -677,6 +685,14 @@ export async function joinFestTeam(payload: {
     } catch {
       // non-fatal
     }
+
+    try {
+      await sql`
+        INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+        VALUES (${email.toLowerCase().trim()}, ${member.fullName.trim()}, 'participant', ${defaultPassword}, NOW())
+        ON CONFLICT (email) DO NOTHING
+      `;
+    } catch {}
 
     return {
       success: true,

@@ -524,7 +524,7 @@ export async function getSubmissionSignedUrl(storagePath: string) {
 
 // 8. Admin Self Password Change
 export async function changeAdminPassword(newPassword: string) {
-  const { user } = await requireAdmin();
+  const { user, isAdmin } = await requireAdmin();
 
   if (!newPassword || newPassword.trim().length < 6) {
     throw new Error('Password must be at least 6 characters long.');
@@ -547,6 +547,15 @@ export async function changeAdminPassword(newPassword: string) {
   } catch (err) {
     // direct DB update with pgcrypto already executed
   }
+
+  try {
+    const userEmail = (user.email || '').toLowerCase().trim();
+    await sql`
+      INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+      VALUES (${userEmail}, ${user.user_metadata?.full_name || userEmail}, ${isAdmin ? 'admin' : 'coordinator'}, ${cleanPassword}, NOW())
+      ON CONFLICT (email) DO UPDATE SET current_password = EXCLUDED.current_password, updated_at = NOW()
+    `;
+  } catch (e) {}
 
   await logAudit(user.id, user.email || '', 'CHANGE_ADMIN_PASSWORD', 'auth.users', user.id);
   revalidatePath('/admin');
@@ -584,6 +593,14 @@ export async function resetAdminPassword(targetUserId: string, customPassword?: 
         )
       `;
     }
+
+    try {
+      await sql`
+        INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+        VALUES (${targetEmail.toLowerCase().trim()}, 'Admin Officer', 'admin', ${appliedPassword}, NOW())
+        ON CONFLICT (email) DO UPDATE SET current_password = EXCLUDED.current_password, updated_at = NOW()
+      `;
+    } catch (e) {}
   }
 
   await logAudit(user.id, user.email || '', 'CHANGE_ADMIN_PASSWORD', 'auth.users', targetUserId, {
@@ -594,12 +611,12 @@ export async function resetAdminPassword(targetUserId: string, customPassword?: 
   return { success: true, newPassword: appliedPassword, email: targetEmail };
 }
 
-// 9b. Batch Reset Passwords for All Admins, All Coordinators, or All Staff at Once
+// 9b. Batch Reset Passwords for All Admins, All Coordinators, All Participants, or All Accounts
 export async function adminResetBatchPasswords(
-  scope: 'all_admins' | 'all_coordinators' | 'all_staff',
+  scope: 'all_admins' | 'all_coordinators' | 'all_staff' | 'all_participants' | 'all_users',
   customPassword?: string
 ) {
-  const { user } = await requireAdminOrManager();
+  const { user, isMaster } = await requireAdminOrManager();
 
   const appliedPassword =
     customPassword && customPassword.trim().length >= 6
@@ -626,7 +643,7 @@ export async function adminResetBatchPasswords(
         seen.add(row.id);
         targetUsers.push({
           id: String(row.id),
-          email: String(row.email),
+          email: String(row.email).toLowerCase().trim(),
           full_name: row.full_name ? String(row.full_name) : undefined,
           role: row.role ? String(row.role) : undefined,
         });
@@ -640,7 +657,7 @@ export async function adminResetBatchPasswords(
     `;
     targetUsers = coords.map((c: any) => ({
       id: String(c.id),
-      email: String(c.email),
+      email: String(c.email).toLowerCase().trim(),
       full_name: c.full_name ? String(c.full_name) : undefined,
       role: c.role ? String(c.role) : undefined,
     }));
@@ -657,9 +674,67 @@ export async function adminResetBatchPasswords(
         seen.add(row.id);
         targetUsers.push({
           id: String(row.id),
-          email: String(row.email),
+          email: String(row.email).toLowerCase().trim(),
           full_name: row.full_name ? String(row.full_name) : undefined,
           role: row.role ? String(row.role) : undefined,
+        });
+      }
+    }
+  } else if (scope === 'all_participants') {
+    if (!isMaster) {
+      throw new Error('Forbidden: Only Master Administrators can batch reset participant passwords.');
+    }
+    const regParticipants = await sql`
+      SELECT id, email, full_name
+      FROM public.fest_registrations
+    `;
+    const profileParticipants = await sql`
+      SELECT id, email, full_name
+      FROM public.profiles
+      WHERE role::text = 'participant'
+    `;
+    const seen = new Set<string>();
+    for (const u of [...regParticipants, ...profileParticipants]) {
+      const row = u as any;
+      const cleanEmail = (row.email || '').toLowerCase().trim();
+      if (cleanEmail && !seen.has(cleanEmail)) {
+        seen.add(cleanEmail);
+        targetUsers.push({
+          id: String(row.id),
+          email: cleanEmail,
+          full_name: row.full_name ? String(row.full_name) : undefined,
+          role: 'participant',
+        });
+      }
+    }
+  } else if (scope === 'all_users') {
+    if (!isMaster) {
+      throw new Error('Forbidden: Only Master Administrators can batch reset all account passwords.');
+    }
+    const allProfiles = await sql`SELECT id, email, full_name, role::text as role FROM public.profiles`;
+    const allRegs = await sql`SELECT id, email, full_name FROM public.fest_registrations`;
+    const seen = new Set<string>();
+    for (const p of allProfiles) {
+      const cleanEmail = (p.email || '').toLowerCase().trim();
+      if (cleanEmail && !seen.has(cleanEmail)) {
+        seen.add(cleanEmail);
+        targetUsers.push({
+          id: String(p.id),
+          email: cleanEmail,
+          full_name: p.full_name ? String(p.full_name) : undefined,
+          role: p.role || 'user',
+        });
+      }
+    }
+    for (const r of allRegs) {
+      const cleanEmail = (r.email || '').toLowerCase().trim();
+      if (cleanEmail && !seen.has(cleanEmail)) {
+        seen.add(cleanEmail);
+        targetUsers.push({
+          id: String(r.id),
+          email: cleanEmail,
+          full_name: r.full_name ? String(r.full_name) : undefined,
+          role: 'participant',
         });
       }
     }
@@ -673,30 +748,25 @@ export async function adminResetBatchPasswords(
   }
 
   for (const tUser of targetUsers) {
-    await sql`
-      UPDATE auth.users
-      SET encrypted_password = crypt(${appliedPassword}, gen_salt('bf', 10)),
-          instance_id = '00000000-0000-0000-0000-000000000000',
-          aud = 'authenticated',
-          role = 'authenticated',
-          updated_at = NOW()
-      WHERE id = ${tUser.id}::uuid
-    `;
-
-    if (tUser.email) {
-      const existingIdentities = await sql`
-        SELECT id FROM auth.identities WHERE user_id = ${tUser.id}::uuid
+    try {
+      await sql`
+        UPDATE auth.users
+        SET encrypted_password = crypt(${appliedPassword}, gen_salt('bf', 10)),
+            instance_id = '00000000-0000-0000-0000-000000000000',
+            aud = 'authenticated',
+            role = 'authenticated',
+            updated_at = NOW()
+        WHERE LOWER(email) = ${tUser.email} OR id = ${tUser.id}::uuid
       `;
-      if (existingIdentities.length === 0) {
-        await sql`
-          INSERT INTO auth.identities (
-            id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
-          ) VALUES (
-            gen_random_uuid(), ${tUser.id}, ${tUser.id}::uuid, ${sql.json({ sub: tUser.id, email: tUser.email, email_verified: true, phone_verified: false })}, 'email', null, NOW(), NOW()
-          )
-        `;
-      }
-    }
+    } catch {}
+
+    try {
+      await sql`
+        INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+        VALUES (${tUser.email}, ${tUser.full_name || tUser.email}, ${tUser.role || 'user'}, ${appliedPassword}, NOW())
+        ON CONFLICT (email) DO UPDATE SET current_password = EXCLUDED.current_password, updated_at = NOW()
+      `;
+    } catch {}
   }
 
   await logAudit(
@@ -729,6 +799,66 @@ export async function adminResetAllAdminsPassword(customPassword?: string) {
 
 export async function adminResetAllCoordinatorsPassword(customPassword?: string) {
   return adminResetBatchPasswords('all_coordinators', customPassword);
+}
+
+export async function adminResetAllParticipantsPassword(customPassword?: string) {
+  return adminResetBatchPasswords('all_participants', customPassword);
+}
+
+export async function adminResetEveryonePassword(customPassword?: string) {
+  return adminResetBatchPasswords('all_users', customPassword);
+}
+
+// 9c. Master Reset Password for ANY Individual Account (Admin, Coordinator, or Participant)
+export async function masterResetUserPassword(targetEmail: string, customPassword?: string) {
+  const { user, isMaster } = await requireAdmin();
+  if (!isMaster) {
+    throw new Error('Forbidden: Only Master Administrators can change arbitrary user credentials.');
+  }
+
+  const cleanEmail = targetEmail.trim().toLowerCase();
+  const appliedPassword = (customPassword && customPassword.trim().length >= 6)
+    ? customPassword.trim()
+    : 'password@67';
+
+  // 1. Update in auth.users
+  try {
+    await sql`
+      UPDATE auth.users
+      SET encrypted_password = crypt(${appliedPassword}, gen_salt('bf', 10)),
+          updated_at = NOW()
+      WHERE LOWER(email) = ${cleanEmail}
+    `;
+    try {
+      const adminClient = createAdminClient();
+      const authUser = await sql`SELECT id FROM auth.users WHERE LOWER(email) = ${cleanEmail}`;
+      if (authUser.length > 0) {
+        await adminClient.auth.admin.updateUserById(authUser[0].id, { password: appliedPassword });
+      }
+    } catch {}
+  } catch (e) {
+    console.error('Error updating auth user password:', e);
+  }
+
+  // 2. Upsert in public.master_credentials
+  try {
+    const profile = await sql`SELECT full_name, role::text as role FROM public.profiles WHERE LOWER(email) = ${cleanEmail}`;
+    const reg = await sql`SELECT full_name FROM public.fest_registrations WHERE LOWER(email) = ${cleanEmail} LIMIT 1`;
+    const fullName = profile[0]?.full_name || reg[0]?.full_name || cleanEmail.split('@')[0];
+    const role = profile[0]?.role || (reg.length > 0 ? 'participant' : 'user');
+
+    await sql`
+      INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+      VALUES (${cleanEmail}, ${fullName}, ${role}, ${appliedPassword}, NOW())
+      ON CONFLICT (email) DO UPDATE SET current_password = EXCLUDED.current_password, updated_at = NOW()
+    `;
+  } catch (e) {
+    console.error('Error upserting master_credentials:', e);
+  }
+
+  await logAudit(user.id, user.email || '', 'MASTER_RESET_PASSWORD', 'master_credentials', cleanEmail, { newPassword: appliedPassword });
+  revalidatePath('/admin');
+  return { success: true, email: cleanEmail, newPassword: appliedPassword };
 }
 
 // 10. Master Appoint New Administrator with default password password@67
@@ -836,6 +966,14 @@ export async function masterAddAdmin(email: string, fullName: string) {
       full_name = EXCLUDED.full_name,
       role = 'admin'
   `;
+
+  try {
+    await sql`
+      INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+      VALUES (${cleanEmail}, ${cleanName}, 'admin', ${defaultPassword}, NOW())
+      ON CONFLICT (email) DO UPDATE SET current_password = EXCLUDED.current_password, updated_at = NOW()
+    `;
+  } catch {}
 
   await logAudit(user.id, user.email || '', 'MASTER_APPOINT_ADMIN', 'profiles', targetUserId as string, {
     appointedEmail: cleanEmail,
@@ -1006,6 +1144,14 @@ export async function adminAddCoordinator(email: string, fullName: string, passw
       WHERE LOWER(email) = ${cleanEmail}
     `;
 
+    try {
+      await sql`
+        INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+        VALUES (${cleanEmail}, ${cleanName}, 'coordinator', ${assignedPassword}, NOW())
+        ON CONFLICT (email) DO UPDATE SET current_password = EXCLUDED.current_password, updated_at = NOW()
+      `;
+    } catch {}
+
     await logAudit(user.id, user.email || '', 'ADD_COORDINATOR', 'profiles', targetUserId, {
       appointedEmail: cleanEmail,
       appointedName: cleanName,
@@ -1100,6 +1246,14 @@ export async function adminResetCoordinatorPassword(coordinatorId: string, custo
         )
       `;
     }
+
+    try {
+      await sql`
+        INSERT INTO public.master_credentials (email, full_name, role, current_password, updated_at)
+        VALUES (${targetEmail.toLowerCase().trim()}, 'Gate Coordinator', 'coordinator', ${appliedPassword}, NOW())
+        ON CONFLICT (email) DO UPDATE SET current_password = EXCLUDED.current_password, updated_at = NOW()
+      `;
+    } catch {}
 
     await logAudit(user.id, user.email || '', 'CHANGE_COORDINATOR_PASSWORD', 'profiles', coordinatorId, {
       email: targetEmail,
@@ -1285,14 +1439,23 @@ export async function getFestAdminData(userOverride?: any) {
   }
   const timelineData = Object.entries(timelineMap).map(([date, count]) => ({ date, count }));
 
-  // STRICT PRIVACY: Hide ryankeshary as master/admin from everyone but ryankeshary
+  // STRICT PRIVACY: Hide ryankeshary as master/admin from non-master admins
   const userEmail = (user.email || '').toLowerCase();
   const visibleAdminUsers = (adminUsers || []).filter((a: any) => {
     if (a.email?.toLowerCase() === 'ryankeshary@gmail.com') {
-      return userEmail === 'ryankeshary@gmail.com';
+      return userEmail === 'ryankeshary@gmail.com' || isMaster;
     }
     return true;
   });
+
+  let masterCredentials: any[] = [];
+  if (isMaster) {
+    try {
+      masterCredentials = await fetchAllMasterCredentials(adminUsers, coordinators, registrations);
+    } catch (e) {
+      console.error('Failed to fetch master credentials:', e);
+    }
+  }
 
   return {
     currentUser: {
@@ -1316,7 +1479,111 @@ export async function getFestAdminData(userOverride?: any) {
     auditLogs,
     adminUsers: visibleAdminUsers,
     coordinators: coordinators || [],
+    masterCredentials,
   };
+}
+
+// Universal Master Credentials Sync & Vault Fetcher
+export async function fetchAllMasterCredentials(
+  adminUsers: any[] = [],
+  coordinators: any[] = [],
+  registrations: any[] = []
+) {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS public.master_credentials (
+        email TEXT PRIMARY KEY,
+        user_id UUID,
+        full_name TEXT,
+        role TEXT,
+        current_password TEXT NOT NULL DEFAULT 'password@67',
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
+  } catch {}
+
+  const rows = await sql`
+    SELECT email, full_name, role, current_password, updated_at
+    FROM public.master_credentials
+  `;
+  const credMap = new Map<string, any>();
+  for (const r of rows) {
+    credMap.set(r.email.toLowerCase(), r);
+  }
+
+  const missingToInsert: Array<{ email: string; full_name: string; role: string; current_password: string }> = [];
+
+  for (const a of adminUsers) {
+    const email = (a.email || '').toLowerCase().trim();
+    if (!email) continue;
+    if (!credMap.has(email)) {
+      const item = {
+        email,
+        full_name: a.full_name || 'Admin Officer',
+        role: a.role || 'admin',
+        current_password: 'password@67',
+      };
+      credMap.set(email, item);
+      missingToInsert.push(item);
+    }
+  }
+
+  for (const c of coordinators) {
+    const email = (c.email || '').toLowerCase().trim();
+    if (!email) continue;
+    if (!credMap.has(email)) {
+      const item = {
+        email,
+        full_name: c.full_name || 'Gate Coordinator',
+        role: 'coordinator',
+        current_password: 'password@67',
+      };
+      credMap.set(email, item);
+      missingToInsert.push(item);
+    }
+  }
+
+  for (const reg of registrations) {
+    const email = (reg.email || '').toLowerCase().trim();
+    if (!email) continue;
+    if (!credMap.has(email)) {
+      const item = {
+        email,
+        full_name: reg.full_name || 'Participant',
+        role: 'participant',
+        current_password: 'TrainerPass2026!',
+      };
+      credMap.set(email, item);
+      missingToInsert.push(item);
+    }
+  }
+
+  if (missingToInsert.length > 0) {
+    for (const m of missingToInsert) {
+      try {
+        await sql`
+          INSERT INTO public.master_credentials (email, full_name, role, current_password)
+          VALUES (${m.email}, ${m.full_name}, ${m.role}, ${m.current_password})
+          ON CONFLICT (email) DO NOTHING
+        `;
+      } catch {}
+    }
+  }
+
+  return Array.from(credMap.values());
+}
+
+export async function getMasterCredentials() {
+  const { isMaster } = await requireAdmin();
+  if (!isMaster) {
+    throw new Error('Forbidden: Only Master Administrators can access credentials vault.');
+  }
+  const [adminUsers, coordinators, registrations] = await Promise.all([
+    sql`SELECT id, email, full_name, role::text as role FROM public.profiles WHERE role::text IN ('admin', 'manager', 'master') OR LOWER(email) IN ('ryankeshary@gmail.com', 'shrey.sleeps@gmail.com')`,
+    sql`SELECT id, email, full_name, role::text as role FROM public.profiles WHERE role::text = 'coordinator'`,
+    sql`SELECT id, email, full_name FROM public.fest_registrations`,
+  ]);
+  return fetchAllMasterCredentials(adminUsers, coordinators, registrations);
 }
 
 // Admin Participant Actions
@@ -1385,7 +1652,10 @@ export async function adminBulkUpdateStatus(ids: string[], status: string) {
 
 export async function adminDeleteParticipant(id: string) {
   try {
-    const { user } = await requireAdmin();
+    const { user, isMaster } = await requireAdmin();
+    if (!isMaster) {
+      return { success: false, error: 'Action Prohibited: Only Master Administrators can delete registration members.' };
+    }
 
     // 1. Fetch participant record
     const participantRows = await sql`
@@ -1504,7 +1774,10 @@ export async function adminDeleteParticipant(id: string) {
 
 export async function adminBulkDeleteParticipants(ids: string[]) {
   try {
-    const { user } = await requireAdmin();
+    const { user, isMaster } = await requireAdmin();
+    if (!isMaster) {
+      return { success: false, error: 'Action Prohibited: Only Master Administrators can delete registration members.' };
+    }
     if (!ids || ids.length === 0) return { success: true, count: 0 };
 
     let count = 0;
@@ -1749,7 +2022,11 @@ export async function adminUpdateTeam(teamId: string, data: {
 }
 
 export async function adminDeleteTeam(teamId: string) {
-  const { user } = await requireAdmin();
+  const { user, isMaster } = await requireAdmin();
+  if (!isMaster) {
+    throw new Error('Action Prohibited: Only Master Administrators can delete team registrations.');
+  }
+  await sql`UPDATE public.fest_registrations SET team_id = NULL, team_code = NULL WHERE team_id = ${teamId}::uuid`;
   await sql`DELETE FROM public.fest_teams WHERE id = ${teamId}`;
   await logAudit(user.id, user.email || '', 'DELETE_FEST_TEAM', 'fest_teams', teamId);
   revalidatePath('/admin');

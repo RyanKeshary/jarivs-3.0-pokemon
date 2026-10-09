@@ -60,7 +60,11 @@ import {
   resetAdminPassword,
   adminResetBatchPasswords,
   adminResetAllAdminsPassword,
-  adminResetAllCoordinatorsPassword
+  adminResetAllCoordinatorsPassword,
+  adminResetAllParticipantsPassword,
+  adminResetEveryonePassword,
+  masterResetUserPassword,
+  getMasterCredentials
 } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
 import { AdminPokemonGuardian } from './AdminPokemonGuardian';
@@ -207,14 +211,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     }, 4500);
   };
 
-  // Password Management Modal State for Coordinators & Admins (Supports single & batch scopes)
+  // Password Management Modal State for Coordinators & Admins & Participants (Supports single & batch scopes)
   const [passwordModalUser, setPasswordModalUser] = useState<{
     id?: string;
     email?: string;
     name?: string;
-    role: 'admin' | 'coordinator' | 'all_admins' | 'all_coordinators' | 'all_staff';
+    role: 'admin' | 'coordinator' | 'participant' | 'all_admins' | 'all_coordinators' | 'all_participants' | 'all_users' | 'all_staff';
   } | null>(null);
-  const [passwordTargetScope, setPasswordTargetScope] = useState<'single' | 'all_admins' | 'all_coordinators' | 'all_staff'>('all_admins');
+  const [passwordTargetScope, setPasswordTargetScope] = useState<
+    'single' | 'all_admins' | 'all_coordinators' | 'all_participants' | 'all_users' | 'all_staff'
+  >('all_admins');
   const [targetNewPassword, setTargetNewPassword] = useState('password@67');
   const [showTargetPassword, setShowTargetPassword] = useState(true);
   const [passwordModalSuccess, setPasswordModalSuccess] = useState<{
@@ -224,6 +230,41 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     emails?: string[];
   } | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
+
+  // Universal Master Credentials State (Allows Master to view and live-sync everyone's password)
+  const [localMasterCredentials, setLocalMasterCredentials] = useState<any[]>(data?.masterCredentials || []);
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+  const [credentialsFilter, setCredentialsFilter] = useState<'all' | 'admin' | 'coordinator' | 'participant'>('all');
+  const [credentialsSearch, setCredentialsSearch] = useState('');
+
+  useEffect(() => {
+    if (data?.masterCredentials) {
+      setLocalMasterCredentials(data.masterCredentials);
+    }
+  }, [data?.masterCredentials]);
+
+  const toggleRevealPassword = (email?: string) => {
+    if (!email) return;
+    const clean = email.toLowerCase().trim();
+    setRevealedPasswords((prev) => ({ ...prev, [clean]: !prev[clean] }));
+  };
+
+  const getAccountPassword = (email?: string, defaultFallback = 'password@67') => {
+    if (!email) return defaultFallback;
+    const match = localMasterCredentials.find(
+      (c) => c.email?.toLowerCase().trim() === email.toLowerCase().trim()
+    );
+    return match?.current_password || defaultFallback;
+  };
+
+  const copyToClipboard = (text: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      showToast('Password copied to clipboard!', 'success', text);
+    } catch {
+      showToast(`Password: ${text}`, 'success');
+    }
+  };
 
   const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers, coordinators = [] } = data;
 
@@ -240,18 +281,105 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const isCoordinator = currentUser?.role === 'coordinator';
   const currentTab = isCoordinator ? 'checkin' : activeTab;
 
-  // Master status privacy: Ryan Keshary is only visible as master to ryankeshary@gmail.com
+  // Master status privacy: Ryan Keshary is visible to masters (and ryankeshary himself)
   const isCurrentUserRyan = currentUser?.email?.toLowerCase() === 'ryankeshary@gmail.com';
 
   const visibleAdminUsers = useMemo(() => {
     return (adminUsers || []).filter((admin: any) => {
       const isRyan = admin.email?.toLowerCase() === 'ryankeshary@gmail.com';
-      if (isRyan && !isCurrentUserRyan) {
+      if (isRyan && !isCurrentUserRyan && !currentUser?.isMaster) {
         return false;
       }
       return true;
     });
-  }, [adminUsers, isCurrentUserRyan]);
+  }, [adminUsers, isCurrentUserRyan, currentUser?.isMaster]);
+
+  // Universal Master Unified Accounts Roster (Admins, Coordinators, Trainers/Participants)
+  const allUnifiedAccounts = useMemo(() => {
+    const map = new Map<string, any>();
+
+    // 1. Add from localMasterCredentials
+    (localMasterCredentials || []).forEach((c: any) => {
+      if (c.email) {
+        const clean = c.email.toLowerCase().trim();
+        map.set(clean, {
+          email: clean,
+          name: c.full_name || clean.split('@')[0],
+          role: c.role || 'participant',
+          password: c.current_password || 'password@67',
+          updated_at: c.updated_at,
+        });
+      }
+    });
+
+    // 2. Merge adminUsers
+    (visibleAdminUsers || []).forEach((a: any) => {
+      const clean = a.email?.toLowerCase().trim();
+      if (clean) {
+        const existing = map.get(clean);
+        const isMaster = clean === 'ryankeshary@gmail.com' || clean === 'shrey.sleeps@gmail.com';
+        map.set(clean, {
+          email: clean,
+          name: a.full_name || existing?.name || clean.split('@')[0],
+          role: isMaster ? 'master' : 'admin',
+          password: existing?.password || 'password@67',
+          id: a.id,
+          updated_at: existing?.updated_at,
+        });
+      }
+    });
+
+    // 3. Merge coordinators
+    (coordinators || []).forEach((c: any) => {
+      const clean = c.email?.toLowerCase().trim();
+      if (clean) {
+        const existing = map.get(clean);
+        map.set(clean, {
+          email: clean,
+          name: c.full_name || existing?.name || clean.split('@')[0],
+          role: 'coordinator',
+          password: existing?.password || 'password@67',
+          id: c.id,
+          updated_at: existing?.updated_at,
+        });
+      }
+    });
+
+    // 4. Merge registrations (participants)
+    (registrations || []).forEach((r: any) => {
+      const clean = r.email?.toLowerCase().trim();
+      if (clean && !map.has(clean)) {
+        map.set(clean, {
+          email: clean,
+          name: r.full_name || clean.split('@')[0],
+          role: 'participant',
+          password: 'TrainerPass2026!',
+          id: r.id,
+          phone: r.phone,
+          college: r.college,
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [localMasterCredentials, visibleAdminUsers, coordinators, registrations]);
+
+  const filteredUnifiedAccounts = useMemo(() => {
+    return allUnifiedAccounts.filter((acc: any) => {
+      if (credentialsFilter === 'admin' && acc.role !== 'admin' && acc.role !== 'master') return false;
+      if (credentialsFilter === 'coordinator' && acc.role !== 'coordinator') return false;
+      if (credentialsFilter === 'participant' && acc.role !== 'participant') return false;
+
+      if (credentialsSearch.trim()) {
+        const q = credentialsSearch.toLowerCase().trim();
+        const matchName = acc.name?.toLowerCase().includes(q);
+        const matchEmail = acc.email?.toLowerCase().includes(q);
+        const matchRole = acc.role?.toLowerCase().includes(q);
+        if (!matchName && !matchEmail && !matchRole) return false;
+      }
+      return true;
+    });
+  }, [allUnifiedAccounts, credentialsFilter, credentialsSearch]);
 
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
@@ -321,8 +449,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     if (onRefresh) onRefresh();
   };
 
-  // Participant Deletion Handlers
+  // Participant Deletion Handlers (Strictly Master Only)
   const handleDeleteParticipant = async (participant: any) => {
+    if (!currentUser?.isMaster) {
+      showToast('Action Prohibited: Only Master Administrators can delete candidates.', 'error');
+      return;
+    }
     const confirmMsg = `Are you sure you want to permanently delete candidate "${participant.full_name}" (${participant.email})?\n\nThis will completely purge their registration, squad membership, and authentication account from the database so they can re-register from scratch.`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -344,6 +476,10 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   };
 
   const handleBulkDelete = async () => {
+    if (!currentUser?.isMaster) {
+      showToast('Action Prohibited: Only Master Administrators can delete candidates.', 'error');
+      return;
+    }
     if (selectedRegIds.length === 0) return;
     const confirmMsg = `Are you sure you want to permanently delete all ${selectedRegIds.length} selected participant(s)?\n\nTheir registrations, squad memberships, and authentication accounts will be completely wiped from the database so they can re-register.`;
     if (!window.confirm(confirmMsg)) return;
@@ -565,35 +701,50 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     }
   };
 
-  // Password Modal Open & Save (Supports both single user and all at once)
-  const handleOpenPasswordModal = (user: { id: string; email: string; name: string; role: 'admin' | 'coordinator' }) => {
-    const defaultScope = user.role === 'admin' ? 'all_admins' : 'all_coordinators';
-    setPasswordModalUser(user);
-    setPasswordTargetScope(defaultScope);
-    setTargetNewPassword('password@67');
+  // Password Modal Open & Save (Supports single user and batch scopes)
+  const handleOpenPasswordModal = (user: { id?: string; email: string; name?: string; role?: string }) => {
+    setPasswordModalUser({
+      id: user.id,
+      email: user.email,
+      name: user.name || user.email.split('@')[0],
+      role: (user.role as any) || 'participant',
+    });
+    setPasswordTargetScope('single');
+    setTargetNewPassword(user.role === 'participant' ? 'TrainerPass2026!' : 'password@67');
     setShowTargetPassword(true);
     setPasswordModalSuccess(null);
     setCopiedPassword(false);
   };
 
-  const handleOpenBatchPasswordModal = (scope: 'all_admins' | 'all_coordinators' | 'all_staff') => {
+  const handleOpenBatchPasswordModal = (
+    scope: 'all_admins' | 'all_coordinators' | 'all_participants' | 'all_users' | 'all_staff'
+  ) => {
+    let name = 'All Festival Staff';
+    let email = 'All Accounts';
+    let defaultPass = 'password@67';
+
+    if (scope === 'all_admins') {
+      name = 'All Administrators';
+      email = `${visibleAdminUsers.length} Admin Officers`;
+    } else if (scope === 'all_coordinators') {
+      name = 'All Gate Coordinators';
+      email = `${coordinators.length} Coordinators`;
+    } else if (scope === 'all_participants') {
+      name = 'All Registered Participants';
+      email = `${(registrations || []).length} Candidates`;
+      defaultPass = 'TrainerPass2026!';
+    } else if (scope === 'all_users') {
+      name = 'Everyone (All Platform Users)';
+      email = 'All Accounts (Admins, Coordinators, Trainers)';
+    }
+
     setPasswordModalUser({
-      role: scope,
-      name:
-        scope === 'all_admins'
-          ? 'All Administrators'
-          : scope === 'all_coordinators'
-          ? 'All Gate Coordinators'
-          : 'All Festival Staff',
-      email:
-        scope === 'all_admins'
-          ? `${visibleAdminUsers.length} Admin Officers`
-          : scope === 'all_coordinators'
-          ? `${coordinators.length} Coordinators`
-          : 'All Staff Members',
+      role: scope as any,
+      name,
+      email,
     });
     setPasswordTargetScope(scope);
-    setTargetNewPassword('password@67');
+    setTargetNewPassword(defaultPass);
     setShowTargetPassword(true);
     setPasswordModalSuccess(null);
     setCopiedPassword(false);
@@ -613,12 +764,18 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         res = await adminResetAllAdminsPassword(targetNewPassword);
       } else if (passwordTargetScope === 'all_coordinators') {
         res = await adminResetAllCoordinatorsPassword(targetNewPassword);
+      } else if (passwordTargetScope === 'all_participants') {
+        res = await adminResetAllParticipantsPassword(targetNewPassword);
+      } else if (passwordTargetScope === 'all_users') {
+        res = await adminResetEveryonePassword(targetNewPassword);
       } else if (passwordTargetScope === 'all_staff') {
         res = await adminResetBatchPasswords('all_staff', targetNewPassword);
-      } else if (passwordModalUser.role === 'admin') {
-        res = await resetAdminPassword(passwordModalUser.id!, targetNewPassword);
-      } else {
-        res = await adminResetCoordinatorPassword(passwordModalUser.id!, targetNewPassword);
+      } else if (passwordModalUser.role === 'admin' && passwordModalUser.id) {
+        res = await resetAdminPassword(passwordModalUser.id, targetNewPassword);
+      } else if (passwordModalUser.role === 'coordinator' && passwordModalUser.id) {
+        res = await adminResetCoordinatorPassword(passwordModalUser.id, targetNewPassword);
+      } else if (passwordModalUser.email) {
+        res = await masterResetUserPassword(passwordModalUser.email, targetNewPassword);
       }
 
       if (res?.success) {
@@ -629,9 +786,46 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             ? `All Administrators (${count} accounts)`
             : passwordTargetScope === 'all_coordinators'
             ? `All Gate Coordinators (${count} accounts)`
+            : passwordTargetScope === 'all_participants'
+            ? `All Registered Participants (${count} accounts)`
+            : passwordTargetScope === 'all_users'
+            ? `All Platform Accounts (${count} accounts)`
             : passwordTargetScope === 'all_staff'
             ? `All Staff (${count} accounts)`
             : passwordModalUser.email;
+
+        // Optimistically update localMasterCredentials
+        setLocalMasterCredentials((prev) => {
+          if (passwordTargetScope === 'single' && passwordModalUser.email) {
+            const clean = passwordModalUser.email.toLowerCase();
+            return prev.map((item) =>
+              item.email.toLowerCase() === clean
+                ? { ...item, current_password: pass }
+                : item
+            );
+          } else if (passwordTargetScope === 'all_admins') {
+            return prev.map((item) =>
+              item.role === 'admin' || item.role === 'master'
+                ? { ...item, current_password: pass }
+                : item
+            );
+          } else if (passwordTargetScope === 'all_coordinators') {
+            return prev.map((item) =>
+              item.role === 'coordinator'
+                ? { ...item, current_password: pass }
+                : item
+            );
+          } else if (passwordTargetScope === 'all_participants') {
+            return prev.map((item) =>
+              item.role === 'participant'
+                ? { ...item, current_password: pass }
+                : item
+            );
+          } else if (passwordTargetScope === 'all_users') {
+            return prev.map((item) => ({ ...item, current_password: pass }));
+          }
+          return prev;
+        });
 
         setPasswordModalSuccess({
           password: pass,
@@ -1354,15 +1548,17 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     >
                       Mark Day 2
                     </button>
-                    <button
-                      onClick={handleBulkDelete}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded shadow-2xs cursor-pointer transition-colors"
-                      title="Permanently delete selected candidates so they can re-register"
-                    >
-                      <Trash2 size={12} />
-                      <span>Delete Selected ({selectedRegIds.length})</span>
-                    </button>
+                    {currentUser?.isMaster && (
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={isProcessing}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded shadow-2xs cursor-pointer transition-colors"
+                        title="Permanently delete selected candidates (Master only)"
+                      >
+                        <Trash2 size={12} />
+                        <span>Delete Selected ({selectedRegIds.length})</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => setSelectedRegIds([])}
                       className="px-2.5 py-1 text-slate-600 hover:text-slate-900"
@@ -1435,6 +1631,21 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                         </td>
                         <td className="p-3.5 text-right">
                           <div className="inline-flex items-center justify-end gap-1.5">
+                            {currentUser?.isMaster && (
+                              <button
+                                onClick={() => handleOpenPasswordModal({
+                                  id: reg.id,
+                                  email: reg.email,
+                                  name: reg.full_name,
+                                  role: 'participant',
+                                })}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded border border-amber-200 transition-colors cursor-pointer"
+                                title="View / Change candidate password"
+                              >
+                                <KeyRound size={12} />
+                                <span>Pass</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => setEditingParticipant(reg)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded border border-slate-300 transition-colors cursor-pointer"
@@ -1443,15 +1654,17 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                               <Edit size={12} />
                               <span>Edit</span>
                             </button>
-                            <button
-                              onClick={() => handleDeleteParticipant(reg)}
-                              disabled={isProcessing}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 font-bold text-xs rounded border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
-                              title="Permanently delete candidate so they can re-register"
-                            >
-                              <Trash2 size={12} />
-                              <span>Delete</span>
-                            </button>
+                            {currentUser?.isMaster && (
+                              <button
+                                onClick={() => handleDeleteParticipant(reg)}
+                                disabled={isProcessing}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 font-bold text-xs rounded border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
+                                title="Permanently delete candidate (Master only)"
+                              >
+                                <Trash2 size={12} />
+                                <span>Delete</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1574,18 +1787,20 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                       <span>{t.is_waitlist ? 'Off Waitlist' : 'Waitlist'}</span>
                     </button>
 
-                    <button
-                      onClick={async () => {
-                        if (confirm(`Delete squad ${t.name} (${t.code}) and all member records?`)) {
-                          await adminDeleteTeam(t.id);
-                          if (onRefresh) onRefresh();
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded transition-colors cursor-pointer"
-                    >
-                      <Trash2 size={12} />
-                      <span>Delete</span>
-                    </button>
+                    {currentUser?.isMaster && (
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Delete squad ${t.name} (${t.code})? Only Master Administrators are permitted to delete squads.`)) {
+                            await adminDeleteTeam(t.id);
+                            if (onRefresh) onRefresh();
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={12} />
+                        <span>Delete</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2022,7 +2237,37 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                       <div className="text-slate-500 text-xs font-sans mt-0.5">{coord.email}</div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+                      {currentUser?.isMaster && (
+                        <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                          <span className="text-[10px] text-slate-500 font-sans">Pass:</span>
+                          <span className="text-xs font-mono font-bold text-slate-800">
+                            {revealedPasswords[coord.email?.toLowerCase()] ? (
+                              <span className="text-emerald-700 select-all font-mono font-bold">
+                                {getAccountPassword(coord.email)}
+                              </span>
+                            ) : (
+                              '••••••••'
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleRevealPassword(coord.email)}
+                            className="p-1 hover:text-black text-slate-500 cursor-pointer transition-colors"
+                            title={revealedPasswords[coord.email?.toLowerCase()] ? 'Hide password' : 'View password'}
+                          >
+                            {revealedPasswords[coord.email?.toLowerCase()] ? <EyeOff size={12} /> : <Eye size={12} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(getAccountPassword(coord.email))}
+                            className="p-1 hover:text-black text-slate-500 cursor-pointer transition-colors"
+                            title="Copy password"
+                          >
+                            <Copy size={12} />
+                          </button>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleResetCoordPass(coord.id, coord.email)}
@@ -2251,39 +2496,292 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                         <div className="text-slate-500 text-xs font-sans mt-0.5">{admin.email}</div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                          <span className="text-[10px] text-slate-500 font-sans">Pass:</span>
+                          <span className="text-xs font-mono font-bold text-slate-800">
+                            {revealedPasswords[admin.email?.toLowerCase()] ? (
+                              <span className="text-emerald-700 select-all font-mono font-bold">
+                                {getAccountPassword(admin.email)}
+                              </span>
+                            ) : (
+                              '••••••••'
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleRevealPassword(admin.email)}
+                            className="p-1 hover:text-black text-slate-500 cursor-pointer transition-colors"
+                            title={revealedPasswords[admin.email?.toLowerCase()] ? 'Hide password' : 'View password'}
+                          >
+                            {revealedPasswords[admin.email?.toLowerCase()] ? <EyeOff size={12} /> : <Eye size={12} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(getAccountPassword(admin.email))}
+                            className="p-1 hover:text-black text-slate-500 cursor-pointer transition-colors"
+                            title="Copy password"
+                          >
+                            <Copy size={12} />
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleResetAdminPass(admin.id, admin.email)}
+                          disabled={isProcessing}
+                          className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer flex items-center gap-1"
+                          title="Change password"
+                        >
+                          <KeyRound size={12} />
+                          <span>Change Password</span>
+                        </button>
+
                         {!isMasterOfficer && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleResetAdminPass(admin.id, admin.email)}
-                              disabled={isProcessing}
-                              className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer flex items-center gap-1"
-                              title="Change or reset password and view credentials"
-                            >
-                              <KeyRound size={12} />
-                              <span>Change Password</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRevokeAdmin(admin.id, admin.email)}
-                              disabled={isProcessing}
-                              className="px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-600 bg-rose-50 rounded border border-rose-200 transition-colors cursor-pointer"
-                              title="Revoke Admin Access"
-                            >
-                              Revoke Access
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeAdmin(admin.id, admin.email)}
+                            disabled={isProcessing}
+                            className="px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:text-white hover:bg-rose-600 bg-rose-50 rounded border border-rose-200 transition-colors cursor-pointer"
+                            title="Revoke Admin Access"
+                          >
+                            Revoke Access
+                          </button>
                         )}
                         {isMasterOfficer && (
                           <span className="text-[11px] text-amber-700 font-bold font-sans">
-                            Master Account (Immutable)
+                            Master Account
                           </span>
                         )}
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* =====================================================
+                UNIVERSAL MASTER PASSWORD & CREDENTIALS VAULT (ALL USERS)
+                Allows Masters to view, search, reveal, copy, and change passwords of everyone.
+               ===================================================== */}
+            <div className="bg-white border-2 border-slate-900 rounded-xl shadow-md overflow-hidden">
+              <div className="p-5 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-amber-400 text-black font-black text-[10px] rounded uppercase font-mono tracking-wider">
+                      MASTER VAULT
+                    </span>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <KeyRound size={18} className="text-amber-400" />
+                      Universal Festival Credentials Vault
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Master access to inspect, reveal, copy, and update passwords for all administrators, gate coordinators, and registered festival participants in real time.
+                  </p>
+                </div>
+
+                {/* Batch Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBatchPasswordModal('all_participants')}
+                    disabled={isProcessing}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    title="Change password for all participants at once"
+                  >
+                    <KeyRound size={13} />
+                    <span>Change All Participants Pass</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBatchPasswordModal('all_users')}
+                    disabled={isProcessing}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-mono font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    title="Change password for EVERYONE across the festival"
+                  >
+                    <Sparkles size={13} />
+                    <span>Universal Reset (Everyone)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Tabs & Search Controls */}
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1 font-mono text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setCredentialsFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      credentialsFilter === 'all'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    All Accounts ({allUnifiedAccounts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCredentialsFilter('admin')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      credentialsFilter === 'admin'
+                        ? 'bg-[#D21319] text-white shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    Admins ({allUnifiedAccounts.filter((a: any) => a.role === 'admin' || a.role === 'master').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCredentialsFilter('coordinator')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      credentialsFilter === 'coordinator'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    Coordinators ({allUnifiedAccounts.filter((a: any) => a.role === 'coordinator').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCredentialsFilter('participant')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      credentialsFilter === 'participant'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    Participants ({allUnifiedAccounts.filter((a: any) => a.role === 'participant').length})
+                  </button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative w-full md:w-72">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={credentialsSearch}
+                    onChange={(e) => setCredentialsSearch(e.target.value)}
+                    placeholder="Search name, email, role..."
+                    className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+                  />
+                  {credentialsSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setCredentialsSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-black text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Accounts List Table */}
+              <div className="max-h-[500px] overflow-y-auto divide-y divide-slate-100 font-mono text-xs">
+                {filteredUnifiedAccounts.map((account: any) => {
+                  const isRevealed = !!revealedPasswords[account.email?.toLowerCase()];
+                  const roleStyle =
+                    account.role === 'master'
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : account.role === 'admin'
+                      ? 'bg-red-100 text-red-900 border-red-200'
+                      : account.role === 'coordinator'
+                      ? 'bg-blue-100 text-blue-900 border-blue-200'
+                      : 'bg-emerald-100 text-emerald-900 border-emerald-200';
+
+                  return (
+                    <div
+                      key={account.email}
+                      className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                            account.role === 'master'
+                              ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]'
+                              : account.role === 'admin'
+                              ? 'bg-[#D21319]'
+                              : account.role === 'coordinator'
+                              ? 'bg-blue-500'
+                              : 'bg-emerald-500'
+                          }`}
+                        />
+                        <div>
+                          <div className="font-bold text-slate-900 flex items-center gap-2">
+                            <span>{account.name}</span>
+                            <span className={`px-2 py-0.2 text-[9px] rounded uppercase font-bold border ${roleStyle}`}>
+                              {account.role}
+                            </span>
+                          </div>
+                          <div className="text-slate-500 text-[11px] font-sans mt-0.5 flex items-center gap-2 flex-wrap">
+                            <span>{account.email}</span>
+                            {account.phone && <span className="text-slate-400">· {account.phone}</span>}
+                            {account.college && <span className="text-slate-400">· {account.college}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+                        {/* Password Display Box with Reveal and Copy */}
+                        <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-500 font-sans font-semibold">Password:</span>
+                          <span className="text-xs font-mono font-bold">
+                            {isRevealed ? (
+                              <span className="text-emerald-700 font-black select-all bg-emerald-50 px-1 py-0.5 rounded border border-emerald-300">
+                                {account.password}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600 tracking-wider">••••••••</span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleRevealPassword(account.email)}
+                            className="p-1 hover:text-black text-slate-500 cursor-pointer transition-colors"
+                            title={isRevealed ? 'Hide password' : 'View password'}
+                          >
+                            {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(account.password)}
+                            className="p-1 hover:text-black text-slate-500 cursor-pointer transition-colors"
+                            title="Copy password"
+                          >
+                            <Copy size={13} />
+                          </button>
+                        </div>
+
+                        {/* Change Password Button */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleOpenPasswordModal({
+                              id: account.id,
+                              email: account.email,
+                              name: account.name,
+                              role: account.role,
+                            })
+                          }
+                          disabled={isProcessing}
+                          className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                          title="Change password for this account"
+                        >
+                          <KeyRound size={12} />
+                          <span>Change</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredUnifiedAccounts.length === 0 && (
+                  <div className="p-8 text-center text-slate-500 font-mono text-xs">
+                    No matching accounts found for query &ldquo;{credentialsSearch}&rdquo;.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2422,20 +2920,22 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => {
-                  const target = editingParticipant;
-                  setEditingParticipant(null);
-                  handleDeleteParticipant(target);
-                }}
-                disabled={isProcessing}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
-                title="Permanently delete candidate so they can re-register"
-              >
-                <Trash2 size={13} />
-                <span>Delete Candidate</span>
-              </button>
+              {currentUser?.isMaster ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = editingParticipant;
+                    setEditingParticipant(null);
+                    handleDeleteParticipant(target);
+                  }}
+                  disabled={isProcessing}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Permanently delete candidate so they can re-register"
+                >
+                  <Trash2 size={13} />
+                  <span>Delete Candidate</span>
+                </button>
+              ) : <div />}
 
               <div className="flex justify-end gap-2">
                 <button
@@ -2960,11 +3460,17 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     ? 'BATCH ADMINISTRATOR CREDENTIALS'
                     : passwordTargetScope === 'all_coordinators'
                     ? 'BATCH COORDINATOR CREDENTIALS'
+                    : passwordTargetScope === 'all_participants'
+                    ? 'BATCH PARTICIPANT CREDENTIALS'
+                    : passwordTargetScope === 'all_users'
+                    ? 'UNIVERSAL PLATFORM CREDENTIALS'
                     : passwordTargetScope === 'all_staff'
                     ? 'GLOBAL FESTIVAL STAFF CREDENTIALS'
                     : passwordModalUser.role === 'admin'
                     ? 'ADMINISTRATOR CREDENTIALS'
-                    : 'COORDINATOR CREDENTIALS'}
+                    : passwordModalUser.role === 'coordinator'
+                    ? 'COORDINATOR CREDENTIALS'
+                    : 'PARTICIPANT CREDENTIALS'}
                 </span>
                 <h3 className="text-base font-bold text-slate-900">
                   {passwordTargetScope.startsWith('all_')
@@ -2973,6 +3479,10 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                           ? 'ALL Administrators'
                           : passwordTargetScope === 'all_coordinators'
                           ? 'ALL Gate Coordinators'
+                          : passwordTargetScope === 'all_participants'
+                          ? 'ALL Registered Participants'
+                          : passwordTargetScope === 'all_users'
+                          ? 'EVERYONE (All Accounts)'
                           : 'ALL Staff'
                       } at Once`
                     : 'Change Password'}
@@ -2982,6 +3492,10 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     ? `Will update all ${visibleAdminUsers.length} administrator accounts`
                     : passwordTargetScope === 'all_coordinators'
                     ? `Will update all ${coordinators.length} gate coordinator accounts`
+                    : passwordTargetScope === 'all_participants'
+                    ? `Will update all ${(registrations || []).length} registered participants`
+                    : passwordTargetScope === 'all_users'
+                    ? 'Will update all administrators, coordinators, and participants simultaneously'
                     : passwordTargetScope === 'all_staff'
                     ? 'Will update all administrators and coordinators simultaneously'
                     : `${passwordModalUser.name} · ${passwordModalUser.email}`}
@@ -3103,7 +3617,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                           </span>
                         </button>
 
-                        {passwordModalUser.id && (
+                        {(passwordModalUser.id || passwordModalUser.email) && (
                           <button
                             type="button"
                             onClick={() => setPasswordTargetScope('single')}
@@ -3126,6 +3640,100 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                             </span>
                           </button>
                         )}
+                      </>
+                    ) : passwordModalUser.role === 'participant' || passwordModalUser.role === 'all_participants' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setPasswordTargetScope('all_participants')}
+                          className={`p-2.5 text-left rounded-lg border transition-all cursor-pointer ${
+                            passwordTargetScope === 'all_participants'
+                              ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950 font-bold ring-1 ring-emerald-600'
+                              : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] ${
+                              passwordTargetScope === 'all_participants' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-400'
+                            }`}>
+                              {passwordTargetScope === 'all_participants' ? '✓' : ''}
+                            </span>
+                            <span className="font-bold">All Participants ({(registrations || []).length})</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block mt-1 ml-5.5 font-sans">
+                            Applies to all registered participants at once
+                          </span>
+                        </button>
+
+                        {(passwordModalUser.id || passwordModalUser.email) && (
+                          <button
+                            type="button"
+                            onClick={() => setPasswordTargetScope('single')}
+                            className={`p-2.5 text-left rounded-lg border transition-all cursor-pointer ${
+                              passwordTargetScope === 'single'
+                                ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950 font-bold ring-1 ring-emerald-600'
+                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] ${
+                                passwordTargetScope === 'single' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-400'
+                              }`}>
+                                {passwordTargetScope === 'single' ? '✓' : ''}
+                              </span>
+                              <span className="font-bold truncate">Only This Participant</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 block mt-1 ml-5.5 font-sans truncate">
+                              {passwordModalUser.email}
+                            </span>
+                          </button>
+                        )}
+                      </>
+                    ) : passwordModalUser.role === 'all_users' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setPasswordTargetScope('all_users')}
+                          className={`p-2.5 text-left rounded-lg border transition-all cursor-pointer ${
+                            passwordTargetScope === 'all_users'
+                              ? 'border-amber-600 bg-amber-50/80 text-amber-950 font-bold ring-1 ring-amber-600'
+                              : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] ${
+                              passwordTargetScope === 'all_users' ? 'border-amber-600 bg-amber-600 text-white' : 'border-slate-400'
+                            }`}>
+                              {passwordTargetScope === 'all_users' ? '✓' : ''}
+                            </span>
+                            <span className="font-bold">Everyone (Universal Reset)</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block mt-1 ml-5.5 font-sans">
+                            Applies to all admins, coordinators, and participants
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPasswordTargetScope('all_participants')}
+                          className={`p-2.5 text-left rounded-lg border transition-all cursor-pointer ${
+                            passwordTargetScope === 'all_participants'
+                              ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950 font-bold ring-1 ring-emerald-600'
+                              : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] ${
+                              passwordTargetScope === 'all_participants' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-400'
+                            }`}>
+                              {passwordTargetScope === 'all_participants' ? '✓' : ''}
+                            </span>
+                            <span className="font-bold">All Participants</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block mt-1 ml-5.5 font-sans">
+                            Only registered participants
+                          </span>
+                        </button>
                       </>
                     ) : (
                       <>
@@ -3151,7 +3759,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                           </span>
                         </button>
 
-                        {passwordModalUser.id && (
+                        {(passwordModalUser.id || passwordModalUser.email) && (
                           <button
                             type="button"
                             onClick={() => setPasswordTargetScope('single')}
