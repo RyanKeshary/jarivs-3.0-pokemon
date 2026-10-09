@@ -234,7 +234,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         setSelectedRegIds((prev) => prev.filter((id) => id !== participant.id));
         if (onRefresh) onRefresh();
       } else {
-        alert('Failed to delete participant record.');
+        alert(res?.error || 'Failed to delete participant record.');
       }
     } catch (err: any) {
       alert(err.message || 'Error occurred while deleting candidate.');
@@ -256,7 +256,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         setSelectedRegIds([]);
         if (onRefresh) onRefresh();
       } else {
-        alert('Failed to delete selected participants.');
+        alert(res?.error || 'Failed to delete selected participants.');
       }
     } catch (err: any) {
       alert(err.message || 'Error during bulk deletion.');
@@ -475,9 +475,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         setNewCoordEmail('');
         setNewCoordName('');
         if (onRefresh) onRefresh();
+      } else {
+        setCoordNotice(`Error: ${res?.error || 'Failed to appoint coordinator.'}`);
       }
     } catch (err: any) {
-      setCoordNotice(`Error: ${err.message}`);
+      setCoordNotice(`Error: ${err.message || 'Error configuring coordinator authentication.'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -492,9 +494,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       if (res?.success) {
         setCoordNotice(`Coordinator access removed for ${email}.`);
         if (onRefresh) onRefresh();
+      } else {
+        setCoordNotice(`Error: ${res?.error || 'Failed to remove coordinator.'}`);
       }
     } catch (err: any) {
-      setCoordNotice(`Error: ${err.message}`);
+      setCoordNotice(`Error: ${err.message || 'Error removing coordinator.'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -508,9 +512,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       const res = await adminResetCoordinatorPassword(coordId);
       if (res?.success) {
         setCoordNotice(`Credentials successfully reset to password@67 for coordinator ${email}.`);
+      } else {
+        setCoordNotice(`Error: ${res?.error || 'Failed to reset password.'}`);
       }
     } catch (err: any) {
-      setCoordNotice(`Error: ${err.message}`);
+      setCoordNotice(`Error: ${err.message || 'Error resetting credentials.'}`);
     } finally {
       setIsProcessing(false);
     }

@@ -40,6 +40,11 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
 
     function renderLoop(t: number) {
+      if (document.hidden) {
+        animFrameId = requestAnimationFrame(renderLoop);
+        return;
+      }
+
       if (t - last > 3000) {
         tx = Math.sin(t / 3800) * 2.2;
         ty = Math.sin(t / 5200) * 3.4;
@@ -47,11 +52,10 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
       cx += (tx - cx) * 0.06;
       cy += (ty - cy) * 0.06;
 
-      const scnL = sceneLRef.current;
-      const scnP = scenePRef.current;
+      const isMobileNow = window.innerWidth < 768;
+      const targetScene = isMobileNow ? scenePRef.current : sceneLRef.current;
       const transformVal = `rotateX(${cx.toFixed(3)}deg) rotateY(${cy.toFixed(3)}deg)`;
-      if (scnL) scnL.style.transform = transformVal;
-      if (scnP) scnP.style.transform = transformVal;
+      if (targetScene) targetScene.style.transform = transformVal;
 
       animFrameId = requestAnimationFrame(renderLoop);
     }
@@ -59,8 +63,13 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
     animFrameId = requestAnimationFrame(renderLoop);
 
     function emit(i: 'l' | 'p', pos: [number, number, number, number], ch: string, sc: number) {
+      if (document.hidden) return;
       const fl = i === 'l' ? fxLRef.current : fxPRef.current;
       if (!fl) return;
+      // Cap max concurrent particles to 6 to prevent DOM bloat and garbage collection spikes
+      if (fl.children.length > 6) {
+        fl.firstElementChild?.remove();
+      }
       const W = fl.offsetWidth;
       if (!W) return;
       const s = document.createElement('span');
@@ -70,29 +79,35 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
       fl.appendChild(s);
       setTimeout(() => {
         s.remove();
-      }, 4000);
+      }, 3500);
     }
 
     const notes = ['♪', '♫', '♬'];
     const snoreChars = ['z', 'Z'];
 
+    // Adaptive intervals: on mobile viewports, spawn less frequently to conserve battery & frame rate
+    const isMobile = window.innerWidth < 768;
+    const noteIntervalTime = isMobile ? 2200 : 900;
+    const snoreIntervalTime = isMobile ? 3800 : 2000;
+    const eeveeIntervalTime = isMobile ? 5000 : 2800;
+
     const intervalNotes = setInterval(() => {
-      (['l', 'p'] as const).forEach((id) => {
-        emit(id, CFG[id].n, notes[Math.floor(R() * notes.length)], 1 + R() * 0.9);
-      });
-    }, 650);
+      const isMob = window.innerWidth < 768;
+      const id = isMob ? 'p' : 'l';
+      emit(id, CFG[id].n, notes[Math.floor(R() * notes.length)], 1 + R() * 0.9);
+    }, noteIntervalTime);
 
     const intervalSnore = setInterval(() => {
-      (['l', 'p'] as const).forEach((id) => {
-        emit(id, CFG[id].s, snoreChars[Math.floor(R() * snoreChars.length)], 1 + R() * 0.7);
-      });
-    }, 1700);
+      const isMob = window.innerWidth < 768;
+      const id = isMob ? 'p' : 'l';
+      emit(id, CFG[id].s, snoreChars[Math.floor(R() * snoreChars.length)], 1 + R() * 0.7);
+    }, snoreIntervalTime);
 
     const intervalEevee = setInterval(() => {
-      (['l', 'p'] as const).forEach((id) => {
-        emit(id, CFG[id].e, 'z', 0.9 + R() * 0.4);
-      });
-    }, 2300);
+      const isMob = window.innerWidth < 768;
+      const id = isMob ? 'p' : 'l';
+      emit(id, CFG[id].e, 'z', 0.9 + R() * 0.4);
+    }, eeveeIntervalTime);
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
@@ -169,13 +184,13 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
             </div>
 
             {/* Wings */}
-            <div className="L w" style={{ ['--z' as any]: '28px', ['--s' as any]: 0.9767 }}>
+            <div className="L w" style={{ ['--z' as any]: '1px', ['--s' as any]: 0.9992 }}>
               <div className="l wl" title="Phoenix Left Wing" />
               <div className="l wr" title="Phoenix Right Wing" />
             </div>
 
             {/* Red Arch Ribbon */}
-            <div className="L r" style={{ ['--z' as any]: '50px', ['--s' as any]: 0.9583 }}>
+            <div className="L r" style={{ ['--z' as any]: '2px', ['--s' as any]: 0.9983 }}>
               <div className="l rd" title="Satin Ribbons" />
             </div>
 
@@ -273,13 +288,13 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
         <div className="stage st-p">
           <div ref={scenePRef} className="scene" id="scn-p">
             {/* Wings */}
-            <div className="L w" style={{ ['--z' as any]: '28px', ['--s' as any]: 0.9767 }}>
+            <div className="L w" style={{ ['--z' as any]: '1px', ['--s' as any]: 0.9992 }}>
               <div className="l wl" title="Phoenix Left Wing" />
               <div className="l wr" title="Phoenix Right Wing" />
             </div>
 
             {/* Red Arch Ribbon */}
-            <div className="L r" style={{ ['--z' as any]: '50px', ['--s' as any]: 0.9583 }}>
+            <div className="L r" style={{ ['--z' as any]: '2px', ['--s' as any]: 0.9983 }}>
               <div className="l rd" title="Satin Ribbons" />
             </div>
 

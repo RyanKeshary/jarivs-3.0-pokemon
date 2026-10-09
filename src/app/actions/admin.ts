@@ -119,10 +119,36 @@ export async function adminLogoutAction() {
 // Log action to audit_log
 async function logAudit(actorId: string, actorEmail: string, action: string, targetType: string, targetId: string, details: any = {}) {
   try {
-    await sql`
-      INSERT INTO public.audit_log (actor_id, actor_email, action, target_type, target_id, details)
-      VALUES (${actorId}, ${actorEmail}, ${action}, ${targetType}, ${targetId}, ${JSON.stringify(details)}::jsonb)
-    `;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const safeTargetId = targetId && isUuid.test(targetId) ? targetId : null;
+    const safeActorId = actorId && isUuid.test(actorId) ? actorId : null;
+    const enrichedDetails = {
+      ...(details || {}),
+      ...(safeTargetId === null && targetId ? { rawTargetId: targetId } : {}),
+      ...(safeActorId === null && actorId ? { rawActorId: actorId } : {})
+    };
+
+    if (safeActorId && safeTargetId) {
+      await sql`
+        INSERT INTO public.audit_log (actor_id, actor_email, action, target_type, target_id, details)
+        VALUES (${safeActorId}::uuid, ${actorEmail}, ${action}, ${targetType}, ${safeTargetId}::uuid, ${sql.json(enrichedDetails)})
+      `;
+    } else if (safeActorId && !safeTargetId) {
+      await sql`
+        INSERT INTO public.audit_log (actor_id, actor_email, action, target_type, target_id, details)
+        VALUES (${safeActorId}::uuid, ${actorEmail}, ${action}, ${targetType}, NULL, ${sql.json(enrichedDetails)})
+      `;
+    } else if (!safeActorId && safeTargetId) {
+      await sql`
+        INSERT INTO public.audit_log (actor_id, actor_email, action, target_type, target_id, details)
+        VALUES (NULL, ${actorEmail}, ${action}, ${targetType}, ${safeTargetId}::uuid, ${sql.json(enrichedDetails)})
+      `;
+    } else {
+      await sql`
+        INSERT INTO public.audit_log (actor_id, actor_email, action, target_type, target_id, details)
+        VALUES (NULL, ${actorEmail}, ${action}, ${targetType}, NULL, ${sql.json(enrichedDetails)})
+      `;
+    }
   } catch (err) {
     console.error('Audit log error:', err);
   }
@@ -598,140 +624,213 @@ export async function masterRemoveAdmin(targetAdminId: string) {
 // =============================================================================
 
 export async function adminAddCoordinator(email: string, fullName: string, password?: string) {
-  const { user, profile } = await requireAdminOrManager();
-
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanName = fullName.trim() || 'Gate Coordinator';
-  const assignedPassword = password?.trim() || 'password@67';
-
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    throw new Error('Please provide a valid coordinator email address.');
-  }
-
-  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
-  if (MASTER_EMAILS.includes(cleanEmail)) {
-    throw new Error('Action Prohibited: Cannot alter role of a Master Administrator.');
-  }
-
-  let targetUserId: string | null = null;
-  const adminClient = createAdminClient();
-
   try {
-    const { data: usersData } = await adminClient.auth.admin.listUsers();
-    const existing = usersData?.users?.find((u) => u.email?.toLowerCase().trim() === cleanEmail);
-    if (existing) {
-      targetUserId = existing.id;
-      await adminClient.auth.admin.updateUserById(targetUserId, {
-        password: assignedPassword,
-        user_metadata: { full_name: cleanName, role: 'coordinator' },
-      });
-    } else {
-      const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
-        email: cleanEmail,
-        password: assignedPassword,
-        email_confirm: true,
-        user_metadata: { full_name: cleanName, role: 'coordinator' },
-      });
-      if (createErr || !newUser.user) {
-        throw new Error(createErr?.message || 'Failed to provision coordinator auth record.');
-      }
-      targetUserId = newUser.user.id;
+    const { user, profile } = await requireAdminOrManager();
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = fullName.trim() || 'Gate Coordinator';
+    const assignedPassword = password?.trim() || 'password@67';
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, error: 'Please provide a valid coordinator email address.' };
     }
+
+    const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+    if (MASTER_EMAILS.includes(cleanEmail)) {
+      return { success: false, error: 'Action Prohibited: Cannot alter role of a Master Administrator.' };
+    }
+
+    let targetUserId: string | null = null;
+
+    // Check if user already exists in auth.users
+    const existingUsers = await sql`
+      SELECT id FROM auth.users WHERE LOWER(email) = ${cleanEmail}
+    `;
+
+    if (existingUsers.length > 0) {
+      targetUserId = existingUsers[0].id;
+      // Update encrypted password and metadata in auth.users
+      await sql`
+        UPDATE auth.users
+        SET encrypted_password = crypt(${assignedPassword}, gen_salt('bf', 10)),
+            raw_user_meta_data = jsonb_build_object('full_name', ${cleanName}, 'role', 'coordinator'),
+            updated_at = NOW()
+        WHERE id = ${targetUserId}::uuid
+      `;
+      // Ensure entry exists in auth.identities
+      const existingIdentities = await sql`
+        SELECT id FROM auth.identities WHERE user_id = ${targetUserId}::uuid
+      `;
+      if (existingIdentities.length === 0) {
+        const identityData = {
+          sub: targetUserId,
+          email: cleanEmail,
+          email_verified: true,
+          phone_verified: false
+        };
+        await sql`
+          INSERT INTO auth.identities (
+            id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+          ) VALUES (
+            gen_random_uuid(), ${targetUserId}, ${targetUserId}::uuid, ${sql.json(identityData)}, 'email', null, NOW(), NOW()
+          )
+        `;
+      }
+    } else {
+      // Create new user in auth.users directly via SQL (100% reliable with Supabase auth)
+      targetUserId = crypto.randomUUID();
+      const userMeta = {
+        sub: targetUserId,
+        email: cleanEmail,
+        full_name: cleanName,
+        role: 'coordinator'
+      };
+
+      await sql`
+        INSERT INTO auth.users (
+          instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+          confirmation_token, recovery_token, email_change_token_new, email_change, phone_change,
+          phone_change_token, reauthentication_token, email_change_token_current, email_change_confirm_status,
+          is_sso_user, is_anonymous, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+        ) VALUES (
+          '00000000-0000-0000-0000-000000000000',
+          ${targetUserId}::uuid,
+          'authenticated',
+          'authenticated',
+          ${cleanEmail},
+          crypt(${assignedPassword}, gen_salt('bf', 10)),
+          NOW(),
+          '', '', '', '', '', '', '', '', 0,
+          false, false,
+          ${sql.json({ provider: 'email', providers: ['email'] })},
+          ${sql.json(userMeta)},
+          NOW(),
+          NOW()
+        )
+      `;
+
+      const identityData = {
+        sub: targetUserId,
+        email: cleanEmail,
+        email_verified: true,
+        phone_verified: false
+      };
+
+      await sql`
+        INSERT INTO auth.identities (
+          id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+        ) VALUES (
+          gen_random_uuid(), ${targetUserId}, ${targetUserId}::uuid, ${sql.json(identityData)}, 'email', null, NOW(), NOW()
+        )
+      `;
+    }
+
+    if (!targetUserId) {
+      return { success: false, error: 'Failed to resolve coordinator user identifier.' };
+    }
+
+    // Upsert into public.profiles with role = 'coordinator'
+    await sql`
+      INSERT INTO public.profiles (id, email, full_name, role)
+      VALUES (${targetUserId}::uuid, ${cleanEmail}, ${cleanName}, 'coordinator')
+      ON CONFLICT (id) DO UPDATE SET
+        role = 'coordinator',
+        full_name = EXCLUDED.full_name,
+        email = EXCLUDED.email
+    `;
+
+    await sql`
+      UPDATE public.profiles
+      SET role = 'coordinator', full_name = ${cleanName}
+      WHERE LOWER(email) = ${cleanEmail}
+    `;
+
+    await logAudit(user.id, user.email || '', 'ADD_COORDINATOR', 'profiles', targetUserId, {
+      appointedEmail: cleanEmail,
+      appointedName: cleanName,
+      appointedByRole: profile.role,
+      defaultPassword: assignedPassword,
+    });
+
+    revalidatePath('/admin');
+    return { success: true, coordinatorId: targetUserId };
   } catch (err: any) {
-    throw new Error(err.message || 'Error configuring coordinator authentication.');
+    console.error('adminAddCoordinator error:', err);
+    return { success: false, error: err.message || 'Error configuring coordinator authentication.' };
   }
-
-  if (!targetUserId) {
-    throw new Error('Failed to resolve coordinator user identifier.');
-  }
-
-  await sql`
-    INSERT INTO public.profiles (id, email, full_name, role)
-    VALUES (${targetUserId}, ${cleanEmail}, ${cleanName}, 'coordinator')
-    ON CONFLICT (id) DO UPDATE SET
-      role = 'coordinator',
-      full_name = EXCLUDED.full_name,
-      email = EXCLUDED.email
-  `;
-
-  await sql`
-    UPDATE public.profiles
-    SET role = 'coordinator', full_name = ${cleanName}
-    WHERE LOWER(email) = ${cleanEmail}
-  `;
-
-  await logAudit(user.id, user.email || '', 'ADD_COORDINATOR', 'profiles', targetUserId, {
-    appointedEmail: cleanEmail,
-    appointedName: cleanName,
-    appointedByRole: profile.role,
-    defaultPassword: assignedPassword,
-  });
-
-  revalidatePath('/admin');
-  return { success: true, coordinatorId: targetUserId };
 }
 
 export async function adminRemoveCoordinator(coordinatorId: string) {
-  const { user } = await requireAdminOrManager();
-
-  const targetRows = await sql`
-    SELECT id, email, role, full_name FROM public.profiles WHERE id = ${coordinatorId}::uuid
-  `;
-  if (targetRows.length === 0) {
-    throw new Error('Coordinator profile record not found.');
-  }
-
-  const target = targetRows[0];
-  const targetEmail = (target.email || '').toLowerCase().trim();
-
-  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
-  if (MASTER_EMAILS.includes(targetEmail)) {
-    throw new Error('Action Prohibited: Cannot alter role of Master Administrator.');
-  }
-
-  if (target.role !== 'coordinator') {
-    throw new Error('Action Prohibited: Target user does not hold a coordinator role.');
-  }
-
-  await sql`DELETE FROM public.profiles WHERE id = ${coordinatorId}::uuid`;
-
   try {
-    const adminClient = createAdminClient();
-    await adminClient.auth.admin.deleteUser(coordinatorId);
-  } catch (e) {
+    const { user } = await requireAdminOrManager();
+
+    const targetRows = await sql`
+      SELECT id, email, role, full_name FROM public.profiles WHERE id = ${coordinatorId}::uuid
+    `;
+    if (targetRows.length === 0) {
+      return { success: false, error: 'Coordinator profile record not found.' };
+    }
+
+    const target = targetRows[0];
+    const targetEmail = (target.email || '').toLowerCase().trim();
+
+    const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+    if (MASTER_EMAILS.includes(targetEmail)) {
+      return { success: false, error: 'Action Prohibited: Cannot alter role of Master Administrator.' };
+    }
+
+    if (target.role !== 'coordinator') {
+      return { success: false, error: 'Action Prohibited: Target user does not hold a coordinator role.' };
+    }
+
+    await sql`DELETE FROM public.profiles WHERE id = ${coordinatorId}::uuid`;
+    try {
+      await sql`DELETE FROM auth.identities WHERE user_id = ${coordinatorId}::uuid`;
+    } catch (e) {}
     try {
       await sql`DELETE FROM auth.users WHERE id = ${coordinatorId}::uuid`;
-    } catch (err) {}
+    } catch (e) {}
+
+    await logAudit(user.id, user.email || '', 'REMOVE_COORDINATOR', 'profiles', coordinatorId, {
+      removedEmail: targetEmail,
+      removedName: target.full_name,
+    });
+
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (err: any) {
+    console.error('adminRemoveCoordinator error:', err);
+    return { success: false, error: err.message || 'Error removing coordinator.' };
   }
-
-  await logAudit(user.id, user.email || '', 'REMOVE_COORDINATOR', 'profiles', coordinatorId, {
-    removedEmail: targetEmail,
-    removedName: target.full_name,
-  });
-
-  revalidatePath('/admin');
-  return { success: true };
 }
 
 export async function adminResetCoordinatorPassword(coordinatorId: string) {
-  const { user } = await requireAdminOrManager();
+  try {
+    const { user } = await requireAdminOrManager();
 
-  const targetRows = await sql`
-    SELECT id, email, role FROM public.profiles WHERE id = ${coordinatorId}::uuid
-  `;
-  if (targetRows.length === 0) throw new Error('Coordinator not found.');
-  if (targetRows[0].role !== 'coordinator') throw new Error('Target user is not a coordinator.');
+    const targetRows = await sql`
+      SELECT id, email, role FROM public.profiles WHERE id = ${coordinatorId}::uuid
+    `;
+    if (targetRows.length === 0) return { success: false, error: 'Coordinator not found.' };
+    if (targetRows[0].role !== 'coordinator') return { success: false, error: 'Target user is not a coordinator.' };
 
-  const adminClient = createAdminClient();
-  await adminClient.auth.admin.updateUserById(coordinatorId, {
-    password: 'password@67',
-  });
+    await sql`
+      UPDATE auth.users
+      SET encrypted_password = crypt('password@67', gen_salt('bf', 10)),
+          updated_at = NOW()
+      WHERE id = ${coordinatorId}::uuid
+    `;
 
-  await logAudit(user.id, user.email || '', 'RESET_COORDINATOR_PASSWORD', 'profiles', coordinatorId, {
-    email: targetRows[0].email,
-  });
+    await logAudit(user.id, user.email || '', 'RESET_COORDINATOR_PASSWORD', 'profiles', coordinatorId, {
+      email: targetRows[0].email,
+      defaultPassword: 'password@67'
+    });
 
-  return { success: true };
+    return { success: true };
+  } catch (err: any) {
+    console.error('adminResetCoordinatorPassword error:', err);
+    return { success: false, error: err.message || 'Error resetting coordinator credentials.' };
+  }
 }
 
 export async function adminCheckInSquad(teamId: string) {
@@ -989,220 +1088,227 @@ export async function adminUpdateParticipantDetails(id: string, data: {
 }
 
 export async function adminBulkUpdateStatus(ids: string[], status: string) {
-  const { user, isCoordinator } = await requireCoordinatorOrAdmin();
-  if (isCoordinator && status !== 'Checked In' && status !== 'Confirmed') {
-    throw new Error('Coordinators are authorized for attendee check-in only.');
+  try {
+    const { user, isCoordinator } = await requireCoordinatorOrAdmin();
+    if (isCoordinator && status !== 'Checked In' && status !== 'Confirmed') {
+      return { success: false, error: 'Coordinators are authorized for attendee check-in only.' };
+    }
+    await sql`UPDATE public.fest_registrations SET status = ${status} WHERE id = ANY(${ids}::uuid[])`;
+    await logAudit(user.id, user.email || '', isCoordinator ? 'COORDINATOR_BULK_CHECKIN' : 'BULK_UPDATE_STATUS', 'fest_registrations', '', { count: ids.length, status });
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (err: any) {
+    console.error('adminBulkUpdateStatus error:', err);
+    return { success: false, error: err.message || 'Failed to update candidate status.' };
   }
-  await sql`UPDATE public.fest_registrations SET status = ${status} WHERE id = ANY(${ids})`;
-  await logAudit(user.id, user.email || '', isCoordinator ? 'COORDINATOR_BULK_CHECKIN' : 'BULK_UPDATE_STATUS', 'fest_registrations', 'bulk', { count: ids.length, status });
-  revalidatePath('/admin');
-  return { success: true };
 }
 
 export async function adminDeleteParticipant(id: string) {
-  const { user } = await requireAdmin();
+  try {
+    const { user } = await requireAdmin();
 
-  // 1. Fetch participant record
-  const participantRows = await sql`
-    SELECT * FROM public.fest_registrations WHERE id = ${id}
-  `;
-  if (participantRows.length === 0) {
-    throw new Error('Candidate registration not found.');
-  }
-
-  const participant = participantRows[0];
-  const participantEmail = (participant.email || '').trim().toLowerCase();
-  const participantPhone = (participant.phone || '').trim();
-  const teamId = participant.team_id;
-  const isLeader = Boolean(participant.is_leader);
-
-  // Safeguard: Protect master administrators from deletion
-  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
-  if (MASTER_EMAILS.includes(participantEmail)) {
-    throw new Error('Action Prohibited: Cannot delete a Master Administrator record.');
-  }
-
-  // 2. Delete from public.fest_registrations
-  await sql`DELETE FROM public.fest_registrations WHERE id = ${id}`;
-
-  // 3. Handle squad / team integrity
-  let teamDeleted = false;
-  let newLeaderEmail: string | null = null;
-  if (teamId) {
-    const remainingMembers = await sql`
-      SELECT id, email, full_name, is_leader FROM public.fest_registrations WHERE team_id = ${teamId} ORDER BY created_at ASC
+    // 1. Fetch participant record
+    const participantRows = await sql`
+      SELECT * FROM public.fest_registrations WHERE id = ${id}::uuid
     `;
-
-    if (remainingMembers.length === 0) {
-      // Team has no remaining members, clean up orphan team
-      await sql`DELETE FROM public.fest_teams WHERE id = ${teamId}`;
-      teamDeleted = true;
-    } else if (isLeader) {
-      // Promote first remaining squad member to squad captain
-      const nextLeader = remainingMembers[0];
-      await sql`UPDATE public.fest_registrations SET is_leader = true WHERE id = ${nextLeader.id}`;
-      await sql`UPDATE public.fest_teams SET leader_email = ${nextLeader.email} WHERE id = ${teamId}`;
-      newLeaderEmail = nextLeader.email;
+    if (participantRows.length === 0) {
+      return { success: false, error: 'Candidate registration not found.' };
     }
-  }
 
-  // 4. Delete Supabase Auth user from auth.users (if any exists)
-  let authUserId: string | null = null;
-  try {
-    const adminClient = createAdminClient();
-    const { data: usersData } = await adminClient.auth.admin.listUsers();
-    const authUser = usersData?.users?.find(
-      (u) => u.email?.toLowerCase().trim() === participantEmail
-    );
-    if (authUser) {
-      authUserId = authUser.id;
-      await adminClient.auth.admin.deleteUser(authUser.id);
+    const participant = participantRows[0];
+    const participantEmail = (participant.email || '').trim().toLowerCase();
+    const participantPhone = (participant.phone || '').trim();
+    const teamId = participant.team_id;
+    const isLeader = Boolean(participant.is_leader);
+
+    // Safeguard: Protect master administrators from deletion
+    const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+    if (MASTER_EMAILS.includes(participantEmail)) {
+      return { success: false, error: 'Action Prohibited: Cannot delete a Master Administrator record.' };
     }
-  } catch (authErr) {
-    console.error('Error deleting auth user via admin client:', authErr);
-  }
 
-  // Fallback SQL deletion from auth.users
-  if (authUserId) {
+    // 2. Delete from public.fest_registrations
+    await sql`DELETE FROM public.fest_registrations WHERE id = ${id}::uuid`;
+
+    // 3. Handle squad / team integrity
+    let teamDeleted = false;
+    let newLeaderEmail: string | null = null;
+    if (teamId) {
+      const remainingMembers = await sql`
+        SELECT id, email, full_name, is_leader FROM public.fest_registrations WHERE team_id = ${teamId}::uuid ORDER BY created_at ASC
+      `;
+
+      if (remainingMembers.length === 0) {
+        // Team has no remaining members, clean up orphan team
+        await sql`DELETE FROM public.fest_teams WHERE id = ${teamId}::uuid`;
+        teamDeleted = true;
+      } else if (isLeader) {
+        // Promote first remaining squad member to squad captain
+        const nextLeader = remainingMembers[0];
+        await sql`UPDATE public.fest_registrations SET is_leader = true WHERE id = ${nextLeader.id}::uuid`;
+        await sql`UPDATE public.fest_teams SET leader_email = ${nextLeader.email} WHERE id = ${teamId}::uuid`;
+        newLeaderEmail = nextLeader.email;
+      }
+    }
+
+    // 4. Delete Supabase Auth user & profile records
+    let authUserId: string | null = null;
     try {
-      await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
-    } catch (e) {}
-  }
-  try {
-    await sql`DELETE FROM auth.users WHERE LOWER(email) = ${participantEmail}`;
-  } catch (e) {}
-
-  // 5. Delete profile record
-  try {
-    if (authUserId) {
-      await sql`DELETE FROM public.profiles WHERE id = ${authUserId}::uuid OR LOWER(email) = ${participantEmail}`;
-    } else {
-      await sql`DELETE FROM public.profiles WHERE LOWER(email) = ${participantEmail}`;
+      const authUserRows = await sql`
+        SELECT id FROM auth.users WHERE LOWER(email) = ${participantEmail}
+      `;
+      if (authUserRows.length > 0) {
+        authUserId = authUserRows[0].id;
+        try {
+          await sql`DELETE FROM auth.identities WHERE user_id = ${authUserId}::uuid`;
+        } catch (e) {}
+        try {
+          await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
+        } catch (e) {}
+      }
+    } catch (authErr) {
+      console.error('Error deleting auth user:', authErr);
     }
-  } catch (profErr) {
-    console.error('Error deleting profile:', profErr);
-  }
 
-  // 6. Delete legacy tables entries (registrations, team_members)
-  try {
-    await sql`DELETE FROM public.registrations WHERE LOWER(email) = ${participantEmail}`;
-    if (authUserId) {
-      await sql`DELETE FROM public.team_members WHERE user_id = ${authUserId}::uuid`;
+    // 5. Delete profile record
+    try {
+      if (authUserId) {
+        await sql`DELETE FROM public.profiles WHERE id = ${authUserId}::uuid OR LOWER(email) = ${participantEmail}`;
+      } else {
+        await sql`DELETE FROM public.profiles WHERE LOWER(email) = ${participantEmail}`;
+      }
+    } catch (profErr) {
+      console.error('Error deleting profile:', profErr);
     }
-  } catch (legacyErr) {
-    // non-fatal
-  }
 
-  // 7. Audit Log
-  await logAudit(
-    user.id,
-    user.email || '',
-    'DELETE_PARTICIPANT_PERMANENT',
-    'fest_registrations',
-    id,
-    {
-      deletedName: participant.full_name,
-      deletedEmail: participantEmail,
-      deletedPhone: participantPhone,
-      teamId,
-      teamCode: participant.team_code,
-      teamDeleted,
-      promotedLeader: newLeaderEmail,
+    // 6. Delete legacy tables entries (registrations, team_members)
+    try {
+      await sql`DELETE FROM public.registrations WHERE LOWER(email) = ${participantEmail}`;
+      if (authUserId) {
+        await sql`DELETE FROM public.team_members WHERE user_id = ${authUserId}::uuid`;
+      }
+    } catch (legacyErr) {
+      // non-fatal
     }
-  );
 
-  // 8. Cache revalidation
-  revalidatePath('/admin');
-  revalidatePath('/dashboard');
-  revalidatePath('/register');
-  revalidatePath('/');
+    // 7. Audit Log
+    await logAudit(
+      user.id,
+      user.email || '',
+      'DELETE_PARTICIPANT_PERMANENT',
+      'fest_registrations',
+      id,
+      {
+        deletedName: participant.full_name,
+        deletedEmail: participantEmail,
+        deletedPhone: participantPhone,
+        teamId,
+        teamCode: participant.team_code,
+        teamDeleted,
+        promotedLeader: newLeaderEmail,
+      }
+    );
 
-  return { success: true };
+    // 8. Cache revalidation
+    revalidatePath('/admin');
+    revalidatePath('/dashboard');
+    revalidatePath('/register');
+    revalidatePath('/');
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('adminDeleteParticipant error:', err);
+    return { success: false, error: err.message || 'Error occurred while deleting candidate.' };
+  }
 }
 
 export async function adminBulkDeleteParticipants(ids: string[]) {
-  const { user } = await requireAdmin();
-  if (!ids || ids.length === 0) return { success: true, count: 0 };
+  try {
+    const { user } = await requireAdmin();
+    if (!ids || ids.length === 0) return { success: true, count: 0 };
 
-  let count = 0;
-  for (const id of ids) {
-    try {
-      await adminDeleteParticipant(id);
-      count++;
-    } catch (err) {
-      console.error(`Failed to delete candidate ${id}:`, err);
+    let count = 0;
+    for (const id of ids) {
+      try {
+        const res = await adminDeleteParticipant(id);
+        if (res.success) count++;
+      } catch (err) {
+        console.error(`Failed to delete candidate ${id}:`, err);
+      }
     }
+
+    await logAudit(
+      user.id,
+      user.email || '',
+      'BULK_DELETE_PARTICIPANTS',
+      'fest_registrations',
+      '',
+      { requestedCount: ids.length, deletedCount: count }
+    );
+
+    revalidatePath('/admin');
+    revalidatePath('/dashboard');
+    revalidatePath('/register');
+    revalidatePath('/');
+
+    return { success: true, count };
+  } catch (err: any) {
+    console.error('adminBulkDeleteParticipants error:', err);
+    return { success: false, error: err.message || 'Error during bulk deletion.' };
   }
-
-  await logAudit(
-    user.id,
-    user.email || '',
-    'BULK_DELETE_PARTICIPANTS',
-    'fest_registrations',
-    'bulk',
-    { requestedCount: ids.length, deletedCount: count }
-  );
-
-  revalidatePath('/admin');
-  revalidatePath('/dashboard');
-  revalidatePath('/register');
-  revalidatePath('/');
-
-  return { success: true, count };
 }
 
 export async function adminDeleteUserByEmail(email: string) {
-  const { user } = await requireAdmin();
-  const cleanEmail = email.trim().toLowerCase();
-
-  const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
-  if (MASTER_EMAILS.includes(cleanEmail)) {
-    throw new Error('Action Prohibited: Cannot delete a Master Administrator record.');
-  }
-
-  // Find all fest registrations for this email
-  const regRows = await sql`
-    SELECT id FROM public.fest_registrations WHERE LOWER(email) = ${cleanEmail}
-  `;
-  for (const reg of regRows) {
-    await adminDeleteParticipant(reg.id);
-  }
-
-  // Clean auth and profiles directly
-  let authUserId: string | null = null;
   try {
-    const adminClient = createAdminClient();
-    const { data: usersData } = await adminClient.auth.admin.listUsers();
-    const authUser = usersData?.users?.find((u) => u.email?.toLowerCase().trim() === cleanEmail);
-    if (authUser) {
-      authUserId = authUser.id;
-      await adminClient.auth.admin.deleteUser(authUser.id);
+    const { user } = await requireAdmin();
+    const cleanEmail = email.trim().toLowerCase();
+
+    const MASTER_EMAILS = ['ryankeshary@gmail.com', 'shrey.sleeps@gmail.com'];
+    if (MASTER_EMAILS.includes(cleanEmail)) {
+      return { success: false, error: 'Action Prohibited: Cannot delete a Master Administrator record.' };
     }
-  } catch (err) {}
 
-  if (authUserId) {
+    // Find all fest registrations for this email
+    const regRows = await sql`
+      SELECT id FROM public.fest_registrations WHERE LOWER(email) = ${cleanEmail}
+    `;
+    for (const reg of regRows) {
+      await adminDeleteParticipant(reg.id);
+    }
+
+    // Clean auth and profiles directly
+    const authUserRows = await sql`SELECT id FROM auth.users WHERE LOWER(email) = ${cleanEmail}`;
+    const authUserId = authUserRows[0]?.id;
+    if (authUserId) {
+      try {
+        await sql`DELETE FROM auth.identities WHERE user_id = ${authUserId}::uuid`;
+      } catch (e) {}
+      try {
+        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
+      } catch (e) {}
+      try {
+        await sql`DELETE FROM public.profiles WHERE id = ${authUserId}::uuid`;
+      } catch (e) {}
+    }
     try {
-      await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
+      await sql`DELETE FROM public.profiles WHERE LOWER(email) = ${cleanEmail}`;
+      await sql`DELETE FROM public.registrations WHERE LOWER(email) = ${cleanEmail}`;
     } catch (e) {}
-    try {
-      await sql`DELETE FROM public.profiles WHERE id = ${authUserId}::uuid`;
-    } catch (e) {}
+
+    await logAudit(user.id, user.email || '', 'DELETE_USER_BY_EMAIL', 'profiles', '', { email: cleanEmail });
+
+    revalidatePath('/admin');
+    revalidatePath('/dashboard');
+    revalidatePath('/register');
+    revalidatePath('/');
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('adminDeleteUserByEmail error:', err);
+    return { success: false, error: err.message || 'Error deleting user by email.' };
   }
-  try {
-    await sql`DELETE FROM auth.users WHERE LOWER(email) = ${cleanEmail}`;
-    await sql`DELETE FROM public.profiles WHERE LOWER(email) = ${cleanEmail}`;
-    await sql`DELETE FROM public.registrations WHERE LOWER(email) = ${cleanEmail}`;
-  } catch (e) {}
-
-  await logAudit(user.id, user.email || '', 'DELETE_USER_BY_EMAIL', 'profiles', cleanEmail, { email: cleanEmail });
-
-  revalidatePath('/admin');
-  revalidatePath('/dashboard');
-  revalidatePath('/register');
-  revalidatePath('/');
-
-  return { success: true };
 }
+
 
 
 export async function adminCreateManualParticipant(data: {

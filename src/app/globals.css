@@ -1,12 +1,6 @@
 @import "tailwindcss";
 
 :root {
-  --img: url('/assets/base.jpg');
-  --wl: url('/assets/wing-left.png');
-  --wr: url('/assets/wing-right.png');
-  --rd: url('/assets/front-red.png');
-  --sn: url('/assets/snorlax.png');
-  
   --navy: #161A35;
   --navy-midnight: #161A35;
   --navy-darker: #0E1026;
@@ -173,7 +167,7 @@ select:-webkit-autofill {
 .st-p .wl { left: 2.917%; top: 9.493%; width: 47.750%; height: 24.430%; background-image: var(--wl); transform-origin: 90.9% 93.9%; animation: flap 8s ease-in-out infinite; }
 .st-p .wr { left: 47.583%; top: 8.981%; width: 49.500%; height: 24.942%; background-image: var(--wr); transform-origin: 8.7% 94.0%; animation: flap 8s ease-in-out infinite; }
 .st-p .rd { left: 1.333%; top: 0; width: 97.333%; height: 34.946%; background-image: var(--rd); }
-.st-p .sn { left: 66.167%; top: 18.241%; width: 29.083%; height: 11.028%; background-image: var(--sn); transform-origin: 50% 100%; animation: breathe 4.2s ease-in-out infinite; pointer-events: auto !important; }
+.st-p .sn { left: 67.250%; top: 18.846%; width: 26.917%; height: 10.144%; background-image: var(--sn); transform-origin: 50% 100%; animation: breathe 4.2s ease-in-out infinite; pointer-events: auto !important; }
 .st-p .jiggly { left: 4.417%; top: 35.644%; width: 18.917%; height: 10.423%; background-image: var(--c-jiggly); transform-origin: 50% 100%; animation: sway 2.2s ease-in-out infinite; }
 .st-p .gengar { left: 3.333%; top: 54.118%; width: 20.750%; height: 12.471%; background-image: var(--c-gengar); transform-origin: 50% 60%; animation: lean 3.6s ease-in-out infinite; }
 .st-p .pika { left: 38.667%; top: 57.376%; width: 25.083%; height: 14.379%; background-image: var(--c-pika); transform-origin: 50% 100%; animation: bounce 3.2s ease-in-out infinite; }
@@ -614,4 +608,22 @@ select:-webkit-autofill {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* =========================================================================
+   VIEWPORT VIRTUALIZATION & RENDERING OPTIMIZATION
+   Strictly renders 100vh / 100vw and small safety margin above and below.
+   Offscreen elements skip layout, styling, and paint calculations completely.
+   ========================================================================= */
+.viewport-virtualized {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 650px;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 

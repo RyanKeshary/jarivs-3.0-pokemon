@@ -16,8 +16,20 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
   const [isWiping, setIsWiping] = useState(false);
   const [showCenterFeedback, setShowCenterFeedback] = useState<'play' | 'pause' | null>(null);
 
+  const [videoSrc, setVideoSrc] = useState('/media/intro-vid.mp4');
   const videoRef = useRef<HTMLVideoElement>(null);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProgressRef = useRef({ time: 0, wallClock: Date.now() });
+
+  // Dynamically select mobile-optimized stream on handheld viewports (< 768px)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        setVideoSrc('/media/intro-vid-mobile.mp4');
+      }
+    }
+  }, []);
 
   // Trigger brief audio cue using Web Audio API for tactical UI feedback
   const playTacticalChime = useCallback((freq = 587.33, type: OscillatorType = 'sine') => {
@@ -59,6 +71,28 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       onComplete();
     }, 450);
   }, [isExiting, onComplete, playTacticalChime]);
+
+  // Mobile video stall watchdog: automatically recovers or gracefully finishes if stuck
+  useEffect(() => {
+    const watchdogInterval = setInterval(() => {
+      if (isExiting) return;
+      const vid = videoRef.current;
+      if (!vid) return;
+
+      if (!vid.paused && !vid.ended) {
+        const stalledDuration = Date.now() - lastProgressRef.current.wallClock;
+        if (stalledDuration > 3000) {
+          vid.play().catch(() => {});
+        }
+        if (stalledDuration > 5000) {
+          // If stuck on frame > 5s on mobile network, auto-continue so user is never trapped
+          handleFinishOrSkip();
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(watchdogInterval);
+  }, [isExiting, handleFinishOrSkip]);
 
   const unmuteAndPlay = useCallback(() => {
     if (!videoRef.current) return;
@@ -153,9 +187,13 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
   // Sync video time updates
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const ct = videoRef.current.currentTime;
+      setCurrentTime(ct);
       if (videoRef.current.duration && !isNaN(videoRef.current.duration)) {
         setDuration(videoRef.current.duration);
+      }
+      if (ct > lastProgressRef.current.time + 0.05) {
+        lastProgressRef.current = { time: ct, wallClock: Date.now() };
       }
     }
   };
@@ -192,7 +230,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       <div className="relative w-full h-full cursor-pointer" onClick={handleScreenClick}>
         <video
           ref={videoRef}
-          src="/media/intro-vid.mp4"
+          src={videoSrc}
           autoPlay
           playsInline
           {...({ 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
@@ -201,6 +239,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleTimeUpdate}
           onEnded={handleFinishOrSkip}
+          onError={handleFinishOrSkip}
           className="w-full h-full object-cover"
         />
 

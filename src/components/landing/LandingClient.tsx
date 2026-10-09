@@ -32,6 +32,7 @@ interface LandingClientProps {
 export function LandingClient({ settings }: LandingClientProps) {
   const [showVideoIntro, setShowVideoIntro] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [isPastHero, setIsPastHero] = useState(false);
 
   // Registration Modal State
   const [regModalOpen, setRegModalOpen] = useState(false);
@@ -49,21 +50,36 @@ export function LandingClient({ settings }: LandingClientProps) {
     }
     setIsReady(true);
 
-    // Highly performant 60/120fps scroll listener using rAF without triggering React re-renders
+    // Highly performant 60/120fps scroll listener using rAF without triggering unneeded re-renders
     let ticking = false;
+    let lastPastHero = false;
     const overlayEl = document.getElementById('scroll-blur-overlay');
 
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const sy = window.scrollY;
+          const isMobile = window.innerWidth < 768;
+          const heroThreshold = window.innerHeight * 0.95;
+          const pastHeroNow = sy > heroThreshold;
+
+          if (pastHeroNow !== lastPastHero) {
+            lastPastHero = pastHeroNow;
+            setIsPastHero(pastHeroNow);
+          }
+
           const progress = Math.min(1, Math.max(0, (sy - 20) / 300));
           if (overlayEl) {
             overlayEl.style.opacity = String(progress);
-            // Elegant cool bluish wash (soft indigo/azure tint) instead of washed-out white
             overlayEl.style.backgroundColor = `rgba(202, 224, 250, ${progress * 0.78})`;
-            overlayEl.style.backdropFilter = progress > 0.05 ? `blur(${progress * 7}px)` : 'none';
-            (overlayEl.style as any).webkitBackdropFilter = progress > 0.05 ? `blur(${progress * 7}px)` : 'none';
+            // On mobile devices, avoid expensive dynamic backdrop-filter blur which drops frame rate
+            if (!isMobile && progress > 0.05) {
+              overlayEl.style.backdropFilter = `blur(${Math.min(6, progress * 6)}px)`;
+              (overlayEl.style as any).webkitBackdropFilter = `blur(${Math.min(6, progress * 6)}px)`;
+            } else {
+              overlayEl.style.backdropFilter = 'none';
+              (overlayEl.style as any).webkitBackdropFilter = 'none';
+            }
           }
           ticking = false;
         });
@@ -98,18 +114,26 @@ export function LandingClient({ settings }: LandingClientProps) {
   return (
     <div className="min-h-screen flex flex-col bg-[#161A35] text-black relative">
       
-      {/* 1. PERSISTENT FIXED BACKGROUND STAGE: THE LANDING PAGE ALWAYS STAYS IN THE BACKGROUND */}
-      <div className="fixed inset-0 w-full h-full z-0 overflow-hidden pointer-events-none [clip-path:inset(0)] [-webkit-clip-path:inset(0)]">
-        <div className="w-full h-full pointer-events-auto">
-          <DynamicStage
-            onEnterClick={handleViewEvents}
-            onRegisterClick={() => handleOpenRegistration()}
-            hideActionDock={true}
-          />
-        </div>
+      {/* 1. PERSISTENT FIXED BACKGROUND STAGE: UNLOADS ONCE SCROLLED PAST HERO TO MINIMIZE CPU/GPU */}
+      <div
+        className="fixed inset-0 w-full h-full z-0 overflow-hidden pointer-events-none [clip-path:inset(0)] [-webkit-clip-path:inset(0)] transition-opacity duration-300"
+        style={{
+          visibility: isPastHero ? 'hidden' : 'visible',
+          opacity: isPastHero ? 0 : 1,
+        }}
+      >
+        {!isPastHero && (
+          <div className="w-full h-full pointer-events-auto">
+            <DynamicStage
+              onEnterClick={handleViewEvents}
+              onRegisterClick={() => handleOpenRegistration()}
+              hideActionDock={true}
+            />
+          </div>
+        )}
       </div>
 
-      {/* 2. SCROLL-DRIVEN TRANSLUCENT COOL BLUISH OVERSHADOWING SCREEN WITH BLUR */}
+      {/* 2. SCROLL-DRIVEN TRANSLUCENT COOL BLUISH OVERSHADOWING SCREEN */}
       <div
         id="scroll-blur-overlay"
         className="fixed inset-0 z-[1] pointer-events-none transition-all duration-150"
@@ -121,7 +145,7 @@ export function LandingClient({ settings }: LandingClientProps) {
         }}
       />
 
-      {/* 1008.mp4 Fullscreen Video Intro with Skip & Smooth Direct Reveal */}
+      {/* Fullscreen Video Intro with Skip & Responsive Streaming */}
       <AnimatePresence mode="wait">
         {showVideoIntro && (
           <VideoIntroScene onComplete={() => setShowVideoIntro(false)} />
@@ -137,7 +161,7 @@ export function LandingClient({ settings }: LandingClientProps) {
       {/* Team Rocket Blasting Off Scroll-Driven Trajectory */}
       <TeamRocketBlastOff />
 
-      {/* FOREGROUND SCROLLABLE CONTENT */}
+      {/* FOREGROUND SCROLLABLE CONTENT (100vh / 100vw Virtualized) */}
       <main className="flex-1 relative z-10">
 
         {/* 1. True 100vh Full-Screen Theatrical Stage Hero */}
@@ -146,25 +170,37 @@ export function LandingClient({ settings }: LandingClientProps) {
           onViewEventsClick={handleViewEvents}
         />
 
-        {/* 2. The Seven Disciplines Program Ledger */}
-        <EventsLedger
-          onSelectEventForRegistration={(evId) => handleOpenRegistration(evId)}
-        />
+        {/* 2. The Seven Disciplines Program Ledger (Virtualized Viewport) */}
+        <div className="viewport-virtualized">
+          <EventsLedger
+            onSelectEventForRegistration={(evId) => handleOpenRegistration(evId)}
+          />
+        </div>
 
-        {/* 3. Central Bulletins & Announcements Section */}
-        <AnnouncementsSection />
+        {/* 3. Central Bulletins & Announcements Section (Virtualized Viewport) */}
+        <div className="viewport-virtualized">
+          <AnnouncementsSection />
+        </div>
 
-        {/* 4. Chronology / Two-Day Schedule Timeline */}
-        <DaysTimeline />
+        {/* 4. Chronology / Two-Day Schedule Timeline (Virtualized Viewport) */}
+        <div className="viewport-virtualized">
+          <DaysTimeline />
+        </div>
 
-        {/* 4. How To Join Protocol (3-Stage Sequence) */}
-        <HowToJoin onRegisterClick={() => handleOpenRegistration()} />
+        {/* 5. How To Join Protocol (Virtualized Viewport) */}
+        <div className="viewport-virtualized">
+          <HowToJoin onRegisterClick={() => handleOpenRegistration()} />
+        </div>
 
-        {/* 5. Inquiries & Convocation Finale Card */}
-        <FaqAndCta onRegisterClick={() => handleOpenRegistration()} />
+        {/* 6. Inquiries & Convocation Finale Card (Virtualized Viewport) */}
+        <div className="viewport-virtualized">
+          <FaqAndCta onRegisterClick={() => handleOpenRegistration()} />
+        </div>
 
-        {/* Valid Production Footer */}
-        <Footer />
+        {/* Valid Production Footer (Virtualized Viewport) */}
+        <div className="viewport-virtualized">
+          <Footer />
+        </div>
 
       </main>
 

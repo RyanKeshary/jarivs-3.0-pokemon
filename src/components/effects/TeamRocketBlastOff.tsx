@@ -85,6 +85,8 @@ export function TeamRocketBlastOff() {
           <img
             src="/assets/team-rocket-blastoff.png"
             alt="Team Rocket Blasting Off"
+            loading="lazy"
+            decoding="async"
             className="w-36 sm:w-48 md:w-56 h-auto object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)] group-hover:scale-105 transition-transform duration-200"
             draggable={false}
           />
