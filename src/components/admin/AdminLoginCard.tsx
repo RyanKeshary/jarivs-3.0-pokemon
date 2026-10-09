@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
-import { EngravedPhoenix } from '@/components/illustrations/EngravedPokemon';
+import { AnimatedPsyduck } from '@/components/illustrations/AnimatedPsyduck';
 
 export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any) => void }) {
   const [email, setEmail] = useState('');
@@ -81,9 +81,9 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-4 select-none">
       <div className="w-full max-w-md bg-white border-2 border-black p-6 sm:p-8 shadow-[8px_8px_0px_#000] text-black">
         
-        {/* Phoenix Crown Header */}
-        <div className="flex justify-center mb-4">
-          <EngravedPhoenix size={90} className="w-20" />
+        {/* Animated Psyduck Scratching Head */}
+        <div className="flex justify-center mb-3">
+          <AnimatedPsyduck size={100} className="hover:scale-105 transition-transform" />
         </div>
 
         <div className="border-b-2 border-black pb-4 mb-5 text-center">
