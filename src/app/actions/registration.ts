@@ -101,12 +101,22 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       );
     }
 
-    // Duplicate check and max 2 events per candidate rule across teams
+    const cleanRefId = (referenceId || '').trim().toLowerCase();
+    const phone10 = phone.slice(-10);
+
+    // Duplicate check and max 2 events per candidate rule across teams with multi-factor matching
     const existingParticipation = await sql`
       SELECT fr.full_name, fr.email, fr.phone, ft.name as team_name, ft.code as team_code, ft.event_ids
       FROM public.fest_registrations fr
       JOIN public.fest_teams ft ON fr.team_id = ft.id
-      WHERE (LOWER(fr.email) = ${email} OR fr.phone = ${phone})
+      WHERE (
+        LOWER(TRIM(fr.email)) = ${email}
+        OR (${phone10.length >= 10} AND RIGHT(REGEXP_REPLACE(fr.phone, '\\D', '', 'g'), 10) = ${phone10})
+        OR (${cleanRefId} != '' AND (
+          LOWER(TRIM(COALESCE(fr.reference_id, ''))) = ${cleanRefId}
+          OR LOWER(TRIM(COALESCE(fr.college_id, ''))) = ${cleanRefId}
+        ))
+      )
     `;
 
     const existingEventsSet = new Set<string>();
@@ -121,9 +131,15 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       recordedEvents.forEach(e => existingEventsSet.add(e));
     }
 
+    if (existingEventsSet.size >= 2) {
+      throw new Error(
+        `Disqualification Rule: You are already enrolled in 2 events (${Array.from(existingEventsSet).join(', ')}). Maximum limit is strictly 2 events (2 means 2).`
+      );
+    }
+
     if (existingEventsSet.size + eventIds.length > 2) {
       throw new Error(
-        `Disqualification Rule: You are already enrolled in ${existingEventsSet.size} event(s). A participant can participate in a maximum of 2 events in total.`
+        `Disqualification Rule: You are already enrolled in ${existingEventsSet.size} event(s). Registering for ${eventIds.length} more event(s) exceeds the maximum limit of 2 events (2 means 2).`
       );
     }
 
@@ -398,12 +414,22 @@ export async function joinFestTeam(payload: {
       throw new Error('This team has already reached its maximum allowed roster capacity.');
     }
 
-    // Duplicate check for this member across phone or event overlaps
+    const cleanRefId = (referenceId || '').trim().toLowerCase();
+    const phone10 = phone.slice(-10);
+
+    // Duplicate check for this member across email, phone, reference/college ID, and event limits
     const existing = await sql`
       SELECT fr.email, fr.phone, ft.name as team_name, ft.code as team_code, ft.event_ids
       FROM public.fest_registrations fr
       JOIN public.fest_teams ft ON fr.team_id = ft.id
-      WHERE fr.phone = ${phone}
+      WHERE (
+        LOWER(TRIM(fr.email)) = ${email}
+        OR (${phone10.length >= 10} AND RIGHT(REGEXP_REPLACE(fr.phone, '\\D', '', 'g'), 10) = ${phone10})
+        OR (${cleanRefId} != '' AND (
+          LOWER(TRIM(COALESCE(fr.reference_id, ''))) = ${cleanRefId}
+          OR LOWER(TRIM(COALESCE(fr.college_id, ''))) = ${cleanRefId}
+        ))
+      )
     `;
 
     const existingMemberEvents = new Set<string>();
@@ -418,10 +444,16 @@ export async function joinFestTeam(payload: {
       recordedEvents.forEach((e: string) => existingMemberEvents.add(e));
     }
 
+    if (existingMemberEvents.size >= 2) {
+      throw new Error(
+        `Disqualification Rule: You are already enrolled in 2 events (${Array.from(existingMemberEvents).join(', ')}). Maximum limit is strictly 2 events (2 means 2).`
+      );
+    }
+
     const combinedMemberEvents = new Set([...existingMemberEvents, ...team.event_ids]);
     if (combinedMemberEvents.size > 2) {
       throw new Error(
-        `Disqualification Rule: A participant can participate in a maximum of 2 events. You are already enrolled in ${existingMemberEvents.size} event(s), and joining this squad (${team.event_ids.length} events) exceeds the 2-event limit.`
+        `Disqualification Rule: A participant can participate in a maximum of 2 events. You are already enrolled in ${existingMemberEvents.size} event(s), and joining this squad (${team.event_ids.length} event(s)) exceeds the 2-event limit (2 means 2).`
       );
     }
 

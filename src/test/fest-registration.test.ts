@@ -140,5 +140,75 @@ describe('Indigo Tech Fest Registration Validation', () => {
       expect(eventId.length).toBeGreaterThan(0);
     });
   });
+
+  describe('Strict 2-Event Maximum Rule (2 means 2)', () => {
+    function evaluateEligibility(
+      currentlyEnrolled: string[],
+      newEvents: string[]
+    ) {
+      const currentSet = new Set(currentlyEnrolled);
+      if (currentSet.size >= 2) {
+        return {
+          allowed: false,
+          error: `Disqualification Rule: Already enrolled in 2 events (${Array.from(currentSet).join(', ')}). Maximum limit is strictly 2 events (2 means 2).`
+        };
+      }
+      const duplicate = newEvents.filter(e => currentSet.has(e));
+      if (duplicate.length > 0) {
+        return {
+          allowed: false,
+          error: `Disqualification Rule: Already enrolled in "${duplicate.join(', ')}". Multiple registrations for the same event are not permitted.`
+        };
+      }
+      const combined = new Set([...currentSet, ...newEvents]);
+      if (combined.size > 2) {
+        return {
+          allowed: false,
+          error: `Disqualification Rule: Adding ${newEvents.length} event(s) would result in ${combined.size} total events. Maximum allowed is strictly 2 events (2 means 2).`
+        };
+      }
+      return { allowed: true };
+    }
+
+    it('strictly forbids adding a 3rd event when a participant already has 2 events (2 means 2)', () => {
+      const current = ['build-asor', 'quiz-tle'];
+      const res = evaluateEligibility(current, ['cad-mander']);
+      expect(res.allowed).toBe(false);
+      expect(res.error).toContain('2 means 2');
+    });
+
+    it('strictly forbids adding 2 events when a participant already has 1 event (1 + 2 = 3)', () => {
+      const current = ['project-exhibition'];
+      const res = evaluateEligibility(current, ['pid-geotto', 'quiz-tle']);
+      expect(res.allowed).toBe(false);
+      expect(res.error).toContain('2 means 2');
+    });
+
+    it('forbids enrolling in the exact same event multiple times', () => {
+      const current = ['build-asor'];
+      const res = evaluateEligibility(current, ['build-asor']);
+      expect(res.allowed).toBe(false);
+      expect(res.error).toContain('Multiple registrations for the same event are not permitted');
+    });
+
+    it('allows registering for a 2nd event when a participant currently has only 1 event', () => {
+      const current = ['pid-geotto'];
+      const res = evaluateEligibility(current, ['cad-mander']);
+      expect(res.allowed).toBe(true);
+    });
+
+    it('normalizes 10-digit phone across +91 prefixes and spaces to match existing candidate', () => {
+      const storedPhone = '9372602311';
+      const inputPhone1 = '+91 93726 02311';
+      const inputPhone2 = '93726-02311';
+      const inputPhone3 = '09372602311';
+
+      const extract10 = (p: string) => p.replace(/\D/g, '').slice(-10);
+      expect(extract10(inputPhone1)).toBe(storedPhone);
+      expect(extract10(inputPhone2)).toBe(storedPhone);
+      expect(extract10(inputPhone3)).toBe(storedPhone);
+    });
+  });
 });
+
 

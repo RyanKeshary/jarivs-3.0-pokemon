@@ -1329,24 +1329,70 @@ export async function adminCreateManualParticipant(data: {
   status: string;
 }) {
   const { user } = await requireAdmin();
-  const cleanEmail = data.email.trim().toLowerCase();
-  const cleanPhone = data.phone.trim().replace(/[^0-9+]/g, '');
-
-  // Enforce Max 2 Events Rule across all enrollments
-  const existingRecords = await sql`
-    SELECT ft.event_ids
-    FROM public.fest_registrations fr
-    JOIN public.fest_teams ft ON fr.team_id = ft.id
-    WHERE (LOWER(fr.email) = ${cleanEmail} OR fr.phone = ${cleanPhone})
-  `;
-  const enrolledEvents = new Set<string>();
-  existingRecords.forEach((r: any) => (r.event_ids || []).forEach((e: string) => enrolledEvents.add(e)));
-  if (enrolledEvents.size >= 2) {
-    throw new Error('Disqualification Rule: This participant is already enrolled in 2 events (maximum limit reached).');
-  }
+  const cleanEmail = (data.email || '').trim().toLowerCase();
+  const rawPhone = (data.phone || '').trim();
+  const phoneDigits = rawPhone.replace(/\D/g, '');
+  const phone10 = phoneDigits.slice(-10);
+  const cleanRefId = (data.referenceId || data.collegeId || '').trim().toLowerCase();
 
   let targetTeamId = data.teamId;
   let targetTeamCode = data.teamCode || 'ON-SPOT';
+  let targetTeamEvents: string[] = [];
+
+  if (targetTeamId) {
+    const targetTeam = await sql`SELECT id, code, event_ids FROM public.fest_teams WHERE id = ${targetTeamId}`;
+    if (targetTeam.length === 0) {
+      throw new Error('Selected target squad does not exist.');
+    }
+    targetTeamEvents = targetTeam[0].event_ids || [];
+    targetTeamCode = targetTeam[0].code;
+  } else {
+    const chosenEvent = data.eventId || 'project-exhibition';
+    targetTeamEvents = [chosenEvent];
+  }
+
+  // Enforce Max 2 Events Rule across all enrollments with multi-factor matching
+  const existingRecords = await sql`
+    SELECT ft.name as team_name, ft.code as team_code, ft.event_ids
+    FROM public.fest_registrations fr
+    JOIN public.fest_teams ft ON fr.team_id = ft.id
+    WHERE (
+      (${cleanEmail} != '' AND LOWER(TRIM(fr.email)) = ${cleanEmail})
+      OR (${phone10.length >= 10} AND RIGHT(REGEXP_REPLACE(fr.phone, '\\D', '', 'g'), 10) = ${phone10})
+      OR (${cleanRefId} != '' AND (
+        LOWER(TRIM(COALESCE(fr.reference_id, ''))) = ${cleanRefId}
+        OR LOWER(TRIM(COALESCE(fr.college_id, ''))) = ${cleanRefId}
+      ))
+    )
+  `;
+
+  const enrolledEvents = new Set<string>();
+  existingRecords.forEach((r: any) => {
+    (r.event_ids || []).forEach((e: string) => enrolledEvents.add(e));
+  });
+
+  // 1. Participant is already at maximum limit (2 events)
+  if (enrolledEvents.size >= 2) {
+    throw new Error(
+      `Disqualification Rule: This participant is already enrolled in 2 events (${Array.from(enrolledEvents).join(', ')}). Maximum limit is strictly 2 events (2 means 2).`
+    );
+  }
+
+  // 2. Prevent enrolling in the exact same event multiple times
+  const duplicateEvents = targetTeamEvents.filter((e) => enrolledEvents.has(e));
+  if (duplicateEvents.length > 0) {
+    throw new Error(
+      `Disqualification Rule: Participant is already enrolled in "${duplicateEvents.join(', ')}". Multiple registrations for the same event are not permitted.`
+    );
+  }
+
+  // 3. Combined total events must never exceed 2
+  const combinedEvents = new Set([...enrolledEvents, ...targetTeamEvents]);
+  if (combinedEvents.size > 2) {
+    throw new Error(
+      `Disqualification Rule: Adding ${targetTeamEvents.length} event(s) would result in ${combinedEvents.size} total events (${Array.from(combinedEvents).join(', ')}). A participant can participate in a maximum of 2 events in total (2 means 2).`
+    );
+  }
 
   if (!targetTeamId) {
     // Create an on-spot team
@@ -1355,7 +1401,7 @@ export async function adminCreateManualParticipant(data: {
     const chosenEvent = data.eventId || 'project-exhibition';
     const newTeam = await sql`
       INSERT INTO public.fest_teams (code, name, event_ids, leader_email, leader_token, status)
-      VALUES (${code}, ${data.fullName + ' On-Spot'}, ARRAY[${chosenEvent}], ${data.email}, gen_random_uuid()::text, 'Confirmed')
+      VALUES (${code}, ${data.fullName.trim() + ' On-Spot'}, ARRAY[${chosenEvent}], ${cleanEmail}, gen_random_uuid()::text, 'Confirmed')
       RETURNING id, code;
     `;
     targetTeamId = newTeam[0].id;
@@ -1365,13 +1411,14 @@ export async function adminCreateManualParticipant(data: {
   const teamIdToInsert = targetTeamId || '';
   const teamCodeToInsert = targetTeamCode || 'ON-SPOT';
   const refId = data.referenceId || data.collegeId || null;
+  const phoneToInsert = phone10.length === 10 ? phone10 : rawPhone;
 
   await sql`
     INSERT INTO public.fest_registrations (
       team_id, team_code, is_leader, full_name, email, phone, college, department, year_of_study, college_id, reference_id, division, roll_no, status
     ) VALUES (
-      ${teamIdToInsert}, ${teamCodeToInsert}, ${Boolean(data.isLeader)}, ${data.fullName.trim()}, ${data.email.trim().toLowerCase()},
-      ${data.phone.trim()}, ${data.college.trim()}, ${data.department.trim()}, ${data.yearOfStudy.trim()},
+      ${teamIdToInsert}, ${teamCodeToInsert}, ${Boolean(data.isLeader)}, ${data.fullName.trim()}, ${cleanEmail},
+      ${phoneToInsert}, ${data.college.trim()}, ${data.department.trim()}, ${data.yearOfStudy.trim()},
       ${refId ? refId.trim() : null}, ${refId ? refId.trim() : null},
       ${data.division ? data.division.trim().toUpperCase() : null},
       ${data.rollNo ? data.rollNo.trim() : null},

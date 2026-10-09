@@ -90,6 +90,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   // Modals & Forms State
   const [editingParticipant, setEditingParticipant] = useState<any | null>(null);
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [manualModalError, setManualModalError] = useState<string | null>(null);
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mobileTabsMenuOpen, setMobileTabsMenuOpen] = useState(false);
@@ -830,7 +831,10 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
               <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                 <button
-                  onClick={() => setManualModalOpen(true)}
+                  onClick={() => {
+                    setManualModalError(null);
+                    setManualModalOpen(true);
+                  }}
                   className="col-span-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-[#D21319] hover:bg-[#b00f14] text-white rounded-lg shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus size={14} />
@@ -1076,7 +1080,10 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
                   {/* Add Manual Participant */}
                   <button
-                    onClick={() => setManualModalOpen(true)}
+                    onClick={() => {
+                      setManualModalError(null);
+                      setManualModalOpen(true);
+                    }}
                     className="inline-flex items-center gap-1 px-3 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
                   >
                     <Plus size={14} />
@@ -2351,9 +2358,19 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </div>
             </div>
 
+            {manualModalError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-lg flex items-start gap-2 animate-in fade-in">
+                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{manualModalError}</span>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
-                onClick={() => setManualModalOpen(false)}
+                onClick={() => {
+                  setManualModalError(null);
+                  setManualModalOpen(false);
+                }}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
               >
                 Cancel
@@ -2363,6 +2380,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 onClick={async () => {
                   try {
                     setIsProcessing(true);
+                    setManualModalError(null);
                     await adminCreateManualParticipant({
                       fullName: manualForm.fullName,
                       email: manualForm.email,
@@ -2393,7 +2411,8 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     setFeedbackNotice('On-spot participant registered successfully!');
                     if (onRefresh) onRefresh();
                   } catch (err: any) {
-                    alert(err.message || 'Failed to register on-spot participant');
+                    const message = err.message || 'Failed to register on-spot participant';
+                    setManualModalError(message);
                   } finally {
                     setIsProcessing(false);
                   }
