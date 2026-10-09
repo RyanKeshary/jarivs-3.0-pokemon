@@ -484,6 +484,21 @@ export function AuthForm() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+
+              {/* Explicit Show Password Option for Login Mode */}
+              {mode === 'login' && (
+                <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showPassword}
+                    onChange={(e) => setShowPassword(e.target.checked)}
+                    className="w-4 h-4 accent-[#EE1515] rounded cursor-pointer"
+                  />
+                  <span className="font-mono text-xs text-gray-700 hover:text-black font-semibold">
+                    Show passcode
+                  </span>
+                </label>
+              )}
             </div>
           )}
 
@@ -512,6 +527,22 @@ export function AuthForm() {
                   {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+
+              {/* Explicit Show Password Option for Register & Update Modes */}
+              <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showPassword && showConfirmPassword}
+                  onChange={(e) => {
+                    setShowPassword(e.target.checked);
+                    setShowConfirmPassword(e.target.checked);
+                  }}
+                  className="w-4 h-4 accent-[#EE1515] rounded cursor-pointer"
+                />
+                <span className="font-mono text-xs text-gray-700 hover:text-black font-semibold">
+                  Show passcodes
+                </span>
+              </label>
             </div>
           )}
 

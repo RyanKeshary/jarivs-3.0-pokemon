@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX } from 'lucide-react';
+import { X, Volume2, VolumeX, Play } from 'lucide-react';
 
 interface AnimatedMrMimeProps {
   size?: number;
@@ -22,20 +22,53 @@ export function AnimatedMrMime({
   const [clickCount, setClickCount] = useState(0);
   const targetClicksRef = useRef(Math.floor(Math.random() * (15 - 10 + 1)) + 10);
   const [showVideoModal, setShowVideoModal] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  // Default muted to true to guarantee mobile browser autoplay compliance
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Reliable mobile play trigger with autoplay policy handling
+  const attemptPlay = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+
+    // Direct DOM property assignment for iOS WebKit & Chrome Mobile compatibility
+    vid.muted = isMuted;
+    const playPromise = vid.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('Mobile unmuted playback restricted by browser policy; trying muted fallback:', err);
+          vid.muted = true;
+          setIsMuted(true);
+          vid.play()
+            .then(() => setIsPlaying(true))
+            .catch(() => {
+              setIsPlaying(false);
+            });
+        });
+    }
+  }, [isMuted]);
 
   // Lock body scroll while video modal is active; ONLY closeable via the cross button
   useEffect(() => {
     if (showVideoModal) {
       document.body.style.overflow = 'hidden';
+      const timer = setTimeout(() => {
+        attemptPlay();
+      }, 50);
+      return () => clearTimeout(timer);
     } else {
       document.body.style.overflow = '';
+      setIsPlaying(false);
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [showVideoModal]);
+  }, [showVideoModal, attemptPlay]);
 
   // Synthesize Mr. Mime's signature playful psychic tap sound via native Web Audio API
   const playMimeSound = useCallback(() => {
@@ -252,19 +285,57 @@ export function AnimatedMrMime({
                 </button>
               </div>
 
-              {/* Video Player Area */}
-              <div className="relative aspect-video bg-black flex items-center justify-center">
+              {/* Video Player Area with Mobile Tap-to-Play Fallback */}
+              <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
                 <video
                   ref={videoRef}
                   src="/media/mr-mime-secret.mp4"
                   autoPlay
                   controls
+                  playsInline
+                  // @ts-ignore
+                  webkit-playsinline="true"
+                  x5-playsinline="true"
                   muted={isMuted}
                   loop
-                  playsInline
                   preload="auto"
+                  onPlay={() => setIsPlaying(true)}
+                  onPlaying={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onLoadedMetadata={attemptPlay}
+                  onCanPlay={attemptPlay}
                   className="w-full h-full object-contain"
                 />
+
+                {/* Big Mobile Tap to Play / Resume Overlay */}
+                {!isPlaying && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const vid = videoRef.current;
+                      if (vid) {
+                        vid.muted = isMuted;
+                        vid.play()
+                          .then(() => setIsPlaying(true))
+                          .catch(() => {
+                            vid.muted = true;
+                            setIsMuted(true);
+                            vid.play().then(() => setIsPlaying(true));
+                          });
+                      }
+                    }}
+                    className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer"
+                    aria-label="Play video"
+                  >
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#D21319] hover:bg-[#b00f14] text-white flex items-center justify-center shadow-2xl border-2 border-white animate-pulse mb-2.5 transition-transform hover:scale-110">
+                      <Play size={26} className="translate-x-0.5 fill-white" />
+                    </div>
+                    <span className="font-mono text-[11px] sm:text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
+                      Tap to Play Video
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Modal Footer Controls */}
@@ -273,15 +344,19 @@ export function AnimatedMrMime({
                   <button
                     type="button"
                     onClick={() => {
-                      setIsMuted(!isMuted);
-                      if (videoRef.current) {
-                        videoRef.current.muted = !isMuted;
+                      const vid = videoRef.current;
+                      if (!vid) return;
+                      const nextMuted = !isMuted;
+                      vid.muted = nextMuted;
+                      setIsMuted(nextMuted);
+                      if (vid.paused) {
+                        vid.play().then(() => setIsPlaying(true)).catch(() => {});
                       }
                     }}
-                    className="flex items-center gap-1.5 text-slate-200 hover:text-white transition-colors cursor-pointer px-2 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/10"
+                    className="flex items-center gap-1.5 text-slate-200 hover:text-white transition-colors cursor-pointer px-2.5 py-1.5 bg-white/10 hover:bg-white/20 rounded border border-white/15 font-bold"
                   >
-                    {isMuted ? <VolumeX size={13} className="text-red-400" /> : <Volume2 size={13} className="text-green-400" />}
-                    <span>{isMuted ? 'UNMUTE SOUND' : 'MUTED'}</span>
+                    {isMuted ? <VolumeX size={14} className="text-amber-400" /> : <Volume2 size={14} className="text-emerald-400" />}
+                    <span>{isMuted ? 'UNMUTE SOUND 🔊' : 'SOUND ON 🔊'}</span>
                   </button>
                 </div>
 

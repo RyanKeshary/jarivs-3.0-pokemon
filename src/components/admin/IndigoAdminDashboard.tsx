@@ -3111,6 +3111,19 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                       {showTargetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
+
+                  {/* Explicit Show Password Checkbox Option */}
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showTargetPassword}
+                      onChange={(e) => setShowTargetPassword(e.target.checked)}
+                      className="w-3.5 h-3.5 accent-[#D21319] rounded cursor-pointer"
+                    />
+                    <span className="font-mono text-[11px] text-slate-600 hover:text-slate-900 font-semibold">
+                      Show password
+                    </span>
+                  </label>
                 </div>
 
                 <div className="flex items-center gap-2">

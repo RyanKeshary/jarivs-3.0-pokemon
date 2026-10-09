@@ -152,6 +152,19 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+
+            {/* Explicit Show Password Checkbox Option */}
+            <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+                className="w-4 h-4 accent-[#D21319] rounded cursor-pointer"
+              />
+              <span className="font-mono text-xs text-neutral-700 hover:text-black font-semibold">
+                Show password
+              </span>
+            </label>
           </div>
 
           <div className="pt-2">
