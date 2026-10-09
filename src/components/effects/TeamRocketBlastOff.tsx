@@ -3,70 +3,101 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
 
-// Audio manager for smooth start & end with Web Audio API waveform integration
+// Audio manager for instant, zero-latency playback with Web Audio API waveform integration
 class TeamRocketAudioManager {
   private ctx: AudioContext | null = null;
   private audioBuffer: AudioBuffer | null = null;
   private currentSource: AudioBufferSourceNode | null = null;
   private currentGain: GainNode | null = null;
-  private analyser: AnalyserNode | null = null;
-  private isFetching = false;
-  private fallbackAudio: HTMLAudioElement | null = null;
+  private isPreloading = false;
+  private preloadedAudio: HTMLAudioElement | null = null;
 
-  private async getContext(): Promise<AudioContext | null> {
+  constructor() {
+    if (typeof window !== 'undefined') {
+      // Eager preload immediately in background
+      setTimeout(() => {
+        this.preload();
+      }, 30);
+
+      // Pre-warm AudioContext on very first user gesture anywhere
+      const warmUp = () => {
+        this.getContext();
+        ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach((evt) => {
+          window.removeEventListener(evt, warmUp, { capture: true });
+        });
+      };
+      ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach((evt) => {
+        window.addEventListener(evt, warmUp, { capture: true, once: true });
+      });
+    }
+  }
+
+  private getContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      await this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
     return this.ctx;
   }
 
   public async preload() {
-    if (this.audioBuffer || this.isFetching) return;
+    if (this.audioBuffer || this.isPreloading || typeof window === 'undefined') return;
+    this.isPreloading = true;
+
+    // 1. Prepare HTMLAudio fallback immediately in parallel
     try {
-      this.isFetching = true;
+      if (!this.preloadedAudio) {
+        this.preloadedAudio = new Audio('/assets/team-rocket-blastoff.mp3');
+        this.preloadedAudio.preload = 'auto';
+        this.preloadedAudio.load();
+      }
+    } catch {}
+
+    // 2. Fetch and decode ArrayBuffer into Web Audio memory
+    try {
       const res = await fetch('/assets/team-rocket-blastoff.mp3');
       const arrayBuf = await res.arrayBuffer();
-      const ctx = await this.getContext();
+      const ctx = this.getContext();
       if (ctx) {
         this.audioBuffer = await ctx.decodeAudioData(arrayBuf);
       }
-    } catch {
-      // Preload silent fallback
+    } catch (err) {
+      console.warn('Audio preloading note:', err);
     } finally {
-      this.isFetching = false;
+      this.isPreloading = false;
     }
   }
 
-  public async play(onWaveform?: (amplitude: number) => void): Promise<number> {
-    const ctx = await this.getContext();
+  public play(onWaveform?: (amplitude: number) => void): number {
+    const ctx = this.getContext();
 
-    // If Web Audio API is available and buffer decoded
-    if (ctx) {
-      if (!this.audioBuffer) {
-        await this.preload();
-      }
+    // Instant Web Audio playback if buffer is in memory
+    if (ctx && this.audioBuffer) {
+      try {
+        const now = ctx.currentTime;
 
-      if (this.audioBuffer) {
-        // Stop any currently playing audio with a clean 40ms ramp down
-        if (this.currentSource && this.currentGain) {
+        // Cleanly cross-fade any currently playing instance without cutting off subsequent clicks
+        const prevSource = this.currentSource;
+        const prevGain = this.currentGain;
+        if (prevSource && prevGain) {
           try {
-            const now = ctx.currentTime;
-            this.currentGain.gain.cancelScheduledValues(now);
-            this.currentGain.gain.setValueAtTime(this.currentGain.gain.value, now);
-            this.currentGain.gain.linearRampToValueAtTime(0.0001, now + 0.04);
+            prevGain.gain.cancelScheduledValues(now);
+            prevGain.gain.setValueAtTime(prevGain.gain.value, now);
+            prevGain.gain.linearRampToValueAtTime(0.001, now + 0.02);
             setTimeout(() => {
               try {
-                this.currentSource?.stop();
-                this.currentSource?.disconnect();
+                prevSource.stop();
+                prevSource.disconnect();
               } catch {}
-            }, 50);
+            }, 25);
           } catch {}
         }
 
@@ -75,19 +106,18 @@ class TeamRocketAudioManager {
 
         const gain = ctx.createGain();
         const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.8;
+        analyser.fftSize = 128;
+        analyser.smoothingTimeConstant = 0.7;
 
-        const now = ctx.currentTime;
         const duration = this.audioBuffer.duration;
 
-        // Smooth start: exponential ramp up over 60ms to prevent pops
+        // Instant attack (0.004s / 4ms micro-ramp) - virtually 0ms latency, zero click/pop!
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.exponentialRampToValueAtTime(0.95, now + 0.06);
+        gain.gain.linearRampToValueAtTime(1.0, now + 0.004);
 
-        // Smooth end: gentle exponential fade-out over last 160ms matching wavelength decay
-        const fadeOutStart = Math.max(now + 0.08, now + duration - 0.16);
-        gain.gain.setValueAtTime(0.95, fadeOutStart);
+        // Smooth natural end fade-out over last 80ms
+        const fadeOutStart = Math.max(now + 0.05, now + duration - 0.08);
+        gain.gain.setValueAtTime(1.0, fadeOutStart);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
         source.connect(gain);
@@ -96,7 +126,6 @@ class TeamRocketAudioManager {
 
         this.currentSource = source;
         this.currentGain = gain;
-        this.analyser = analyser;
 
         source.start(now);
 
@@ -119,7 +148,7 @@ class TeamRocketAudioManager {
               sum += val * val;
             }
             const rms = Math.sqrt(sum / bufferLength);
-            onWaveform(Math.min(rms * 2.5, 1));
+            onWaveform(Math.min(rms * 2.8, 1));
             animationId = requestAnimationFrame(checkWavelength);
           };
 
@@ -131,20 +160,28 @@ class TeamRocketAudioManager {
         }
 
         return duration;
+      } catch (err) {
+        console.warn('Web Audio play fallback:', err);
       }
     }
 
-    // Fallback using standard HTMLAudioElement
+    // High-performance HTMLAudio fallback (instant clone, works 100% of the time, allows rapid re-triggers)
     try {
-      if (!this.fallbackAudio) {
-        this.fallbackAudio = new Audio('/assets/team-rocket-blastoff.mp3');
+      const audio = new Audio('/assets/team-rocket-blastoff.mp3');
+      audio.volume = 1.0;
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise) {
+        playPromise.catch((e) => console.warn('HTML Audio play error:', e));
       }
-      this.fallbackAudio.currentTime = 0;
-      this.fallbackAudio.volume = 0.9;
-      await this.fallbackAudio.play();
-      return this.fallbackAudio.duration || 6;
+      if (onWaveform) {
+        onWaveform(0.8);
+        setTimeout(() => onWaveform(0.4), 500);
+        setTimeout(() => onWaveform(0), 1200);
+      }
+      return audio.duration || 2.28;
     } catch {
-      return 5;
+      return 2.28;
     }
   }
 }
@@ -160,6 +197,7 @@ export function TeamRocketBlastOff() {
   const [clickCount, setClickCount] = useState(0);
   const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 10 + 1)) + 10);
   const [showMemeModal, setShowMemeModal] = useState(false);
+  const lastTriggerTimeRef = useRef(0);
 
   useEffect(() => {
     setMounted(true);
@@ -195,8 +233,17 @@ export function TeamRocketBlastOff() {
 
   if (!mounted) return null;
 
-  const handleClick = async () => {
-    // 1. Play the requested audio with smooth fade-in and smooth fade-out
+  // Instantaneous zero-latency trigger handler
+  const handleTrigger = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    const now = Date.now();
+    // Guard against duplicate synthetic events (e.g. pointerdown followed immediately by click)
+    if (now - lastTriggerTimeRef.current < 100) return;
+    lastTriggerTimeRef.current = now;
+
+    // 1. Play the requested audio INSTANTANEOUSLY
     audioManager.play((amp) => {
       setWaveVibration(amp);
     });
@@ -235,8 +282,9 @@ export function TeamRocketBlastOff() {
           className="absolute top-0 left-0 will-change-transform"
         >
           <div
-            className="relative group pointer-events-auto cursor-pointer"
-            onClick={handleClick}
+            className="relative group pointer-events-auto cursor-pointer touch-manipulation select-none"
+            onPointerDown={handleTrigger}
+            onClick={handleTrigger}
             style={{
               transform: waveVibration > 0 ? `scale(${1 + waveVibration * 0.12}) rotate(${(waveVibration - 0.5) * 8}deg)` : undefined,
               transition: 'transform 0.05s ease-out',
