@@ -859,8 +859,7 @@ export function RegistrationModal({
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. Ada Lovelace"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                   </div>
 
@@ -873,9 +872,8 @@ export function RegistrationModal({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your @slrtce.in ID"
                       autoComplete="off"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                     <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
                       Must end with @slrtce.in
@@ -894,8 +892,7 @@ export function RegistrationModal({
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="e.g. 9876543210 (10 digits)"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                     <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
                       Numbers only (10 digits)
@@ -911,8 +908,7 @@ export function RegistrationModal({
                       required
                       value={college}
                       onChange={(e) => setCollege(e.target.value)}
-                      placeholder="SLRTCE Mumbai"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                   </div>
 
@@ -925,8 +921,7 @@ export function RegistrationModal({
                       required
                       value={department}
                       onChange={(e) => setDepartment(e.target.value)}
-                      placeholder="Computer Engineering"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                   </div>
 
@@ -956,8 +951,7 @@ export function RegistrationModal({
                       required
                       value={division}
                       onChange={(e) => setDivision(e.target.value.toUpperCase())}
-                      placeholder="e.g. A / B / C"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans uppercase"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans uppercase"
                     />
                   </div>
 
@@ -970,8 +964,7 @@ export function RegistrationModal({
                       required
                       value={rollNo}
                       onChange={(e) => setRollNo(e.target.value)}
-                      placeholder="e.g. 42"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                   </div>
 
@@ -984,8 +977,7 @@ export function RegistrationModal({
                       required
                       value={referenceId}
                       onChange={(e) => setReferenceId(e.target.value)}
-                      placeholder="e.g. Reference ID printed on your college ID card"
-                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans"
+                      className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                     <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
                       Mandatory · Enter the reference ID as printed on your SLRTCE ID card
@@ -1065,8 +1057,7 @@ export function RegistrationModal({
                         required
                         value={teamName}
                         onChange={(e) => setTeamName(e.target.value)}
-                        placeholder="e.g. Snorlax Protocol or Cyber Charizards"
-                        className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3.5 py-2 text-xs text-black placeholder:text-neutral-400 outline-none transition font-sans font-bold"
+                        className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3.5 py-2 text-xs text-black outline-none transition font-sans font-bold"
                       />
                     </div>
                     <p className="text-[11px] text-neutral-600 font-mono">
@@ -1085,8 +1076,7 @@ export function RegistrationModal({
                           required
                           value={joinCodeInput}
                           onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                          placeholder="e.g. JRV-ABCD"
-                          className="flex-1 bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3.5 py-2 text-xs text-black font-mono uppercase tracking-widest placeholder:text-neutral-400 outline-none transition"
+                          className="flex-1 bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3.5 py-2 text-xs text-black font-mono uppercase tracking-widest outline-none transition"
                         />
                         <button
                           type="button"

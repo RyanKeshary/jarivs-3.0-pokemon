@@ -183,15 +183,13 @@ export default function JoinTeamPage({
 
               {/* Join Form */}
               <form onSubmit={handleJoin} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label-editorial text-[8px] block mb-1">FULL NAME</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">                  <div>
+                    <label className="label-editorial text-[8px] block mb-1">FULL NAME *</label>
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Jane Doe"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                   </div>
@@ -203,7 +201,6 @@ export default function JoinTeamPage({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your @slrtce.in ID"
                       autoComplete="off"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
@@ -222,7 +219,6 @@ export default function JoinTeamPage({
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="9876543210 (10 digits)"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                     <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
@@ -237,7 +233,6 @@ export default function JoinTeamPage({
                       required
                       value={college}
                       onChange={(e) => setCollege(e.target.value)}
-                      placeholder="SLRTCE Mumbai"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                   </div>
@@ -249,7 +244,6 @@ export default function JoinTeamPage({
                       required
                       value={department}
                       onChange={(e) => setDepartment(e.target.value)}
-                      placeholder="Computer Engineering"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                   </div>
@@ -276,7 +270,6 @@ export default function JoinTeamPage({
                       required
                       value={division}
                       onChange={(e) => setDivision(e.target.value.toUpperCase())}
-                      placeholder="e.g. A / B / C"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none uppercase"
                     />
                   </div>
@@ -288,7 +281,6 @@ export default function JoinTeamPage({
                       required
                       value={rollNo}
                       onChange={(e) => setRollNo(e.target.value)}
-                      placeholder="e.g. 42"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                   </div>
@@ -300,7 +292,6 @@ export default function JoinTeamPage({
                       required
                       value={referenceId}
                       onChange={(e) => setReferenceId(e.target.value)}
-                      placeholder="e.g. Reference ID printed on your college ID card"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                     <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
