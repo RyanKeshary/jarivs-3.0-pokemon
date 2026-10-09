@@ -12,21 +12,56 @@ interface AnnouncementsBoxProps {
 export function AnnouncementsBox({ initialAnnouncements }: AnnouncementsBoxProps) {
   const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
 
+  const fetchLatest = async () => {
+    try {
+      const supabase = createClient();
+      const { data: festData } = await supabase
+        .from('fest_announcements')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (festData && festData.length > 0) {
+        setAnnouncements(festData as any);
+      } else {
+        const { data: altData } = await supabase
+          .from('announcements')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (altData && altData.length > 0) {
+          setAnnouncements(altData as any);
+        }
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel('announcements-realtime')
+      .channel('announcements-box-realtime')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'announcements' },
-        (payload) => {
-          setAnnouncements((prev) => [payload.new as Announcement, ...prev]);
+        { event: '*', schema: 'public', table: 'fest_announcements' },
+        () => {
+          fetchLatest();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'announcements' },
+        () => {
+          fetchLatest();
         }
       )
       .subscribe();
 
+    const interval = setInterval(fetchLatest, 5000);
+    window.addEventListener('fest_announcement_updated', fetchLatest);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
+      window.removeEventListener('fest_announcement_updated', fetchLatest);
     };
   }, []);
 

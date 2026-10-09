@@ -1821,7 +1821,7 @@ export async function adminPostFestAnnouncement(title: string, content: string) 
   const res = await sql`
     INSERT INTO public.fest_announcements (title, content, is_active)
     VALUES (${title.trim()}, ${content.trim()}, true)
-    RETURNING id
+    RETURNING id, title, content, is_active, created_at
   `;
   try {
     await sql`
@@ -1835,7 +1835,7 @@ export async function adminPostFestAnnouncement(title: string, content: string) 
   revalidatePath('/admin');
   revalidatePath('/dashboard');
   revalidatePath('/');
-  return { success: true };
+  return { success: true, announcement: res[0] };
 }
 
 export async function adminDeleteFestAnnouncement(id: string) {
@@ -1848,6 +1848,6 @@ export async function adminDeleteFestAnnouncement(id: string) {
   revalidatePath('/admin');
   revalidatePath('/dashboard');
   revalidatePath('/');
-  return { success: true };
+  return { success: true, deletedId: id };
 }
 

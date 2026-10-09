@@ -77,6 +77,45 @@ export function AdminClient({ initialData, isAuthenticated }: AdminClientProps) 
     }
   };
 
+  // Live real-time background sync: Supabase changes + 5s polling fallback + custom event sync
+  useEffect(() => {
+    if (!authed) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel('admin-live-stream')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fest_announcements' }, () => {
+        handleRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
+        handleRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fest_registrations' }, () => {
+        handleRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fest_teams' }, () => {
+        handleRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        handleRefresh();
+      })
+      .subscribe();
+
+    const interval = setInterval(() => {
+      handleRefresh();
+    }, 5000);
+
+    const handleLocalSync = () => {
+      handleRefresh();
+    };
+    window.addEventListener('fest_announcement_updated', handleLocalSync);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+      window.removeEventListener('fest_announcement_updated', handleLocalSync);
+    };
+  }, [authed]);
+
   if (verifying && !authed) {
     return (
       <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-4">

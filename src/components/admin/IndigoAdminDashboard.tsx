@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -138,9 +138,45 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Announcement Form State
+  // Announcement Form & Live State (Updates instantly without manual refresh)
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementContent, setAnnouncementContent] = useState('');
+  const [localAnnouncements, setLocalAnnouncements] = useState<any[]>(data.announcements || []);
+
+  useEffect(() => {
+    if (data?.announcements) {
+      setLocalAnnouncements(data.announcements);
+    }
+  }, [data?.announcements]);
+
+  // Real-time synchronization for bulletins across multiple browser tabs/admins
+  useEffect(() => {
+    const supabase = createClient();
+    const fetchFreshAnnouncements = async () => {
+      try {
+        const { data: fresh } = await supabase
+          .from('fest_announcements')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (fresh && fresh.length > 0) {
+          setLocalAnnouncements(fresh);
+        }
+      } catch {}
+    };
+
+    const channel = supabase
+      .channel('indigo_admin_announcements_live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fest_announcements' }, fetchFreshAnnouncements)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, fetchFreshAnnouncements)
+      .subscribe();
+
+    window.addEventListener('fest_announcement_updated', fetchFreshAnnouncements);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('fest_announcement_updated', fetchFreshAnnouncements);
+    };
+  }, []);
 
   // Editing Event Settings State
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
@@ -461,15 +497,72 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     }
   };
 
-  // Post Announcement
+  // Post Announcement (Instant live update without refresh)
   const handlePostAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!announcementTitle.trim() || !announcementContent.trim()) return;
-    await adminPostFestAnnouncement(announcementTitle, announcementContent);
+    const title = announcementTitle.trim();
+    const content = announcementContent.trim();
+    setIsProcessing(true);
     setAnnouncementTitle('');
     setAnnouncementContent('');
-    setFeedbackNotice('Announcement published to site banner.');
-    if (onRefresh) onRefresh();
+
+    // Instant optimistic update: display in list immediately
+    const optimisticItem = {
+      id: 'temp-' + Date.now(),
+      title,
+      content,
+      created_at: new Date().toISOString(),
+      is_active: true,
+    };
+    setLocalAnnouncements((prev) => [optimisticItem, ...prev]);
+
+    try {
+      const res = await adminPostFestAnnouncement(title, content);
+      if (res?.success) {
+        if (res.announcement) {
+          setLocalAnnouncements((prev) => [
+            res.announcement,
+            ...prev.filter((item) => item.id !== optimisticItem.id),
+          ]);
+        }
+        showToast('Announcement published to site banner & bulletin!', 'success');
+        setFeedbackNotice('Announcement published to site banner.');
+        window.dispatchEvent(new CustomEvent('fest_announcement_updated'));
+        if (onRefresh) await onRefresh();
+      } else {
+        setLocalAnnouncements((prev) => prev.filter((item) => item.id !== optimisticItem.id));
+        showToast((res as any)?.error || 'Failed to publish announcement.', 'error');
+        setFeedbackNotice('Failed to publish announcement.');
+      }
+    } catch (err: any) {
+      setLocalAnnouncements((prev) => prev.filter((item) => item.id !== optimisticItem.id));
+      showToast(err.message || 'Error publishing announcement.', 'error');
+      setFeedbackNotice('Error publishing announcement.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Delete Announcement (Instant live removal without refresh)
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this bulletin?')) return;
+    const prevList = [...localAnnouncements];
+    setLocalAnnouncements((prev) => prev.filter((item) => item.id !== id));
+    try {
+      const res = await adminDeleteFestAnnouncement(id);
+      if (res?.success) {
+        showToast('Bulletin removed from site banner.', 'success');
+        window.dispatchEvent(new CustomEvent('fest_announcement_updated'));
+        if (onRefresh) await onRefresh();
+      } else {
+        setLocalAnnouncements(prevList);
+        showToast((res as any)?.error || 'Failed to remove announcement.', 'error');
+      }
+    } catch (err: any) {
+      setLocalAnnouncements(prevList);
+      showToast(err.message || 'Error removing announcement.', 'error');
+    }
   };
 
   // Password Modal Open & Save (Supports both single user and all at once)
@@ -1776,9 +1869,9 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               </div>
             </form>
 
-            {/* List Existing Announcements */}
+            {/* List Existing Announcements (Live updated without refresh) */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-xs divide-y divide-slate-100 overflow-hidden">
-              {announcements.map((a: any) => (
+              {localAnnouncements.map((a: any) => (
                 <div key={a.id} className="p-5 flex justify-between items-start gap-4 hover:bg-slate-50/60 transition-colors">
                   <div>
                     <h4 className="text-sm font-bold text-slate-900">{a.title}</h4>
@@ -1788,18 +1881,15 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     </span>
                   </div>
                   <button
-                    onClick={async () => {
-                      await adminDeleteFestAnnouncement(a.id);
-                      if (onRefresh) onRefresh();
-                    }}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-800 p-1 cursor-pointer"
+                    onClick={() => handleDeleteAnnouncement(a.id)}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-800 p-1 cursor-pointer transition-colors"
                     title="Delete notice"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
               ))}
-              {announcements.length === 0 && (
+              {localAnnouncements.length === 0 && (
                 <div className="p-8 text-center text-xs font-mono text-slate-500">
                   No bulletins posted yet.
                 </div>
