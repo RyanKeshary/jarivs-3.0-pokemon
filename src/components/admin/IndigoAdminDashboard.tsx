@@ -30,7 +30,9 @@ import {
   Layers,
   Sparkles,
   UserCheck,
-  Crown
+  Crown,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import {
   adminUpdateParticipantStatus,
@@ -130,6 +132,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   // Password Change State
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Announcement Form State
   const [announcementTitle, setAnnouncementTitle] = useState('');
@@ -2070,14 +2073,25 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">New Secret Passcode</label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter at least 6 characters"
-                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter at least 6 characters"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 pr-10 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer transition-colors"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               <button

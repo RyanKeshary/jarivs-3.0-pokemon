@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
 import { AnimatedPsyduck } from '@/components/illustrations/AnimatedPsyduck';
+import { Eye, EyeOff } from 'lucide-react';
 
 export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -125,15 +127,26 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
             <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-black block mb-1">
               MASTER PASSWORD
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter administrator password"
-              autoComplete="current-password"
-              className="w-full bg-white border-2 border-black p-2.5 text-xs text-black font-mono focus:border-[#D21319] focus:outline-none shadow-[2px_2px_0px_#000]"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter administrator password"
+                autoComplete="current-password"
+                className="w-full bg-white border-2 border-black p-2.5 pr-10 text-xs text-black font-mono focus:border-[#D21319] focus:outline-none shadow-[2px_2px_0px_#000]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black p-1 cursor-pointer transition-colors"
+                title={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <div className="pt-2">
