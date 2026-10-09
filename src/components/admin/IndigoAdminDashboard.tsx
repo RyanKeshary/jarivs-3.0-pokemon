@@ -59,6 +59,16 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { AdminPokemonGuardian } from './AdminPokemonGuardian';
 
+const DEFAULT_FEST_EVENTS = [
+  { id: 'project-exhibition', name: 'Poké Expo: Project Exhibition' },
+  { id: 'pid-geotto', name: 'Pidgetto: Line-Follower Race' },
+  { id: 'treasure-hunt', name: "Team Rocket's Pokéquest: Treasure Hunt" },
+  { id: 'quiz-tle', name: 'Quiztle: Technical Quiz' },
+  { id: 'build-asor', name: 'Buildasaur: Buildathon' },
+  { id: 'snorreelax', name: 'Snorreelax: Reel Making Competition' },
+  { id: 'cad-mander', name: 'Cadmander: AutoCAD Competition' },
+];
+
 interface IndigoAdminDashboardProps {
   data: any;
   onRefresh?: () => void;
@@ -108,6 +118,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     yearOfStudy: '3rd Year',
     collegeId: '',
     teamId: '',
+    eventId: 'project-exhibition',
     isLeader: true,
     status: 'Confirmed'
   });
@@ -137,6 +148,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [coordNotice, setCoordNotice] = useState<string | null>(null);
 
   const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers, coordinators = [] } = data;
+
+  const availableEvents = useMemo(() => {
+    if (events && events.length > 0) {
+      return events.map((e: any) => ({
+        id: e.id,
+        name: e.name || e.id
+      }));
+    }
+    return DEFAULT_FEST_EVENTS;
+  }, [events]);
 
   const isCoordinator = currentUser?.role === 'coordinator';
   const currentTab = isCoordinator ? 'checkin' : activeTab;
@@ -2210,7 +2231,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 <label className="text-slate-600 font-bold block mb-1">Target Squad (Optional)</label>
                 <select
                   value={manualForm.teamId}
-                  onChange={(e) => setManualForm({ ...manualForm, teamId: e.target.value })}
+                  onChange={(e) => {
+                    const selectedTeamId = e.target.value;
+                    const matchedTeam = teams?.find((t: any) => t.id === selectedTeamId);
+                    const matchedEventId = matchedTeam?.event_ids?.[0];
+                    setManualForm(prev => ({
+                      ...prev,
+                      teamId: selectedTeamId,
+                      ...(matchedEventId ? { eventId: matchedEventId } : {})
+                    }));
+                  }}
                   className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-medium"
                 >
                   <option value="">Create Independent On-Spot Squad</option>
@@ -2218,6 +2248,40 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-700 font-bold block">
+                    Event / Discipline <span className="text-red-500">*</span>
+                  </label>
+                  {manualForm.teamId && (
+                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      Linked to Squad
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={manualForm.eventId}
+                  disabled={Boolean(manualForm.teamId)}
+                  onChange={(e) => setManualForm({ ...manualForm, eventId: e.target.value })}
+                  className={`w-full border rounded-lg p-2 text-slate-900 font-medium transition-colors ${
+                    manualForm.teamId
+                      ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                      : 'bg-white border-slate-300 focus:border-[#D21319] focus:ring-1 focus:ring-[#D21319]'
+                  }`}
+                >
+                  {availableEvents.map((ev: any) => (
+                    <option key={ev.id} value={ev.id}>
+                      {ev.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {manualForm.teamId
+                    ? 'Event is automatically determined by the selected squad.'
+                    : 'Select one of the 7 official Jarvis 3.0 events for this participant.'}
+                </p>
               </div>
 
               <div>
@@ -2295,25 +2359,48 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 Cancel
               </button>
               <button
+                disabled={isProcessing}
                 onClick={async () => {
-                  await adminCreateManualParticipant({
-                    fullName: manualForm.fullName,
-                    email: manualForm.email,
-                    phone: manualForm.phone,
-                    college: manualForm.college,
-                    department: manualForm.department,
-                    yearOfStudy: manualForm.yearOfStudy,
-                    collegeId: manualForm.collegeId,
-                    teamId: manualForm.teamId || undefined,
-                    isLeader: !manualForm.teamId,
-                    status: manualForm.status
-                  });
-                  setManualModalOpen(false);
-                  if (onRefresh) onRefresh();
+                  try {
+                    setIsProcessing(true);
+                    await adminCreateManualParticipant({
+                      fullName: manualForm.fullName,
+                      email: manualForm.email,
+                      phone: manualForm.phone,
+                      college: manualForm.college,
+                      department: manualForm.department,
+                      yearOfStudy: manualForm.yearOfStudy,
+                      collegeId: manualForm.collegeId,
+                      teamId: manualForm.teamId || undefined,
+                      eventId: manualForm.eventId || 'project-exhibition',
+                      isLeader: !manualForm.teamId,
+                      status: manualForm.status
+                    });
+                    setManualModalOpen(false);
+                    setManualForm({
+                      fullName: '',
+                      email: '',
+                      phone: '',
+                      college: '',
+                      department: '',
+                      yearOfStudy: '3rd Year',
+                      collegeId: '',
+                      teamId: '',
+                      eventId: 'project-exhibition',
+                      isLeader: true,
+                      status: 'Confirmed'
+                    });
+                    setFeedbackNotice('On-spot participant registered successfully!');
+                    if (onRefresh) onRefresh();
+                  } catch (err: any) {
+                    alert(err.message || 'Failed to register on-spot participant');
+                  } finally {
+                    setIsProcessing(false);
+                  }
                 }}
-                className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                Register On-Spot
+                {isProcessing ? 'Registering...' : 'Register On-Spot'}
               </button>
             </div>
           </div>

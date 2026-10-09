@@ -1314,6 +1314,7 @@ export async function adminDeleteUserByEmail(email: string) {
 export async function adminCreateManualParticipant(data: {
   teamId?: string;
   teamCode?: string;
+  eventId?: string;
   isLeader: boolean;
   fullName: string;
   email: string;
@@ -1349,10 +1350,12 @@ export async function adminCreateManualParticipant(data: {
 
   if (!targetTeamId) {
     // Create an on-spot team
-    const code = 'JRV-SPOT';
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const code = `JRV-${randomSuffix}`;
+    const chosenEvent = data.eventId || 'project-exhibition';
     const newTeam = await sql`
       INSERT INTO public.fest_teams (code, name, event_ids, leader_email, leader_token, status)
-      VALUES (${code}, ${data.fullName + ' On-Spot'}, ARRAY['project-exhibition'], ${data.email}, gen_random_uuid()::text, 'Confirmed')
+      VALUES (${code}, ${data.fullName + ' On-Spot'}, ARRAY[${chosenEvent}], ${data.email}, gen_random_uuid()::text, 'Confirmed')
       RETURNING id, code;
     `;
     targetTeamId = newTeam[0].id;

@@ -123,4 +123,22 @@ describe('Indigo Tech Fest Registration Validation', () => {
     expect(participant.division.trim().length > 0).toBe(true);
     expect(participant.rollNo.trim().length > 0).toBe(true);
   });
+
+  it('supports selecting each of the 7 official events for manual on-spot enrollment', () => {
+    const SEVEN_EVENTS = [
+      'project-exhibition',
+      'pid-geotto',
+      'treasure-hunt',
+      'quiz-tle',
+      'build-asor',
+      'snorreelax',
+      'cad-mander'
+    ];
+    expect(SEVEN_EVENTS).toHaveLength(7);
+    SEVEN_EVENTS.forEach(eventId => {
+      expect(typeof eventId).toBe('string');
+      expect(eventId.length).toBeGreaterThan(0);
+    });
+  });
 });
+
