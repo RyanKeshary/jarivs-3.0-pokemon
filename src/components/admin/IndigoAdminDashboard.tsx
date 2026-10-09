@@ -32,7 +32,8 @@ import {
   UserCheck,
   Crown,
   Eye,
-  EyeOff
+  EyeOff,
+  Copy
 } from 'lucide-react';
 import {
   adminUpdateParticipantStatus,
@@ -150,6 +151,34 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [newCoordEmail, setNewCoordEmail] = useState('');
   const [newCoordName, setNewCoordName] = useState('');
   const [coordNotice, setCoordNotice] = useState<string | null>(null);
+
+  // Floating Toast Notification
+  const [toast, setToast] = useState<{
+    id: number;
+    type: 'success' | 'error';
+    message: string;
+    subtext?: string;
+  } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success', subtext?: string) => {
+    const id = Date.now();
+    setToast({ id, type, message, subtext });
+    setTimeout(() => {
+      setToast((curr) => (curr?.id === id ? null : curr));
+    }, 4500);
+  };
+
+  // Password Management Modal State for Coordinators & Admins
+  const [passwordModalUser, setPasswordModalUser] = useState<{
+    id: string;
+    email: string;
+    name: string;
+    role: 'admin' | 'coordinator';
+  } | null>(null);
+  const [targetNewPassword, setTargetNewPassword] = useState('password@67');
+  const [showTargetPassword, setShowTargetPassword] = useState(true);
+  const [passwordModalSuccess, setPasswordModalSuccess] = useState<string | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers, coordinators = [] } = data;
 
@@ -434,6 +463,50 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     if (onRefresh) onRefresh();
   };
 
+  // Password Modal Open & Save
+  const handleOpenPasswordModal = (user: { id: string; email: string; name: string; role: 'admin' | 'coordinator' }) => {
+    setPasswordModalUser(user);
+    setTargetNewPassword('password@67');
+    setShowTargetPassword(true);
+    setPasswordModalSuccess(null);
+    setCopiedPassword(false);
+  };
+
+  const handleSaveUserPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!passwordModalUser) return;
+    if (targetNewPassword.length < 6) {
+      showToast('Password must be at least 6 characters long.', 'error');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      let res: any;
+      if (passwordModalUser.role === 'admin') {
+        res = await resetAdminPassword(passwordModalUser.id, targetNewPassword);
+      } else {
+        res = await adminResetCoordinatorPassword(passwordModalUser.id, targetNewPassword);
+      }
+
+      if (res?.success) {
+        const pass = res.newPassword || targetNewPassword;
+        setPasswordModalSuccess(pass);
+        showToast(
+          `Password updated for ${passwordModalUser.email}!`,
+          'success',
+          `Password: ${pass}`
+        );
+        if (onRefresh) onRefresh();
+      } else {
+        showToast(res?.error || 'Failed to update password.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error updating password.', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Master Admin Handlers
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -443,12 +516,14 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     try {
       const res = await masterAddAdmin(newAdminEmail.trim(), newAdminName.trim());
       if (res.success) {
+        showToast(`Administrator ${newAdminEmail.trim()} appointed!`, 'success', 'Password: password@67');
         setMasterNotice(`Administrator ${newAdminEmail.trim()} appointed successfully! Default password is set to password@67`);
         setNewAdminEmail('');
         setNewAdminName('');
         if (onRefresh) onRefresh();
       }
     } catch (err: any) {
+      showToast(err.message || 'Error appointing administrator.', 'error');
       setMasterNotice(`Error: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -462,10 +537,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     try {
       const res = await masterRemoveAdmin(adminId);
       if (res.success) {
+        showToast(`Admin access revoked for ${email}.`, 'success');
         setMasterNotice(`Admin access revoked for ${email}.`);
         if (onRefresh) onRefresh();
       }
     } catch (err: any) {
+      showToast(err.message || 'Failed to revoke admin.', 'error');
       setMasterNotice(`Error: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -473,19 +550,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   };
 
   const handleResetAdminPass = async (adminId: string, email: string) => {
-    if (!confirm(`Reset credentials for ${email} to default password@67?`)) return;
-    setIsProcessing(true);
-    setMasterNotice(null);
-    try {
-      const res = await resetAdminPassword(adminId);
-      if (res.success) {
-        setMasterNotice(`Credentials successfully reset to password@67 for ${email}.`);
-      }
-    } catch (err: any) {
-      setMasterNotice(`Error: ${err.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
+    handleOpenPasswordModal({
+      id: adminId,
+      email,
+      name: 'Admin Officer',
+      role: 'admin',
+    });
   };
 
   // Coordinator Management Handlers (Admins & Managers)
@@ -497,14 +567,17 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     try {
       const res = await adminAddCoordinator(newCoordEmail.trim(), newCoordName.trim());
       if (res?.success) {
+        showToast(`Gate coordinator ${newCoordEmail.trim()} appointed!`, 'success', 'Password: password@67');
         setCoordNotice(`Gate coordinator ${newCoordEmail.trim()} appointed successfully! Default password is password@67`);
         setNewCoordEmail('');
         setNewCoordName('');
         if (onRefresh) onRefresh();
       } else {
+        showToast(res?.error || 'Failed to appoint coordinator.', 'error');
         setCoordNotice(`Error: ${res?.error || 'Failed to appoint coordinator.'}`);
       }
     } catch (err: any) {
+      showToast(err.message || 'Error configuring coordinator authentication.', 'error');
       setCoordNotice(`Error: ${err.message || 'Error configuring coordinator authentication.'}`);
     } finally {
       setIsProcessing(false);
@@ -518,12 +591,15 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     try {
       const res = await adminRemoveCoordinator(coordId);
       if (res?.success) {
+        showToast(`Coordinator access removed for ${email}.`, 'success');
         setCoordNotice(`Coordinator access removed for ${email}.`);
         if (onRefresh) onRefresh();
       } else {
+        showToast(res?.error || 'Failed to remove coordinator.', 'error');
         setCoordNotice(`Error: ${res?.error || 'Failed to remove coordinator.'}`);
       }
     } catch (err: any) {
+      showToast(err.message || 'Error removing coordinator.', 'error');
       setCoordNotice(`Error: ${err.message || 'Error removing coordinator.'}`);
     } finally {
       setIsProcessing(false);
@@ -531,21 +607,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   };
 
   const handleResetCoordPass = async (coordId: string, email: string) => {
-    if (!confirm(`Reset credentials for coordinator ${email} to default password@67?`)) return;
-    setIsProcessing(true);
-    setCoordNotice(null);
-    try {
-      const res = await adminResetCoordinatorPassword(coordId);
-      if (res?.success) {
-        setCoordNotice(`Credentials successfully reset to password@67 for coordinator ${email}.`);
-      } else {
-        setCoordNotice(`Error: ${res?.error || 'Failed to reset password.'}`);
-      }
-    } catch (err: any) {
-      setCoordNotice(`Error: ${err.message || 'Error resetting credentials.'}`);
-    } finally {
-      setIsProcessing(false);
-    }
+    handleOpenPasswordModal({
+      id: coordId,
+      email,
+      name: 'Gate Coordinator',
+      role: 'coordinator',
+    });
   };
 
   // Status Badge Helper
@@ -1796,10 +1863,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                         type="button"
                         onClick={() => handleResetCoordPass(coord.id, coord.email)}
                         disabled={isProcessing}
-                        className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer"
-                        title="Reset password to password@67"
+                        className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer flex items-center gap-1"
+                        title="Change or reset password and view credentials"
                       >
-                        Reset Password
+                        <KeyRound size={12} />
+                        <span>Change Password</span>
                       </button>
                       <button
                         type="button"
@@ -1908,19 +1976,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
            ======================================================== */}
         {currentTab === 'master' && !isCoordinator && currentUser?.isMaster && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-neutral-900 to-black text-white p-6 rounded-xl shadow-sm border border-neutral-800">
-              <div className="flex items-center gap-2 mb-1">
-                <Crown size={18} className="text-amber-400" />
-                <span className="font-mono text-xs uppercase tracking-widest text-amber-400 font-bold">
-                  MASTER ORGANIZER CONSOLE
-                </span>
-              </div>
-              <h2 className="text-lg font-bold font-sans">Appoint & Manage Festival Administrators</h2>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                Exclusive privileges restricted to {isCurrentUserRyan ? 'ryankeshary@gmail.com and shrey.sleeps@gmail.com' : 'shrey.sleeps@gmail.com'}.
-                Other admins cannot view or access this console.
-              </p>
-            </div>
+
 
             {masterNotice && (
               <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-lg text-xs font-mono text-amber-900 flex items-center justify-between">
@@ -2024,10 +2080,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                               type="button"
                               onClick={() => handleResetAdminPass(admin.id, admin.email)}
                               disabled={isProcessing}
-                              className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer"
-                              title="Reset password to password@67"
+                              className="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer flex items-center gap-1"
+                              title="Change or reset password and view credentials"
                             >
-                              Reset to password@67
+                              <KeyRound size={12} />
+                              <span>Change Password</span>
                             </button>
                             <button
                               type="button"
@@ -2666,6 +2723,205 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          TOAST NOTIFICATION POPUP (Instant Feedback)
+         ======================================================== */}
+      {toast && (
+        <div className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-white border-2 border-black shadow-[6px_6px_0px_#000] p-4 flex items-start gap-3 pointer-events-auto transition-all animate-in fade-in slide-in-from-top-4">
+          <div className={`p-2 shrink-0 rounded-full ${toast.type === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+            {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-bold text-black font-mono uppercase tracking-wider">
+              {toast.type === 'success' ? 'System Notification' : 'Action Alert'}
+            </div>
+            <div className="text-xs text-neutral-800 font-sans mt-0.5 break-words font-medium">
+              {toast.message}
+            </div>
+            {toast.subtext && (
+              <div className="mt-1.5 flex items-center justify-between gap-2 p-1.5 bg-neutral-100 border border-neutral-300 rounded text-[11px] font-mono text-neutral-900">
+                <span className="truncate">{toast.subtext}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const passMatch = toast.subtext?.replace(/^Password:\s*/, '');
+                    if (passMatch) navigator.clipboard.writeText(passMatch);
+                  }}
+                  className="px-1.5 py-0.5 bg-white hover:bg-neutral-200 border border-black text-[10px] font-bold shrink-0 cursor-pointer"
+                  title="Copy password"
+                >
+                  Copy
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="text-neutral-400 hover:text-black p-1 cursor-pointer transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: CHANGE / RESET USER PASSWORD (Admins & Coordinators)
+         ======================================================== */}
+      {passwordModalUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border-2 border-black rounded-xl p-6 shadow-[8px_8px_0px_#000] space-y-4">
+            <div className="flex justify-between items-start border-b border-neutral-200 pb-3">
+              <div>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#D21319] block">
+                  {passwordModalUser.role === 'admin' ? 'ADMINISTRATOR CREDENTIALS' : 'COORDINATOR CREDENTIALS'}
+                </span>
+                <h3 className="text-base font-bold text-slate-900">
+                  Change Password
+                </h3>
+                <p className="text-xs text-slate-500 font-mono mt-0.5">
+                  {passwordModalUser.name} · {passwordModalUser.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPasswordModalUser(null);
+                  setPasswordModalSuccess(null);
+                  setCopiedPassword(false);
+                }}
+                className="text-slate-400 hover:text-black p-1 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {passwordModalSuccess ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-emerald-50 border-2 border-emerald-600 rounded-lg text-emerald-950 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-xs text-emerald-800">
+                    <CheckCircle2 size={16} />
+                    <span>Password Successfully Updated!</span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    The credentials for <strong className="text-black">{passwordModalUser.email}</strong> have been updated and are active immediately:
+                  </p>
+                  <div className="p-3 bg-white border border-emerald-300 rounded font-mono text-center my-2">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-widest block font-bold mb-1">
+                      NEW ACTIVE PASSWORD
+                    </span>
+                    <span className="text-2xl font-black text-[#D21319] tracking-wider select-all">
+                      {passwordModalSuccess}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(passwordModalSuccess);
+                      setCopiedPassword(true);
+                      setTimeout(() => setCopiedPassword(false), 2000);
+                    }}
+                    className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-mono font-bold text-xs rounded transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {copiedPassword ? (
+                      <>
+                        <Check size={14} />
+                        <span>✓ Password Copied to Clipboard</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} />
+                        <span>Copy Password</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordModalUser(null);
+                    setPasswordModalSuccess(null);
+                    setCopiedPassword(false);
+                  }}
+                  className="w-full py-2.5 bg-black hover:bg-neutral-800 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveUserPassword} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Set New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showTargetPassword ? 'text' : 'password'}
+                      required
+                      value={targetNewPassword}
+                      onChange={(e) => setTargetNewPassword(e.target.value)}
+                      placeholder="Enter at least 6 characters"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 pr-10 text-xs font-mono text-slate-900 focus:border-[#D21319] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowTargetPassword((p) => !p)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                      title={showTargetPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showTargetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTargetNewPassword('password@67')}
+                    className="px-2.5 py-1 text-[11px] font-mono bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded cursor-pointer transition-colors"
+                  >
+                    Default (password@67)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rand = 'Pass@' + Math.floor(1000 + Math.random() * 9000);
+                      setTargetNewPassword(rand);
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-mono bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded cursor-pointer transition-colors"
+                  >
+                    Generate Random
+                  </button>
+                </div>
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs">
+                  ✦ After saving, the password will be shown directly on screen with a copy button.
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setPasswordModalUser(null)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-black cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isProcessing || targetNewPassword.length < 6}
+                    className="px-5 py-2 bg-[#D21319] hover:bg-[#b00f14] disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <KeyRound size={14} />
+                    <span>{isProcessing ? 'Saving...' : 'Apply Password'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

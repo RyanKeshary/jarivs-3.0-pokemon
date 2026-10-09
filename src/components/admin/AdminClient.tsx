@@ -66,8 +66,15 @@ export function AdminClient({ initialData, isAuthenticated }: AdminClientProps) 
     }
   };
 
-  const handleRefresh = () => {
-    window.location.reload();
+  const handleRefresh = async () => {
+    try {
+      const fresh = await getFestAdminData();
+      if (fresh) {
+        setData(fresh);
+      }
+    } catch (err) {
+      console.error('Failed to background refresh data:', err);
+    }
   };
 
   if (verifying && !authed) {

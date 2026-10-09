@@ -80,7 +80,14 @@ export function AnnouncementsSection({ initialNotices = [] }: AnnouncementsSecti
       )
       .subscribe();
 
+    // 8-second poll fallback + window focus sync for instantaneous notice updates
+    const pollInterval = setInterval(fetchNotices, 8000);
+    const handleFocus = () => fetchNotices();
+    window.addEventListener('focus', handleFocus);
+
     return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleFocus);
       supabase.removeChannel(channel1);
       supabase.removeChannel(channel2);
     };

@@ -553,14 +553,18 @@ export async function changeAdminPassword(newPassword: string) {
   return { success: true };
 }
 
-// 9. Master Reset Admin Password to default password@67
-export async function resetAdminPassword(targetUserId: string) {
+// 9. Master Set or Reset Admin Password
+export async function resetAdminPassword(targetUserId: string, customPassword?: string) {
   const { user, isMaster } = await requireAdmin();
-  if (!isMaster) throw new Error('Only Master can reset admin credentials');
+  if (!isMaster) throw new Error('Only Master can change admin credentials');
+
+  const appliedPassword = (customPassword && customPassword.trim().length >= 6)
+    ? customPassword.trim()
+    : 'password@67';
 
   await sql`
     UPDATE auth.users
-    SET encrypted_password = crypt('password@67', gen_salt('bf', 10)),
+    SET encrypted_password = crypt(${appliedPassword}, gen_salt('bf', 10)),
         instance_id = '00000000-0000-0000-0000-000000000000',
         aud = 'authenticated',
         role = 'authenticated',
@@ -569,8 +573,8 @@ export async function resetAdminPassword(targetUserId: string) {
   `;
 
   const targetUserRows = await sql`SELECT email FROM auth.users WHERE id = ${targetUserId}::uuid`;
-  if (targetUserRows.length > 0) {
-    const targetEmail = targetUserRows[0].email;
+  const targetEmail = targetUserRows[0]?.email || '';
+  if (targetEmail) {
     const existingIdentities = await sql`SELECT id FROM auth.identities WHERE user_id = ${targetUserId}::uuid`;
     if (existingIdentities.length === 0) {
       await sql`
@@ -583,11 +587,12 @@ export async function resetAdminPassword(targetUserId: string) {
     }
   }
 
-  await logAudit(user.id, user.email || '', 'RESET_ADMIN_PASSWORD', 'auth.users', targetUserId, {
-    defaultPassword: 'password@67'
+  await logAudit(user.id, user.email || '', 'CHANGE_ADMIN_PASSWORD', 'auth.users', targetUserId, {
+    email: targetEmail,
+    newPassword: appliedPassword
   });
   revalidatePath('/admin');
-  return { success: true };
+  return { success: true, newPassword: appliedPassword, email: targetEmail };
 }
 
 // 10. Master Appoint New Administrator with default password password@67
@@ -924,7 +929,7 @@ export async function adminRemoveCoordinator(coordinatorId: string) {
   }
 }
 
-export async function adminResetCoordinatorPassword(coordinatorId: string) {
+export async function adminResetCoordinatorPassword(coordinatorId: string, customPassword?: string) {
   try {
     const { user } = await requireAdminOrManager();
 
@@ -934,22 +939,41 @@ export async function adminResetCoordinatorPassword(coordinatorId: string) {
     if (targetRows.length === 0) return { success: false, error: 'Coordinator not found.' };
     if (targetRows[0].role !== 'coordinator') return { success: false, error: 'Target user is not a coordinator.' };
 
+    const appliedPassword = (customPassword && customPassword.trim().length >= 6)
+      ? customPassword.trim()
+      : 'password@67';
+
     await sql`
       UPDATE auth.users
-      SET encrypted_password = crypt('password@67', gen_salt('bf', 10)),
+      SET encrypted_password = crypt(${appliedPassword}, gen_salt('bf', 10)),
+          instance_id = '00000000-0000-0000-0000-000000000000',
+          aud = 'authenticated',
+          role = 'authenticated',
           updated_at = NOW()
       WHERE id = ${coordinatorId}::uuid
     `;
 
-    await logAudit(user.id, user.email || '', 'RESET_COORDINATOR_PASSWORD', 'profiles', coordinatorId, {
-      email: targetRows[0].email,
-      defaultPassword: 'password@67'
+    const targetEmail = targetRows[0].email;
+    const existingIdentities = await sql`SELECT id FROM auth.identities WHERE user_id = ${coordinatorId}::uuid`;
+    if (existingIdentities.length === 0) {
+      await sql`
+        INSERT INTO auth.identities (
+          id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+        ) VALUES (
+          gen_random_uuid(), ${coordinatorId}, ${coordinatorId}::uuid, ${sql.json({ sub: coordinatorId, email: targetEmail, email_verified: true, phone_verified: false })}, 'email', null, NOW(), NOW()
+        )
+      `;
+    }
+
+    await logAudit(user.id, user.email || '', 'CHANGE_COORDINATOR_PASSWORD', 'profiles', coordinatorId, {
+      email: targetEmail,
+      newPassword: appliedPassword
     });
 
-    return { success: true };
+    return { success: true, newPassword: appliedPassword, email: targetEmail };
   } catch (err: any) {
     console.error('adminResetCoordinatorPassword error:', err);
-    return { success: false, error: err.message || 'Error resetting coordinator credentials.' };
+    return { success: false, error: err.message || 'Error updating coordinator credentials.' };
   }
 }
 
