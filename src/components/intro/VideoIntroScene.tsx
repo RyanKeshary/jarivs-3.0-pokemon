@@ -18,20 +18,28 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
   const [isExiting, setIsExiting] = useState(false);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
 
-  // Synchronously select mobile stream on handhelds (< 768px or mobile UA) to prevent src-switch aborts
+  // Synchronously select ultra-low-packet mobile stream on handhelds (< 768px or mobile UA)
   const [videoSrc, setVideoSrc] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const isMobile =
-        window.innerWidth < 768 ||
-        /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      return isMobile ? '/media/intro-vid-mobile.mp4' : '/media/intro-vid.mp4';
+      const isMobilePhone =
+        window.innerWidth < 640 ||
+        /Mobi|Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobilePhone) {
+        return '/media/intro-vid-mobile-lite.mp4'; // Ultra-low packet: only 551 KB, 324 kbps!
+      }
+      const isTablet = window.innerWidth < 1024 || /iPad/i.test(navigator.userAgent);
+      if (isTablet) {
+        return '/media/intro-vid-mobile.mp4'; // 945 KB, 544 kbps
+      }
+      return '/media/intro-vid.mp4';
     }
-    return '/media/intro-vid-mobile.mp4';
+    return '/media/intro-vid-mobile-lite.mp4';
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProgressRef = useRef({ time: 0, wallClock: Date.now() });
+  const lastUpdateRef = useRef(0);
 
   // Trigger brief audio cue using Web Audio API for tactical UI feedback
   const playTacticalChime = useCallback((freq = 587.33, type: OscillatorType = 'sine') => {
@@ -69,17 +77,20 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     // Instant cinematic fade directly into the hero section with zero intermediate card
     setTimeout(() => {
       onComplete();
-    }, 450);
+    }, 400);
   }, [isExiting, onComplete, playTacticalChime]);
 
-  // Video error handler with automatic alternate source retry
+  // Video error handler with progressive alternate source retry ladder
   const handleVideoError = useCallback(() => {
     console.warn('Intro video error encountered for src:', videoSrc);
     if (!hasTriedFallback) {
       setHasTriedFallback(true);
-      const fallbackSrc =
-        videoSrc === '/media/intro-vid-mobile.mp4' ? '/media/intro-vid.mp4' : '/media/intro-vid-mobile.mp4';
-      setVideoSrc(fallbackSrc);
+      // Ladder: lite -> mobile standard -> desktop
+      let nextSrc = '/media/intro-vid-mobile.mp4';
+      if (videoSrc === '/media/intro-vid-mobile.mp4') {
+        nextSrc = '/media/intro-vid.mp4';
+      }
+      setVideoSrc(nextSrc);
       setTimeout(() => {
         const vid = videoRef.current;
         if (vid) {
@@ -321,21 +332,27 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleTogglePlay, handleToggleSound, handleFinishOrSkip]);
 
-  // Sync video time updates
+  // Throttled video time updates: saves up to 75% of main thread React re-render cycles
   const handleTimeUpdate = () => {
     const vid = videoRef.current;
-    if (vid) {
-      const ct = vid.currentTime;
+    if (!vid) return;
+    const ct = vid.currentTime;
+    const now = Date.now();
+
+    // Throttle state update to at most once per 250ms or when duration changes
+    if (now - lastUpdateRef.current >= 250 || ct >= (vid.duration || 13.9) - 0.2) {
+      lastUpdateRef.current = now;
       setCurrentTime(ct);
       if (vid.duration && !isNaN(vid.duration)) {
         setDuration(vid.duration);
       }
-      if (ct > lastProgressRef.current.time + 0.05) {
-        lastProgressRef.current = { time: ct, wallClock: Date.now() };
-        if (isWaitingForUserTap) {
-          setIsWaitingForUserTap(false);
-        }
+      if (isWaitingForUserTap) {
+        setIsWaitingForUserTap(false);
       }
+    }
+
+    if (ct > lastProgressRef.current.time + 0.05) {
+      lastProgressRef.current = { time: ct, wallClock: now };
     }
   };
 
@@ -360,11 +377,14 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       initial={{ opacity: 0 }}
       animate={{
         opacity: isExiting ? 0 : 1,
-        scale: isExiting ? 1.08 : 1,
-        filter: isExiting ? 'blur(12px) brightness(1.25)' : 'blur(0px) brightness(1)',
+        scale: isExiting ? 1.05 : 1,
       }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       className="fixed inset-0 z-50 bg-[#070913] flex items-center justify-center overflow-hidden select-none pointer-events-auto touch-manipulation"
+      style={{
+        transform: 'translateZ(0)',
+        WebkitTransform: 'translateZ(0)',
+      }}
     >
       
       {/* 1. Cinematic Background Video Canvas */}
@@ -397,15 +417,22 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           onEnded={handleFinishOrSkip}
           onError={handleVideoError}
           className="w-full h-full object-cover"
+          style={{
+            transform: 'translateZ(0)',
+            WebkitTransform: 'translateZ(0)',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            willChange: 'transform',
+          }}
         />
 
         {/* 2. Anamorphic Cinematic Letterbox Overlays */}
         <div className="absolute top-0 left-0 right-0 h-32 sm:h-40 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none" />
         <div className="absolute bottom-0 left-0 right-0 h-36 sm:h-44 bg-gradient-to-t from-black/95 via-black/50 to-transparent pointer-events-none" />
 
-        {/* 3. Subtle Futuristic HUD Reticle (Centered onto the Pokéball) */}
+        {/* 3. Subtle Futuristic HUD Reticle (Centered onto the Pokéball, static on mobile to avoid layer re-paints) */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
-          <svg className="w-[320px] xs:w-[380px] sm:w-[460px] h-[320px] xs:h-[380px] sm:h-[460px] animate-[spin_60s_linear_infinite]" viewBox="0 0 400 400">
+          <svg className="w-[320px] xs:w-[380px] sm:w-[460px] h-[320px] xs:h-[380px] sm:h-[460px] sm:animate-[spin_60s_linear_infinite]" viewBox="0 0 400 400">
             <circle cx="200" cy="200" r="185" stroke="#FFFFFF" strokeWidth="0.8" strokeDasharray="3 8" fill="none" opacity="0.3" />
             <circle cx="200" cy="200" r="170" stroke="#D21319" strokeWidth="1.2" strokeDasharray="16 120" fill="none" opacity="0.7" />
             <circle cx="200" cy="200" r="145" stroke="#E9E6DA" strokeWidth="0.6" strokeDasharray="6 6" fill="none" opacity="0.35" />

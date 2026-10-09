@@ -114,15 +114,15 @@ export function LandingClient({ settings }: LandingClientProps) {
   return (
     <div className="min-h-screen flex flex-col bg-[#161A35] text-black relative">
       
-      {/* 1. PERSISTENT FIXED BACKGROUND STAGE: UNLOADS ONCE SCROLLED PAST HERO TO MINIMIZE CPU/GPU */}
+      {/* 1. PERSISTENT FIXED BACKGROUND STAGE: UNLOADS DURING INTRO & ONCE SCROLLED PAST HERO TO MINIMIZE CPU/GPU */}
       <div
         className="fixed inset-0 w-full h-full z-0 overflow-hidden pointer-events-none [clip-path:inset(0)] [-webkit-clip-path:inset(0)] transition-opacity duration-300"
         style={{
-          visibility: isPastHero ? 'hidden' : 'visible',
-          opacity: isPastHero ? 0 : 1,
+          visibility: isPastHero || showVideoIntro ? 'hidden' : 'visible',
+          opacity: isPastHero || showVideoIntro ? 0 : 1,
         }}
       >
-        {!isPastHero && (
+        {!showVideoIntro && !isPastHero && (
           <div className="w-full h-full pointer-events-auto">
             <DynamicStage
               onEnterClick={handleViewEvents}
@@ -158,8 +158,8 @@ export function LandingClient({ settings }: LandingClientProps) {
         onReplayIntro={handleReplayIntro}
       />
 
-      {/* Team Rocket Blasting Off Scroll-Driven Trajectory */}
-      <TeamRocketBlastOff />
+      {/* Team Rocket Blasting Off Scroll-Driven Trajectory (Deferred until intro ends) */}
+      {!showVideoIntro && <TeamRocketBlastOff />}
 
       {/* FOREGROUND SCROLLABLE CONTENT (100vh / 100vw Virtualized) */}
       <main className="flex-1 relative z-10">
