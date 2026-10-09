@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
 import { AnimatedPsyduck } from '@/components/illustrations/AnimatedPsyduck';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
 
 export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any) => void }) {
   const [email, setEmail] = useState('');
@@ -13,6 +13,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showPsyduckVideo, setShowPsyduckVideo] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,14 +84,16 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-4 select-none">
       <div className="w-full max-w-md bg-white border-2 border-black p-6 sm:p-8 shadow-[8px_8px_0px_#000] text-black">
         
-        {/* Brand Logo & Animated Psyduck */}
-        <div className="flex items-center justify-center gap-4 mb-3">
-          <img
-            src="/logo.png"
-            alt="Indigo Tech Fest Logo"
-            className="w-16 h-16 rounded-full border-2 border-black shadow-[3px_3px_0px_#000] object-contain hover:scale-105 transition-transform shrink-0"
-          />
-          <AnimatedPsyduck size={88} className="hover:scale-105 transition-transform" />
+        {/* Animated Psyduck Easter Egg (Click plays secret transmission video) */}
+        <div className="flex items-center justify-center mb-3">
+          <button
+            type="button"
+            onClick={() => setShowPsyduckVideo(true)}
+            className="cursor-pointer group hover:scale-105 transition-transform bg-transparent border-0 p-0 focus:outline-none"
+            title="Psyduck · Click to inspect secret transmission!"
+          >
+            <AnimatedPsyduck size={96} />
+          </button>
         </div>
 
         <div className="border-b-2 border-black pb-4 mb-5 text-center">
@@ -186,6 +189,58 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
         </div>
 
       </div>
+
+      {/* Secret Psyduck Transmission Video Modal (Closes strictly on ✕ button) */}
+      {showPsyduckVideo && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="relative w-full max-w-2xl bg-white border-2 border-black p-4 sm:p-5 shadow-[8px_8px_0px_#000] text-black animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 mb-3 border-b-2 border-black">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-[#D21319] rounded-xs shadow-[1px_1px_0px_#000]" />
+                <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-wider text-black">
+                  PSYDUCK CLASSIFIED TRANSMISSION
+                </span>
+                <span className="hidden sm:inline-block font-mono text-[9px] bg-amber-200 text-amber-900 border border-amber-400 px-1.5 py-0.5 rounded font-bold">
+                  EASTER EGG
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPsyduckVideo(false)}
+                className="w-8 h-8 bg-white hover:bg-[#D21319] hover:text-white border-2 border-black flex items-center justify-center font-black text-sm transition-all cursor-pointer shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px]"
+                title="Close transmission"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Video Player Box */}
+            <div className="relative w-full aspect-video bg-black border-2 border-black overflow-hidden shadow-[4px_4px_0px_#000]">
+              <video
+                src="/media/untitled-design.mp4"
+                controls
+                autoPlay
+                playsInline
+                className="w-full h-full object-contain"
+              >
+                <source src="/media/untitled-design.mp4" type="video/mp4" />
+                <source src="/untitled-design.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+
+            {/* Exit Instruction Notice */}
+            <div className="mt-3 flex items-center justify-between text-[10px] font-mono text-neutral-500">
+              <span className="text-[#D21319] font-bold">JARVIS 3.0 ARCHIVES</span>
+              <span className="font-bold uppercase tracking-wider">
+                Press the ✕ button to exit
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

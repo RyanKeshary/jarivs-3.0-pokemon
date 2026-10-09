@@ -53,7 +53,7 @@ export function Footer() {
               </div>
 
               <p className="font-sans text-[11px] sm:text-xs text-slate-700 leading-snug sm:leading-relaxed">
-                The flagship annual technical symposium organized by the <strong>Department of Computer Engineering &amp; IT</strong> in association with the <strong>Technical Student Council</strong> at Shree L. R. Tiwari College of Engineering, Mumbai.
+                Jarvis 3.0 brought to you by the love bearing Student Council and Takniki desk at slrtce. all we want from you, is to enjoy yourself 🫶🏻
               </p>
             </div>
           </div>
