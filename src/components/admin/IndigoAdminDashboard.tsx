@@ -604,14 +604,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             )}
 
             {!isCoordinator && (
-              <button
-                onClick={() => setSideExportOpen(true)}
-                className="flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-                title="CSV Export Center"
-              >
-                <Download size={13} className="text-[#D21319]" />
-                <span className="hidden sm:inline">Export CSV</span>
-              </button>
+              <AdminPokemonGuardian
+                totalCandidates={registrations.length}
+                totalSquads={teams.length}
+                onOpenExport={() => setSideExportOpen(true)}
+              />
             )}
 
             <button
@@ -630,7 +627,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         {!isCoordinator && (
           <div className="border-t border-slate-100 bg-slate-50/90 w-full max-w-full">
             {/* Desktop Tabs Bar (Wide Screens >= md) */}
-            <div className="hidden md:flex max-w-7xl mx-auto items-center gap-1.5 px-4 sm:px-6 lg:px-8 py-2 overflow-x-auto">
+            <div className="hidden md:flex max-w-7xl mx-auto items-center gap-1.5 px-4 sm:px-6 lg:px-8 py-2 overflow-x-auto no-scrollbar">
               {[
                 { id: 'dashboard', label: 'Overview', icon: Layers },
                 { id: 'registrations', label: 'Registrations', icon: Users },
@@ -660,14 +657,6 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   </button>
                 );
               })}
-
-              <div className="ml-auto shrink-0 pl-2">
-                <AdminPokemonGuardian
-                  totalCandidates={registrations.length}
-                  totalSquads={teams.length}
-                  onOpenExport={() => setSideExportOpen(true)}
-                />
-              </div>
             </div>
 
             {/* Mobile Tab Navigator (Strictly Zero Horizontal Scroll) */}
