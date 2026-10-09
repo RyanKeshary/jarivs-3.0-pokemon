@@ -25,20 +25,15 @@ export function AnimatedMrMime({
   const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Handle ESC key to close modal
+  // Lock body scroll while video modal is active; ONLY closeable via the cross button
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showVideoModal) {
-        setShowVideoModal(false);
-      }
-    };
     if (showVideoModal) {
       document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
+    } else {
+      document.body.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showVideoModal]);
 
@@ -219,7 +214,6 @@ export function AnimatedMrMime({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShowVideoModal(false)}
             className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md cursor-default select-none"
           >
             <motion.div
@@ -241,13 +235,20 @@ export function AnimatedMrMime({
                     UNLOCKED!
                   </span>
                 </div>
+                {/* THE ONLY CLOSE TRIGGER: Cross Icon Button */}
                 <button
                   type="button"
-                  onClick={() => setShowVideoModal(false)}
+                  onClick={() => {
+                    if (videoRef.current) {
+                      videoRef.current.pause();
+                    }
+                    setShowVideoModal(false);
+                  }}
                   className="p-1 hover:bg-white/20 rounded transition-colors text-white cursor-pointer"
-                  title="Close [ESC]"
+                  title="Close"
+                  aria-label="Close"
                 >
-                  <X size={16} />
+                  <X size={18} />
                 </button>
               </div>
 
@@ -282,18 +283,11 @@ export function AnimatedMrMime({
                     {isMuted ? <VolumeX size={13} className="text-red-400" /> : <Volume2 size={13} className="text-green-400" />}
                     <span>{isMuted ? 'UNMUTE SOUND' : 'MUTED'}</span>
                   </button>
-                  <span className="hidden sm:inline text-slate-400">
-                    PRESS ESC TO CLOSE
-                  </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowVideoModal(false)}
-                  className="px-3 py-1 bg-white hover:bg-[#D21319] text-black hover:text-white font-bold uppercase transition-colors rounded-xs text-[10px] cursor-pointer"
-                >
-                  CLOSE [ESC]
-                </button>
+                <span className="text-slate-400 text-[10px] uppercase font-mono tracking-wider">
+                  Press ✕ in top corner to exit
+                </span>
               </div>
 
             </motion.div>

@@ -204,6 +204,18 @@ export function TeamRocketBlastOff() {
     audioManager.preload();
   }, []);
 
+  // Lock body scroll while meme modal is active; ONLY closeable via the cross button
+  useEffect(() => {
+    if (showMemeModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showMemeModal]);
+
   const { scrollYProgress } = useScroll();
 
   // Physics-smoothed scroll progress for buttery 60/120fps motion
@@ -357,7 +369,6 @@ export function TeamRocketBlastOff() {
         {showMemeModal && (
           <div
             className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none"
-            onClick={() => setShowMemeModal(false)}
           >
             <motion.div
               initial={{ scale: 0, rotate: -25, opacity: 0 }}
@@ -375,11 +386,13 @@ export function TeamRocketBlastOff() {
               onClick={(e) => e.stopPropagation()}
               className="relative max-w-sm w-full bg-[#FAF9F5] border-4 border-black shadow-[10px_10px_0px_#D21319] p-5 text-center flex flex-col items-center"
             >
-              {/* Close Button */}
+              {/* THE ONLY CLOSE TRIGGER: Cross Icon Button */}
               <button
+                type="button"
                 onClick={() => setShowMemeModal(false)}
                 className="absolute top-2.5 right-2.5 w-7 h-7 bg-black text-white hover:bg-[#D21319] border border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-mono font-bold text-xs transition-colors cursor-pointer"
                 aria-label="Close"
+                title="Close"
               >
                 ✕
               </button>
@@ -408,12 +421,9 @@ export function TeamRocketBlastOff() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowMemeModal(false)}
-                className="mt-4 px-4 py-1.5 bg-black hover:bg-[#D21319] text-white font-mono font-bold text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer transition-colors"
-              >
-                DISMISS MEME
-              </button>
+              <div className="mt-3 font-mono text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+                Press ✕ in top corner to exit
+              </div>
             </motion.div>
           </div>
         )}
