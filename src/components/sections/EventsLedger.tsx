@@ -50,7 +50,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     teamSize: '1 to 4 Members',
     minSize: 1,
     maxSize: 4,
-    slotTime: '10:00 AM - 01:00 PM',
+    slotTime: '',
     fee: 'FREE REGISTRATION',
     pokemon: 'porygon',
     pokemonGif: '/assets/events/porygon.gif',
@@ -59,9 +59,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     accentColor: '#38bdf8',
     whatsappLink: 'https://chat.whatsapp.com/B5eqtUDwxiWALkV1hH9pbv',
     rules: [
-      'Each squad must demonstrate a live physical apparatus or working deployed software demonstration.',
-      'Projects must feature documented Git commits, architectural schema, and original engineering.',
-      'A ten-minute oral technical defense and jury interrogation follows each bench demonstration.'
+      'Each squad must demonstrate a live physical apparatus or working deployed software demonstration.'
     ],
     rounds: [
       'Round 1: Preliminary Bench Review & Technical Inspection',
@@ -71,10 +69,10 @@ export const FEST_EVENTS: FestEventItem[] = [
   {
     id: 'pid-geotto',
     index: '02',
-    title: 'PID-GEOTTO',
-    name: 'PID-geotto: Line Follower Robot Competition',
-    subtitle: 'Autonomous High-Curvature Speed Sprint',
-    description: 'Autonomous wheeled robotic vehicles navigate high-curvature precision tracks with closed-loop PID microcontroller calibration.',
+    title: 'PIDGETTO',
+    name: 'Pidgetto: Line-Follower Race',
+    subtitle: 'Line-Follower Race',
+    description: 'Autonomous wheeled robotic vehicles navigate precision tracks calibrated for high-speed line tracking and closed-loop control.',
     dayTag: 'DAY 1',
     isMultiDay: false,
     mode: 'ROBOTICS',
@@ -82,7 +80,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     teamSize: '1 to 3 Members',
     minSize: 1,
     maxSize: 3,
-    slotTime: '01:30 PM - 04:30 PM',
+    slotTime: '',
     fee: 'FREE REGISTRATION',
     pokemon: 'pidgeotto',
     pokemonGif: '/assets/events/pidgeotto.gif',
@@ -91,9 +89,8 @@ export const FEST_EVENTS: FestEventItem[] = [
     accentColor: '#f59e0b',
     whatsappLink: 'https://chat.whatsapp.com/KJllRsU3JRQ87PoA4D5gX1',
     rules: [
-      'Robots must operate fully autonomously with on-board computing, sensors, and power storage.',
-      '30mm black line course with right-angle bends, grid intersections, and hairpin turns.',
-      'Three official time trials are permitted per automaton; the lowest clean lap time dictates ranking.'
+      'Line will be a black stripe on a white surface.',
+      'The device should not be controlled by ANY external device or remote.'
     ],
     rounds: [
       'Round 1: Qualifying Time Trial Lap',
@@ -105,7 +102,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     index: '03',
     title: "TEAM ROCKET'S POKÉQUEST",
     name: "Team Rocket's Pokéquest: Treasure Hunt",
-    subtitle: 'Cryptic Clues & Campus Exploration Quest',
+    subtitle: 'Treasure Hunt',
     description: 'Solve cryptic riddles, algorithmic GPS geo-caches, and technical clues across campus to outwit Team Rocket and retrieve the legendary artifacts.',
     dayTag: 'DAY 1',
     isMultiDay: false,
@@ -114,7 +111,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     teamSize: '2 to 4 Members',
     minSize: 2,
     maxSize: 4,
-    slotTime: '11:30 AM - 02:30 PM',
+    slotTime: '',
     fee: 'FREE REGISTRATION',
     pokemon: 'meowth',
     pokemonGif: '/assets/events/meowth.gif',
@@ -128,25 +125,24 @@ export const FEST_EVENTS: FestEventItem[] = [
       'Strict campus boundary adherence; zero interference with rival squads.'
     ],
     rounds: [
-      'Stage 1: Cipher Broadcast & Geocache Hunt',
-      'Stage 2: Vault Infiltration & Speed Recovery'
+      'Stage 1: On-Day Chaos'
     ]
   },
   {
     id: 'quiz-tle',
     index: '04',
-    title: 'QUIZ-TLE',
-    name: 'Quiz-tle: Technical Quiz',
-    subtitle: 'Algorithmic Systems & Tech Knowledge Tournament',
+    title: 'QUIZTLE',
+    name: 'Quiztle: Technical Quiz',
+    subtitle: 'Technical Quiz',
     description: 'A rigorous intellectual tournament examining core computer systems, data structures, algorithms, discrete math, and computing history.',
-    dayTag: 'DAY 1 & 2',
-    isMultiDay: true,
+    dayTag: 'DAY 2',
+    isMultiDay: false,
     mode: 'OFFLINE',
     category: 'TECH',
     teamSize: '2 Members (Pairs)',
     minSize: 2,
     maxSize: 2,
-    slotTime: 'Day 1 02:00 PM / Day 2 10:00 AM',
+    slotTime: '',
     fee: 'FREE REGISTRATION',
     pokemon: 'squirtle',
     pokemonGif: '/assets/events/squirtle.gif',
@@ -157,20 +153,17 @@ export const FEST_EVENTS: FestEventItem[] = [
     rules: [
       'Squads must strictly comprise exactly two individuals.',
       'Zero external communication devices or reference aids permitted.',
-      'The top eight scoring alliances from Day 1 advance to the Day 2 live stage buzzer finals.'
+      'Finalist teams will compete in the Day 2 live stage buzzer finals.'
     ],
-    rounds: [
-      'Day 1 (16 Oct): Written Preliminaries & Speed Buzzer Eliminator',
-      'Day 2 (17 Oct): Grand Buzzer Final with Negative Scoring'
-    ]
+    rounds: []
   },
   {
     id: 'build-asor',
     index: '05',
-    title: 'BUILDA-SAUR',
-    name: 'Builda-saur: Buildathon (Day 1 & Day 2 r2)',
-    subtitle: 'Two-Day Hybrid Engineering Endurance Sprint',
-    description: 'A grueling multi-phase software development crucible: Day 1 open architecture connected synthesis, followed by Day 2 air-gapped offline compilation.',
+    title: 'BUILDASAUR',
+    name: 'Buildasaur: Buildathon',
+    subtitle: 'Buildathon',
+    description: 'A multi-phase software development crucible: Day 1 open architecture and development sprint, followed by Round 2 prototype completion and jury defense.',
     dayTag: 'DAY 1 & 2',
     isMultiDay: true,
     mode: 'HYBRID',
@@ -178,7 +171,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     teamSize: '2 to 4 Members',
     minSize: 2,
     maxSize: 4,
-    slotTime: 'Day 1 10:00 AM / Day 2 09:00 AM',
+    slotTime: '',
     fee: 'FREE REGISTRATION',
     pokemon: 'bulbasaur',
     pokemonGif: '/assets/events/bulbasaur.gif',
@@ -188,12 +181,12 @@ export const FEST_EVENTS: FestEventItem[] = [
     whatsappLink: 'https://chat.whatsapp.com/J02b7lEni4FAmTd8XxGVwq',
     rules: [
       'Day 1 allows unrestricted online libraries, research publications, and external API gateways.',
-      'Day 2 is strictly air-gapped without internet access to evaluate fundamental local compilation and debugging.',
-      'Teams deliver verified local binaries, transparent Git commit logs, and architectural defenses.'
+      'Round 2 features prototype completion, code freeze, and architectural defense.',
+      'Teams deliver working prototypes, transparent Git commit logs, and product presentations.'
     ],
     rounds: [
-      'Day 1 (16 Oct): Connected Architecture Sprint (With Internet)',
-      'Day 2 (17 Oct): Air-Gapped Code Freeze & Jury Defense (Offline)'
+      'Round 1: Product Architecture & Engineering Sprint (Day 1)',
+      'Round 2: Prototype Finalization & Grand Jury Defense (Day 2)'
     ]
   },
   {
@@ -201,8 +194,8 @@ export const FEST_EVENTS: FestEventItem[] = [
     index: '06',
     title: 'SNORREELAX',
     name: 'Snorreelax: Reel Making Competition',
-    subtitle: 'Short-Form Documentary & Cinematic Chronicle',
-    description: 'Capture the kinetic spirit, intellectual tension, and natural-history aesthetic of Jarvis 3.0 in short-form cinematic documentary reels.',
+    subtitle: 'Reel Making Competition',
+    description: 'Capture the kinetic spirit, intellectual tension, and creative atmosphere of Jarvis 3.0 in short-form cinematic documentary reels.',
     dayTag: 'DAY 1',
     isMultiDay: false,
     mode: 'OFFLINE',
@@ -210,7 +203,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     teamSize: '1 to 2 Members',
     minSize: 1,
     maxSize: 2,
-    slotTime: '10:00 AM - 05:00 PM',
+    slotTime: '',
     fee: 'FREE REGISTRATION',
     pokemon: 'snorlax',
     pokemonGif: '/assets/events/snorlax.gif',
@@ -225,16 +218,16 @@ export const FEST_EVENTS: FestEventItem[] = [
     ],
     rounds: [
       'Round 1: On-Site Cinematography & Assembly Cut',
-      'Round 2: Main Auditorium Screening & Grand Award'
+      'Round 2: Main Auditorium Screening & Adjudication'
     ]
   },
   {
     id: 'cad-mander',
     index: '07',
-    title: 'CAD-MANDER',
-    name: 'Cad-Mander: AutoCAD Design Competition',
-    subtitle: 'Parametric CAD Drafting & 3D Solid Assembly',
-    description: 'Rapid drafting under dimensional tolerances spanning 2D foundational blueprints to complex 3D kinematic assemblies under stress load simulation.',
+    title: 'CADMANDER',
+    name: 'Cadmander: AutoCAD Competition',
+    subtitle: '2D AutoCAD Drafting',
+    description: 'Rapid drafting competition under dimensional tolerances focusing exclusively on 2D AutoCAD engineering blueprints.',
     dayTag: 'DAY 2',
     isMultiDay: false,
     mode: 'OFFLINE',
@@ -242,7 +235,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     teamSize: '1 to 2 Members',
     minSize: 1,
     maxSize: 2,
-    slotTime: '11:00 AM - 02:00 PM',
+    slotTime: '',
     fee: 'FREE REGISTRATION',
     pokemon: 'charmander',
     pokemonGif: '/assets/events/charmander.gif',
@@ -251,13 +244,12 @@ export const FEST_EVENTS: FestEventItem[] = [
     accentColor: '#f87171',
     whatsappLink: 'https://chat.whatsapp.com/EUXkeEbWpJ0JlhCqhyVJzs',
     rules: [
-      'Official CAD laboratory workstations provided with certified modeling environments.',
+      'Official CAD laboratory workstations provided with certified AutoCAD environments.',
       'Absolute adherence to geometric dimensioning, tolerancing (GD&T), and projection conventions.',
-      'Day 2 parametric 3D kinematic assembly and stress simulation challenge.'
+      'The competition focuses strictly on 2D AutoCAD drafting.'
     ],
     rounds: [
-      'Stage 1: Orthographic & Isometric Precision Drafting',
-      'Stage 2: Parametric 3D Solid Assembly & Stress Simulation'
+      'Round 1: 2D Orthographic & Precision Blueprint Drafting'
     ]
   }
 ];

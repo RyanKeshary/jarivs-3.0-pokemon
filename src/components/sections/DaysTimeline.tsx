@@ -6,19 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 const DAY_1_SCHEDULE = [
   { time: '09:00 AM', event: 'Inaugural Convocation & Keynote', desc: 'Opening address, ceremonial rules briefing, and jury introduction in Main Hall.', location: 'Auditorium' },
   { time: '10:00 AM', event: 'Poké Expo: Project Exhibition', desc: 'Hardware apparatus demonstrations and software project benches open for examination.', location: 'Exhibition Hall A' },
-  { time: '10:00 AM', event: 'Builda-saur: Buildathon Phase 1', desc: 'Hybrid buildathon kickoff with open internet connectivity and architectural scoping.', location: 'Lab 4 & Hybrid' },
-  { time: '11:30 AM', event: "Team Rocket's Pokéquest: Treasure Hunt", desc: 'Cryptic cipher release and physical campus geocache hunt across checkpoints.', location: 'Campus Grounds' },
-  { time: '01:30 PM', event: 'PID-geotto: Line Follower Robot Trials', desc: 'Autonomous line follower vehicles navigate the precision circuit lap with calibrated PID.', location: 'Robotics Arena' },
-  { time: '02:00 PM', event: 'Quiz-tle: Prelims & Speed Eliminator', desc: 'Written technical examination followed by the rapid buzzer qualifier round.', location: 'Seminar Hall' },
-  { time: '05:00 PM', event: 'Snorreelax: Reel Making Submission', desc: 'Delivery of short-form documentary digital reels captured across the grounds.', location: 'Media Studio' },
+  { time: '10:00 AM', event: 'Buildasaur: Buildathon Round 1', desc: 'Buildathon architecture kickoff with open connectivity and initial prototyping.', location: 'Lab 4 & Online' },
+  { time: '11:30 AM', event: "Team Rocket's Pokéquest: Treasure Hunt", desc: 'Stage 1: On-Day Chaos campus riddle hunt across active checkpoints.', location: 'Campus Grounds' },
+  { time: '01:30 PM', event: 'Pidgetto: Line-Follower Race', desc: 'Autonomous wheeled vehicles navigate black stripe tracks with precision control.', location: 'Robotics Arena' },
+  { time: '05:00 PM', event: 'Snorreelax: Reel Making Submission', desc: 'Delivery of short-form documentary digital reels captured across the festival grounds.', location: 'Media Studio' },
 ];
 
 const DAY_2_SCHEDULE = [
-  { time: '09:00 AM', event: 'Builda-saur: Buildathon r2 (Air-Gapped)', desc: 'Network lines cut. Strict offline compilation, bug-fixing, and prototype defense.', location: 'Lab 4 (Offline)' },
-  { time: '10:00 AM', event: 'Quiz-tle: Stage Finale (Negative Scoring)', desc: 'Top eight qualified squads compete live on stage in front of the grand convocation.', location: 'Main Stage' },
-  { time: '11:00 AM', event: 'Cad-Mander: AutoCAD Design Competition', desc: 'Parametric 3D solid assembly under geometric tolerances and stress simulation.', location: 'CAD Lab 2' },
-  { time: '02:00 PM', event: 'Jury Deliberation & Code Seal', desc: 'Adjudicator scoreboards locked and final deliberations by senior faculty.', location: 'Council Room' },
-  { time: '03:30 PM', event: 'Valedictory & Bestowal of Laurels', desc: 'Official presentation of commendations, certificates, and the Jarvis 3.0 Champion Shields.', location: 'Auditorium' },
+  { time: '09:00 AM', event: 'Buildasaur: Buildathon Round 2', desc: 'Round 2 prototype completion, final debugging, and jury defense.', location: 'Lab 4' },
+  { time: '10:00 AM', event: 'Quiztle: Technical Quiz Stage Finals', desc: 'Finalist teams compete live on stage in rapid buzzer eliminator rounds.', location: 'Main Stage' },
+  { time: '11:00 AM', event: 'Cadmander: 2D AutoCAD Competition', desc: '2D AutoCAD engineering blueprints under geometric dimensioning and tolerancing.', location: 'CAD Lab 2' },
+  { time: '02:00 PM', event: 'Jury Deliberation & Evaluation Seal', desc: 'Adjudicator scoreboards locked and final deliberations by senior faculty.', location: 'Council Room' },
+  { time: '03:30 PM', event: 'Valedictory & Awards Ceremony', desc: 'Official presentation of commendations, certificates, and festival honors.', location: 'Auditorium' },
 ];
 
 export function DaysTimeline() {

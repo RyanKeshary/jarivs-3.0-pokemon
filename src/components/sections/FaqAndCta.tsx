@@ -7,11 +7,11 @@ import { AnimatedMrMime } from '@/components/illustrations/AnimatedMrMime';
 const FAQS = [
   {
     q: 'Can a candidate register for multiple festival disciplines?',
-    a: 'Yes, provided the scheduled time slots do not overlap on a given day. The registration engine automatically runs a clash detection algorithm to warn you if chosen disciplines conflict.'
+    a: 'Yes, up to a maximum of 2 events per participant. The registration engine automatically runs a clash detection algorithm to warn you if chosen disciplines conflict.'
   },
   {
     q: 'How does progression work for two-day disciplines?',
-    a: 'Competitions including Quiz-tle, Builda-saur, and Cad-Mander span both 16 Oct (Day 1) and 17 Oct (Day 2). Enlisting once covers the entire tournament arc. Candidates advancing to Day 2 stages are automatically seeded into the adjudication registry.'
+    a: 'Competitions such as Buildasaur span both 16 Oct (Day 1) and 17 Oct (Day 2). Enlisting once covers the entire tournament arc. Candidates advancing to Day 2 stages are automatically seeded into the adjudication registry.'
   },
   {
     q: 'Is there an entry fee or registration tariff?',

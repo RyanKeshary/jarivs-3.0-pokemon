@@ -46,14 +46,7 @@ async function getEventSettings(): Promise<EventSettings> {
     ppt_template_url: '/assets/placeholders/template.pptx',
     landing_content: {
       venue: 'SLRTCE Campus, Mira Road, Mumbai',
-      prizes: [
-        { place: 'Build-asor Champion', amount: '₹25,000 + Champion Crests' },
-        { place: 'Project Exhibition 1st', amount: '₹15,000 + Distinction' },
-        { place: 'PID-geotto 1st', amount: '₹12,000 + Robotic Trophy' },
-        { place: 'Cad-Mander 1st', amount: '₹10,000 + Gold Medal' },
-        { place: 'Quiz-tle 1st', amount: '₹10,000 + Rolling Cup' },
-        { place: 'reelax 1st', amount: '₹8,000 + Fest Laurels' },
-      ],
+      prizes: [],
       tracks: [
         { name: 'Hardware & Systems Architecture', desc: 'Working prototypes and embedded robotics.' },
         { name: 'Algorithmic Tournaments', desc: 'Computational reasoning and speed coding.' },

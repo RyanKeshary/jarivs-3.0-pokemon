@@ -20,7 +20,6 @@ interface EventThemeConfig {
   badgeText: string;
   tagline: string;
   themeGlyph: string;
-  prizes: { place: string; reward: string; icon: string }[];
   judgingCriteria: string[];
 }
 
@@ -33,11 +32,6 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     badgeText: 'CYBER PROTO LAB',
     tagline: 'SYS.STATUS: COMPUTATIONAL PROTOTYPE EXHIBITION ONLINE',
     themeGlyph: '⚡',
-    prizes: [
-      { place: '1st Laurels', reward: '₹15,000 + Distinction Trophy + Certificate of Merit', icon: '🏆' },
-      { place: 'Runner Up', reward: '₹8,000 + Certificate of Excellence', icon: '🥈' },
-      { place: 'Special Innovation', reward: '₹4,000 + Incubation Fast-Track Recommendation', icon: '💡' }
-    ],
     judgingCriteria: [
       'Originality & Technical Complexity of Architecture',
       'Live Operational Bench Prototype / Working Deployment',
@@ -50,19 +44,14 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     lightBg: 'bg-[#fffbeb]',
     cardBg: 'bg-[#fef3c7]',
     badgeBg: 'bg-[#d97706] text-white',
-    badgeText: 'AERODYNAMIC SPEED SPRINT',
-    tagline: 'CLOSED-LOOP SENSOR TELEMETRY: HIGH-CURVATURE CIRCUIT',
+    badgeText: 'LINE-FOLLOWER RACE',
+    tagline: 'BLACK STRIPE ON WHITE SURFACE // AUTONOMOUS RUN',
     themeGlyph: '🏎️',
-    prizes: [
-      { place: 'Apex Velocity Cup', reward: '₹12,000 + Speed Lap Trophy + Gold Crest', icon: '🏆' },
-      { place: 'Precision Runner Up', reward: '₹6,000 + Silver Crest Certificate', icon: '🥈' },
-      { place: 'Optimal Tuning Award', reward: '₹3,000 + Best Hardware Craftsmanship', icon: '⚙️' }
-    ],
     judgingCriteria: [
-      'Lowest Clean Lap Time Across Three Verified Trials',
-      'Smooth Line Tracking Without Track Derailment / Disconnect',
-      'Original Chassis Fabrication & On-Board Power Delivery',
-      'Zero Wireless Interference or Off-Board Guidance'
+      'Lowest Clean Lap Time Across Verified Trials',
+      'Smooth Line Tracking on Black Stripe Surface',
+      'Autonomous Operation Without External Remote Control',
+      'Original Chassis Fabrication & On-Board Power Delivery'
     ]
   },
   'treasure-hunt': {
@@ -71,13 +60,8 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     cardBg: 'bg-[#f3e8ff]',
     badgeBg: 'bg-[#9333ea] text-white',
     badgeText: 'TOP SECRET CIPHER QUEST',
-    tagline: 'SECURITY CLEARANCE: DOSSIER DECLASSIFIED // RETRIEVE COINS',
+    tagline: 'STAGE 1: ON-DAY CHAOS // SOLVE RIDDLES & CLUES',
     themeGlyph: '💎',
-    prizes: [
-      { place: 'Grand Syndicate Bounty', reward: '₹10,000 + Champion Seal + Gold Vault Trophy', icon: '💰' },
-      { place: 'Cipher Runner Up', reward: '₹5,000 + Tactical Commendation', icon: '🥈' },
-      { place: 'Speed Cryptographer', reward: '₹2,500 + Fast Solver Distinction', icon: '🧩' }
-    ],
     judgingCriteria: [
       'Sequential Checkpoint Verification via Official Stamp/Hash',
       'Algorithmic Cipher & Riddle Cryptanalysis Accuracy',
@@ -90,19 +74,13 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     lightBg: 'bg-[#f0f9ff]',
     cardBg: 'bg-[#e0f2fe]',
     badgeBg: 'bg-[#0284c7] text-white',
-    badgeText: 'HYDRO BUZZER ARENA',
-    tagline: 'TWO-STAGE ELIMINATOR: RAPID BUZZER & ALGORITHMIC PROOF',
+    badgeText: 'TECHNICAL QUIZ ARENA',
+    tagline: 'DAY 2 TECHNICAL QUIZ: STAGE FINALS & RAPID BUZZER ARENA',
     themeGlyph: '💧',
-    prizes: [
-      { place: 'Polymath Grand Cup', reward: '₹10,000 + Sovereign Quiz Shield + Laurels', icon: '🏆' },
-      { place: 'Second Podium', reward: '₹5,000 + Certificate of Intellectual Distinction', icon: '🥈' },
-      { place: 'Third Podium', reward: '₹2,500 + Certificate of Merit', icon: '🥉' }
-    ],
     judgingCriteria: [
-      'Round 1: 50-Question Written Systems & Algorithms Exam',
-      'Round 2: Rapid-Fire Negative-Marking Buzzer Elimination',
-      'Round 3: Live Auditorium Stage Finals (Top 8 Pairs)',
-      'Accuracy on High-Stakes Tie-Breaker Problem Statements'
+      'Core Systems & Algorithms Knowledge',
+      'Rapid-Fire Buzzer Accuracy',
+      'Finalist Stage Problem Solving'
     ]
   },
   'build-asor': {
@@ -110,19 +88,14 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     lightBg: 'bg-[#f0fdf4]',
     cardBg: 'bg-[#dcfce7]',
     badgeBg: 'bg-[#059669] text-white',
-    badgeText: '48-HR HYBRID CRUCIBLE',
-    tagline: 'DAY 1 CONNECTED ARCHITECTURE ➔ DAY 2 AIR-GAPPED OFFLINE BINARIES',
+    badgeText: 'BUILDATHON ARENA',
+    tagline: 'DAY 1 ARCHITECTURE SPRINT ➔ ROUND 2 JURY DEFENSE',
     themeGlyph: '🌿',
-    prizes: [
-      { place: 'Grand Buildathon Laurels', reward: '₹25,000 + Golden Bulb Trophy + Direct Pitch Invite', icon: '👑' },
-      { place: 'Engineering Runner Up', reward: '₹12,000 + Certificate of Architectural Distinction', icon: '🥈' },
-      { place: 'Best Air-Gapped Binary', reward: '₹5,000 + Offline Code Craftsmanship Award', icon: '💾' }
-    ],
     judgingCriteria: [
       'End-to-End Functionality & Architectural Robustness',
-      'Day 2 Offline Air-Gapped Code Freeze & Compilation Check',
-      'Clean Git History & Documentation of Native Dependencies',
-      'Live Prototype Defense & Stress Test Interrogation'
+      'Round 2 Execution & Prototype Refinement',
+      'Clean Git History & Documentation of Dependencies',
+      'Live Prototype Defense & Presentation'
     ]
   },
   'snorreelax': {
@@ -133,11 +106,6 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     badgeText: 'CINEMATIC 35mm CHRONICLE',
     tagline: 'ASPECT 9:16 // DURATION: 45s-90s // CAPTURE THE SPIRIT OF JARVIS 3.0',
     themeGlyph: '🎬',
-    prizes: [
-      { place: 'Grand Cinema Laurel', reward: '₹8,000 + Director Clapper Trophy + Screening Award', icon: '🎥' },
-      { place: 'Best Visual Grading', reward: '₹4,000 + Certificate of Creative Excellence', icon: '🥈' },
-      { place: 'Best Sound Design', reward: '₹2,000 + Acoustic Narrative Distinction', icon: '🎵' }
-    ],
     judgingCriteria: [
       'Cinematic Color Grading & Rhythm of Editorial Cuts',
       'Creative Narrative Capture of Campus Atmosphere & Tension',
@@ -150,25 +118,19 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     lightBg: 'bg-[#fff7ed]',
     cardBg: 'bg-[#ffedd5]',
     badgeBg: 'bg-[#ea580c] text-white',
-    badgeText: 'THERMAL DRAFTING FORGE',
-    tagline: 'DIMENSIONAL TOLERANCE ±0.05mm // 3D SOLID KINEMATICS & ASSEMBLY',
+    badgeText: '2D AUTOCAD ARENA',
+    tagline: '2D AUTOCAD DRAFTING ONLY // DIMENSIONAL TOLERANCE ±0.05mm',
     themeGlyph: '🔥',
-    prizes: [
-      { place: 'Forge Master Trophy', reward: '₹12,000 + Precision Caliper Crest + Laurels', icon: '🏆' },
-      { place: 'CAD Runner Up', reward: '₹6,000 + Certificate of Drafting Precision', icon: '🥈' },
-      { place: 'Complex Kinematics Award', reward: '₹3,000 + Solid Assembly Distinction', icon: '📐' }
-    ],
     judgingCriteria: [
-      'Dimensional Accuracy to Blueprint Isometric Specifications',
-      'Constraint Integrity & Parametric Model Adaptability',
-      'Drafting Speed & Clean Feature Tree Hierarchy',
-      'Mechanical Assembly Exploded View & Motion Feasibility'
+      'Dimensional Accuracy to 2D Blueprint Specifications',
+      'Geometric Dimensioning & Tolerancing (GD&T) Integrity',
+      'Drafting Speed & Clean Feature Precision'
     ]
   }
 };
 
 export function EventThemedModal({ event, onClose, onRegister }: EventThemedModalProps) {
-  const [activeTab, setActiveTab] = useState<'rules' | 'rounds' | 'prizes' | 'judging'>('rules');
+  const [activeTab, setActiveTab] = useState<'rules' | 'rounds' | 'judging'>('rules');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -190,9 +152,15 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
     badgeText: 'FESTIVAL COMPETITION DISCIPLINE',
     tagline: 'OFFICIAL TECHNICAL SPECIFICATION',
     themeGlyph: '⚔️',
-    prizes: [{ place: '1st Prize', reward: 'Grand Trophy + Certificate of Merit', icon: '🏆' }],
     judgingCriteria: ['Technical Execution', 'Innovation', 'Oral Defense']
   };
+
+  const hasRounds = Boolean(event.rounds && event.rounds.length > 0);
+  const availableTabs: { id: 'rules' | 'rounds' | 'judging'; label: string; icon: string }[] = [
+    { id: 'rules', label: 'Rules & Protocol', icon: '📜' },
+    ...(hasRounds ? [{ id: 'rounds' as const, label: 'Rounds & Stages', icon: '⚡' }] : []),
+    { id: 'judging', label: 'Adjudication', icon: '⚖️' },
+  ];
 
   const modalContent = (
     <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 select-none overflow-hidden">
@@ -271,15 +239,11 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
             </div>
           </div>
 
-          {/* Quick Specs Strip */}
-          <div className="relative z-10 mt-3 pt-2.5 border-t border-black/20 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs font-mono">
+          {/* Quick Specs Strip - 3 columns, clean, no scheduled time */}
+          <div className="relative z-10 mt-3 pt-2.5 border-t border-black/20 grid grid-cols-3 gap-1.5 text-xs font-mono">
             <div className="bg-white p-1.5 border border-black shadow-[1.5px_1.5px_0px_#000]">
               <span className="text-[9px] text-neutral-600 block uppercase font-bold">Team Size</span>
               <span className="font-bold text-black text-[11px] truncate block">{event.teamSize}</span>
-            </div>
-            <div className="bg-white p-1.5 border border-black shadow-[1.5px_1.5px_0px_#000]">
-              <span className="text-[9px] text-neutral-600 block uppercase font-bold">Scheduled Time</span>
-              <span className="font-bold text-black text-[11px] truncate block">{event.slotTime}</span>
             </div>
             <div className="bg-white p-1.5 border border-black shadow-[1.5px_1.5px_0px_#000]">
               <span className="text-[9px] text-neutral-600 block uppercase font-bold">Format / Mode</span>
@@ -293,13 +257,8 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
         </div>
 
         {/* RESPONSIVE NAVIGATION TABS (SEGMENTED GRID - NO HORIZONTAL SCROLL) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-2 sm:p-2.5 border-b-2 border-black bg-[#EFECE6] flex-shrink-0 font-mono text-xs">
-          {[
-            { id: 'rules' as const, label: 'Rules & Protocol', icon: '📜' },
-            { id: 'rounds' as const, label: 'Rounds & Stages', icon: '⚡' },
-            { id: 'prizes' as const, label: 'Prize Laurels', icon: '🏆' },
-            { id: 'judging' as const, label: 'Adjudication', icon: '⚖️' },
-          ].map((tab) => {
+        <div className={`grid ${availableTabs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-1.5 p-2 sm:p-2.5 border-b-2 border-black bg-[#EFECE6] flex-shrink-0 font-mono text-xs`}>
+          {availableTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
@@ -357,7 +316,7 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
             </div>
           )}
 
-          {activeTab === 'rounds' && (
+          {activeTab === 'rounds' && hasRounds && (
             <div className="space-y-3">
               <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-black border-b border-black pb-1 mb-2">
                 Tournament Progression Matrix:
@@ -381,38 +340,6 @@ export function EventThemedModal({ event, onClose, onRegister }: EventThemedModa
                       {round}
                     </p>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'prizes' && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-black border-b border-black pb-1 mb-2">
-                Official Laurels & Rewards:
-              </h4>
-              {config.prizes.map((p, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 bg-white border border-black shadow-[2px_2px_0px_#000] flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{p.icon}</span>
-                    <div>
-                      <span className="text-xs font-mono font-bold text-neutral-600 block uppercase tracking-wider">
-                        {p.place}
-                      </span>
-                      <span className="text-xs font-bold text-black font-sans">
-                        {p.reward}
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className="font-mono text-[10px] font-bold px-2 py-0.5 border border-black"
-                    style={{ backgroundColor: `${config.accentColor}20`, color: '#000' }}
-                  >
-                    CONFIRMED
-                  </span>
                 </div>
               ))}
             </div>

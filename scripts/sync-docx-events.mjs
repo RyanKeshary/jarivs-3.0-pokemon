@@ -7,55 +7,52 @@ const events = [
     id: 'project-exhibition',
     name: 'Poké Expo: Project Exhibition',
     subtitle: 'Technical Hardware & Software Showcase',
-    description: 'Display working prototypes, computational systems, and deployed software solutions to academic adjudicators and industry peers.',
+    description: 'Display working prototypes, hardware apparatus, and deployed computational systems to academic adjudicators and industry peers.',
     day_label: 'Day 1',
     days: ['Day 1'],
     mode: 'In-Person',
-    slot_time: '10:00 AM - 01:00 PM',
+    slot_time: '',
     min_team_size: 1,
     max_team_size: 4,
     fee: 'Free',
     capacity: 50,
     pokemon: 'porygon',
     rules: [
-      'Each squad must present a working hardware apparatus or deployed software prototype.',
-      'Original engineering work with documented Git commits required.',
-      '10-minute oral technical defense and jury interrogation.'
+      'Each squad must demonstrate a live physical apparatus or working deployed software demonstration.'
     ],
-    rounds: ['Round 1: Preliminary Bench Review & Inspection', 'Round 2: Grand Jury Defense'],
-    prize: 'Worth ₹15,000'
+    rounds: ['Round 1: Preliminary Bench Review & Technical Inspection', 'Round 2: Grand Jury Defense & Adjudicator Scrutiny'],
+    prize: ''
   },
   {
     id: 'pid-geotto',
-    name: 'PID-geotto: Line Follower Robot',
-    subtitle: 'Autonomous High-Curvature Speed Sprint',
-    description: 'Autonomous wheeled robotic vehicles navigate tight-radius optical tracks with closed-loop PID microcontroller calibration.',
+    name: 'Pidgetto: Line-Follower Race',
+    subtitle: 'Line-Follower Race',
+    description: 'Autonomous wheeled robotic vehicles navigate precision tracks calibrated for high-speed line tracking and closed-loop control.',
     day_label: 'Day 1',
     days: ['Day 1'],
     mode: 'In-Person',
-    slot_time: '01:30 PM - 04:30 PM',
+    slot_time: '',
     min_team_size: 1,
     max_team_size: 3,
     fee: 'Free',
     capacity: 40,
     pokemon: 'pidgeotto',
     rules: [
-      'Robots must operate fully autonomously with on-board computing and sensors.',
-      '30mm track with right-angle vertices, grid crossings, and hairpin turns.',
-      'Three official time trials per bot; lowest clean lap time wins.'
+      'Line will be a black stripe on a white surface.',
+      'The device should not be controlled by ANY external device or remote.'
     ],
-    rounds: ['Round 1: Qualifying Time Trial Lap', 'Round 2: Championship Fast-Track Final'],
-    prize: 'Worth ₹12,000'
+    rounds: ['Round 1: Qualifying Time Trial Lap', 'Round 2: Championship Fast-Track Eliminator'],
+    prize: ''
   },
   {
     id: 'treasure-hunt',
     name: "Team Rocket's Pokéquest: Treasure Hunt",
-    subtitle: 'Cryptic Clues & Campus Exploration Quest',
+    subtitle: 'Treasure Hunt',
     description: 'Solve cryptic riddles, algorithmic GPS geo-caches, and technical clues across campus to outwit Team Rocket and retrieve the legendary artifacts.',
     day_label: 'Day 1',
     days: ['Day 1'],
     mode: 'In-Person',
-    slot_time: '11:30 AM - 02:30 PM',
+    slot_time: '',
     min_team_size: 2,
     max_team_size: 4,
     fee: 'Free',
@@ -64,98 +61,101 @@ const events = [
     rules: [
       'Teams decipher sequential technical ciphers and physical clue checkpoints.',
       'Speed, strategic routing, and puzzle-solving accuracy dictate point totals.',
-      'Strict campus boundary adherence; no interference with other squads.'
+      'Strict campus boundary adherence; zero interference with rival squads.'
     ],
-    rounds: ['Stage 1: Cipher Broadcast & Geocache Hunt', 'Stage 2: Vault Infiltration & Speed Recovery'],
-    prize: 'Worth ₹10,000'
+    rounds: ['Stage 1: On-Day Chaos'],
+    prize: ''
   },
   {
     id: 'quiz-tle',
-    name: 'Quiz-tle: Technical Quiz',
-    subtitle: 'Algorithmic Systems & Tech Knowledge Tournament',
+    name: 'Quiztle: Technical Quiz',
+    subtitle: 'Technical Quiz',
     description: 'A rigorous intellectual tournament examining core computer systems, data structures, algorithms, discrete math, and computing history.',
-    day_label: 'Day 1 & Day 2',
-    days: ['Day 1', 'Day 2'],
+    day_label: 'Day 2',
+    days: ['Day 2'],
     mode: 'In-Person',
-    slot_time: 'Day 1 02:00 PM / Day 2 10:00 AM',
+    slot_time: '',
     min_team_size: 2,
     max_team_size: 2,
     fee: 'Free',
     capacity: 60,
     pokemon: 'squirtle',
     rules: [
-      'Teams strictly consist of pairs (exactly 2 members).',
-      'Zero electronic devices or external reference aids permitted.',
-      'Top eight teams from Day 1 advance to the Day 2 stage buzzer finals.'
+      'Squads must strictly comprise exactly two individuals.',
+      'Zero external communication devices or reference aids permitted.',
+      'Finalist teams will compete in the Day 2 live stage buzzer finals.'
     ],
-    rounds: ['Day 1 (16 Oct): Written Prelims & Rapid Buzzer Round', 'Day 2 (17 Oct): Grand Finals with Negative Scoring'],
-    prize: 'Worth ₹10,000'
+    rounds: [],
+    prize: ''
   },
   {
     id: 'build-asor',
-    name: 'Builda-saur: Buildathon (Day 1 & Day 2 r2)',
-    subtitle: 'Two-Day Hybrid Engineering Endurance Sprint',
-    description: 'A grueling multi-phase software development crucible: Day 1 open architecture connected synthesis, followed by Day 2 air-gapped offline compilation.',
+    name: 'Buildasaur: Buildathon',
+    subtitle: 'Buildathon',
+    description: 'A multi-phase software development crucible: Day 1 open architecture and development sprint, followed by Round 2 prototype completion and jury defense.',
     day_label: 'Day 1 & Day 2',
     days: ['Day 1', 'Day 2'],
     mode: 'Hybrid',
-    slot_time: 'Day 1 10:00 AM / Day 2 09:00 AM',
+    slot_time: '',
     min_team_size: 2,
     max_team_size: 4,
     fee: 'Free',
     capacity: 50,
     pokemon: 'bulbasaur',
     rules: [
-      'Day 1 allows unrestricted online libraries, research, and API integrations.',
-      'Day 2 is strictly air-gapped without internet access to evaluate offline execution.',
-      'Teams deliver verified local binaries, transparent Git commits, and defenses.'
+      'Day 1 allows unrestricted online libraries, research publications, and external API gateways.',
+      'Round 2 features prototype completion, code freeze, and architectural defense.',
+      'Teams deliver working prototypes, transparent Git commit logs, and product presentations.'
     ],
-    rounds: ['Day 1 (16 Oct): Connected Architecture Sprint', 'Day 2 (17 Oct): Air-Gapped Code Freeze & Jury Defense'],
-    prize: 'Worth ₹25,000'
+    rounds: [
+      'Round 1: Product Architecture & Engineering Sprint (Day 1)',
+      'Round 2: Prototype Finalization & Grand Jury Defense (Day 2)'
+    ],
+    prize: ''
   },
   {
     id: 'snorreelax',
     name: 'Snorreelax: Reel Making Competition',
-    subtitle: 'Short-Form Documentary & Cinematic Chronicle',
-    description: 'Capture the kinetic spirit, intellectual tension, and natural-history aesthetic of Jarvis 3.0 in short-form cinematic documentary reels.',
+    subtitle: 'Reel Making Competition',
+    description: 'Capture the kinetic spirit, intellectual tension, and creative atmosphere of Jarvis 3.0 in short-form cinematic documentary reels.',
     day_label: 'Day 1',
     days: ['Day 1'],
     mode: 'In-Person',
-    slot_time: '10:00 AM - 05:00 PM',
+    slot_time: '',
     min_team_size: 1,
     max_team_size: 2,
     fee: 'Free',
     capacity: 50,
     pokemon: 'snorlax',
     rules: [
-      'All footage must be recorded on campus grounds during Day 1.',
+      'All footage must be recorded on campus grounds during Day 1 of the fest.',
       'Final video running length must strictly fall between 45 and 90 seconds.',
-      'Adjudication on narrative rhythm, visual grading, and sound design.'
+      'Adjudication evaluates visual grading, sound design, rhythm, and editorial cohesion.'
     ],
-    rounds: ['Round 1: On-Site Cinematography & Assembly Cut', 'Round 2: Main Stage Screening & Grand Award'],
-    prize: 'Worth ₹8,000'
+    rounds: ['Round 1: On-Site Cinematography & Assembly Cut', 'Round 2: Main Auditorium Screening & Adjudication'],
+    prize: ''
   },
   {
     id: 'cad-mander',
-    name: 'Cad-Mander: AutoCAD Design Competition',
-    subtitle: 'Parametric CAD Drafting & 3D Solid Assembly',
-    description: 'Rapid drafting under dimensional tolerances spanning 2D foundational blueprints to complex 3D kinematic assemblies under stress load simulation.',
+    name: 'Cadmander: AutoCAD Competition',
+    subtitle: '2D AutoCAD Drafting',
+    description: 'Rapid drafting competition under dimensional tolerances focusing exclusively on 2D AutoCAD engineering blueprints.',
     day_label: 'Day 2',
     days: ['Day 2'],
     mode: 'In-Person',
-    slot_time: '11:00 AM - 02:00 PM',
+    slot_time: '',
     min_team_size: 1,
     max_team_size: 2,
     fee: 'Free',
     capacity: 35,
     pokemon: 'charmander',
     rules: [
-      'Official CAD laboratory workstations provided with certified environments.',
-      'Absolute adherence to geometric dimensioning and tolerancing (GD&T).',
-      'Precision drafting in 2D followed by parametric 3D assembly challenge.'
+      'Official CAD laboratory workstations provided with certified AutoCAD environments.',
+      'Absolute adherence to geometric dimensioning, tolerancing (GD&T), and projection conventions.',
+      'The competition focuses strictly on 2D AutoCAD drafting.'
     ],
-    rounds: ['Stage 1: Orthographic & Isometric Precision Drafting', 'Stage 2: Parametric 3D Solid Assembly & Stress Simulation'],
-    prize: 'Worth ₹10,000'
+    rounds: ['Round 1: 2D Orthographic & Precision Blueprint Drafting'],
+    prize: ''
   }
 ];
 
@@ -182,10 +182,8 @@ async function sync() {
         prize = EXCLUDED.prize;
     `;
   }
-  console.log('Successfully synced all 7 events from docx into Supabase fest_events table!');
-  const all = await sql`SELECT id, name, pokemon FROM public.fest_events ORDER BY id`;
-  console.log('Events in DB:', all);
-  process.exit(0);
+  console.log('Successfully synced all 7 events with updated rules and specifications!');
+  await sql.end();
 }
 
 sync().catch((err) => {
