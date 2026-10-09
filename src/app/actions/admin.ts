@@ -88,12 +88,79 @@ export async function adminLoginAction(email: string, password: string) {
     const cleanPassword = password.trim();
 
     const supabase = await createClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
+    let { data, error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: cleanPassword,
     });
 
-    if (error || !data.user) {
+    if (error || !data?.user) {
+      // Auto-heal check: if user is an authorized staff member whose password matches crypt in auth.users
+      const authUserCheck = await sql`
+        SELECT u.id, u.email, u.instance_id, u.role, u.aud, (u.encrypted_password = crypt(${cleanPassword}, u.encrypted_password)) as password_matches
+        FROM auth.users u
+        JOIN public.profiles p ON p.id = u.id OR LOWER(p.email) = LOWER(u.email)
+        WHERE LOWER(u.email) = ${cleanEmail}
+        LIMIT 1
+      `;
+
+      if (authUserCheck.length > 0 && authUserCheck[0].password_matches) {
+        const uId = authUserCheck[0].id;
+        // Fix instance_id, aud, role, and identities
+        await sql`
+          UPDATE auth.users
+          SET instance_id = '00000000-0000-0000-0000-000000000000',
+              aud = 'authenticated',
+              role = 'authenticated',
+              email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
+              confirmation_token = '',
+              recovery_token = '',
+              email_change_token_new = '',
+              email_change = '',
+              phone_change = '',
+              phone_change_token = '',
+              reauthentication_token = '',
+              email_change_token_current = '',
+              email_change_confirm_status = 0,
+              is_sso_user = false,
+              is_anonymous = false,
+              raw_app_meta_data = ${sql.json({ provider: 'email', providers: ['email'] })},
+              updated_at = NOW()
+          WHERE id = ${uId}::uuid
+        `;
+
+        const existingIdentities = await sql`
+          SELECT id FROM auth.identities WHERE user_id = ${uId}::uuid
+        `;
+        if (existingIdentities.length === 0) {
+          const identityData = {
+            sub: uId,
+            email: cleanEmail,
+            email_verified: true,
+            phone_verified: false,
+          };
+          await sql`
+            INSERT INTO auth.identities (
+              id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+            ) VALUES (
+              gen_random_uuid(), ${uId}, ${uId}::uuid, ${sql.json(identityData)}, 'email', null, NOW(), NOW()
+            )
+          `;
+        }
+
+        // Retry authentication
+        const retry = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: cleanPassword,
+        });
+
+        if (retry.data?.user) {
+          data = retry.data;
+          error = null;
+        }
+      }
+    }
+
+    if (error || !data?.user) {
       return { success: false, error: error?.message || 'Authentication failed' };
     }
 
@@ -494,9 +561,27 @@ export async function resetAdminPassword(targetUserId: string) {
   await sql`
     UPDATE auth.users
     SET encrypted_password = crypt('password@67', gen_salt('bf', 10)),
+        instance_id = '00000000-0000-0000-0000-000000000000',
+        aud = 'authenticated',
+        role = 'authenticated',
         updated_at = NOW()
     WHERE id = ${targetUserId}::uuid
   `;
+
+  const targetUserRows = await sql`SELECT email FROM auth.users WHERE id = ${targetUserId}::uuid`;
+  if (targetUserRows.length > 0) {
+    const targetEmail = targetUserRows[0].email;
+    const existingIdentities = await sql`SELECT id FROM auth.identities WHERE user_id = ${targetUserId}::uuid`;
+    if (existingIdentities.length === 0) {
+      await sql`
+        INSERT INTO auth.identities (
+          id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+        ) VALUES (
+          gen_random_uuid(), ${targetUserId}, ${targetUserId}::uuid, ${sql.json({ sub: targetUserId, email: targetEmail, email_verified: true, phone_verified: false })}, 'email', null, NOW(), NOW()
+        )
+      `;
+    }
+  }
 
   await logAudit(user.id, user.email || '', 'RESET_ADMIN_PASSWORD', 'auth.users', targetUserId, {
     defaultPassword: 'password@67'
@@ -522,48 +607,83 @@ export async function masterAddAdmin(email: string, fullName: string) {
   const defaultPassword = 'password@67';
   let targetUserId: string | null = null;
 
-  try {
-    const adminClient = createAdminClient();
-    const { data: created, error } = await adminClient.auth.admin.createUser({
+  const existing = await sql`SELECT id FROM auth.users WHERE LOWER(email) = ${cleanEmail}`;
+  if (existing.length > 0) {
+    targetUserId = existing[0].id;
+    await sql`
+      UPDATE auth.users
+      SET encrypted_password = crypt(${defaultPassword}, gen_salt('bf', 10)),
+          instance_id = '00000000-0000-0000-0000-000000000000',
+          aud = 'authenticated',
+          role = 'authenticated',
+          email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
+          confirmation_token = '',
+          recovery_token = '',
+          email_change_token_new = '',
+          email_change = '',
+          phone_change = '',
+          phone_change_token = '',
+          reauthentication_token = '',
+          email_change_token_current = '',
+          email_change_confirm_status = 0,
+          is_sso_user = false,
+          is_anonymous = false,
+          raw_app_meta_data = ${sql.json({ provider: 'email', providers: ['email'] })},
+          raw_user_meta_data = ${sql.json({ sub: targetUserId, email: cleanEmail, full_name: cleanName, role: 'admin' })},
+          updated_at = NOW()
+      WHERE id = ${targetUserId}::uuid
+    `;
+  } else {
+    targetUserId = crypto.randomUUID();
+    const userMeta = {
+      sub: targetUserId,
       email: cleanEmail,
-      password: defaultPassword,
-      email_confirm: true,
-      user_metadata: { full_name: cleanName },
-    });
-    if (created?.user) {
-      targetUserId = created.user.id;
-    }
-  } catch (err: any) {
-    // Fallback if user already exists
+      full_name: cleanName,
+      role: 'admin',
+    };
+
+    await sql`
+      INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+        confirmation_token, recovery_token, email_change_token_new, email_change, phone_change,
+        phone_change_token, reauthentication_token, email_change_token_current, email_change_confirm_status,
+        is_sso_user, is_anonymous, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        ${targetUserId}::uuid,
+        'authenticated',
+        'authenticated',
+        ${cleanEmail},
+        crypt(${defaultPassword}, gen_salt('bf', 10)),
+        NOW(),
+        '', '', '', '', '', '', '', '', 0,
+        false, false,
+        ${sql.json({ provider: 'email', providers: ['email'] })},
+        ${sql.json(userMeta)},
+        NOW(),
+        NOW()
+      )
+    `;
   }
 
-  if (!targetUserId) {
-    const existing = await sql`SELECT id FROM auth.users WHERE LOWER(email) = ${cleanEmail}`;
-    if (existing.length > 0) {
-      targetUserId = existing[0].id;
-      await sql`
-        UPDATE auth.users
-        SET encrypted_password = crypt(${defaultPassword}, gen_salt('bf', 10)),
-            updated_at = NOW()
-        WHERE id = ${targetUserId}::uuid
-      `;
-    } else {
-      const inserted = await sql`
-        INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
-        VALUES (
-          gen_random_uuid(),
-          ${cleanEmail},
-          crypt(${defaultPassword}, gen_salt('bf', 10)),
-          NOW(),
-          '{"provider":"email","providers":["email"]}'::jsonb,
-          ${JSON.stringify({ full_name: cleanName })}::jsonb,
-          NOW(),
-          NOW()
-        )
-        RETURNING id
-      `;
-      targetUserId = inserted[0].id;
-    }
+  // Ensure entry exists in auth.identities
+  const existingIdentities = await sql`
+    SELECT id FROM auth.identities WHERE user_id = ${targetUserId}::uuid
+  `;
+  if (existingIdentities.length === 0) {
+    const identityData = {
+      sub: targetUserId,
+      email: cleanEmail,
+      email_verified: true,
+      phone_verified: false,
+    };
+    await sql`
+      INSERT INTO auth.identities (
+        id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(), ${targetUserId}, ${targetUserId}::uuid, ${sql.json(identityData)}, 'email', null, NOW(), NOW()
+      )
+    `;
   }
 
   // Upsert into public.profiles with role 'admin'
