@@ -239,14 +239,17 @@ export function AuthForm() {
         const getDeployedBaseUrl = () => {
           if (typeof window !== 'undefined') {
             const origin = window.location.origin;
+            if (origin.includes('indigo-techfest.vercel.app')) {
+              return 'https://indigo-techfest.vercel.app';
+            }
             if (origin.includes('jarivs-3-0-pokemon.onrender.com')) {
               return 'https://jarivs-3-0-pokemon.onrender.com';
             }
             if (origin.includes('jarivs-3-0-pokemon.vercel.app')) {
-              return 'https://jarivs-3-0-pokemon.vercel.app';
+              return 'https://indigo-techfest.vercel.app';
             }
           }
-          return process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
+          return process.env.NEXT_PUBLIC_APP_URL || 'https://indigo-techfest.vercel.app';
         };
 
         const redirectUrl = `${getDeployedBaseUrl()}/auth/callback?next=/auth?mode=update-password`;

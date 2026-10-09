@@ -16,7 +16,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://jarivs-3-0-pokemon.vercel.app'),
+  metadataBase: new URL('https://indigo-techfest.vercel.app'),
   title: 'INDIGO TECH FEST · Jarvis 3.0',
   description: 'An editorial vintage natural-history tech fest of algorithmic craft. 16 - 17 October 2026.',
   icons: {
