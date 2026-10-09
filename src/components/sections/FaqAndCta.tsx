@@ -55,7 +55,9 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
   };
 
   return (
-    <section id="faq" className="relative w-full py-10 sm:py-14 bg-[#dcecfe]/45 backdrop-blur-sm select-none border-b border-black/10">
+    <section id="faq" className="relative w-full py-10 sm:py-14 bg-[#dcecfe]/45 backdrop-blur-sm select-none border-b border-black/10 scroll-mt-16 sm:scroll-mt-20">
+      <span id="convocation" className="sr-only" aria-hidden="true" />
+      <span id="cta" className="sr-only" aria-hidden="true" />
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         
         {/* Curatorial Header */}

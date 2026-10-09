@@ -25,7 +25,8 @@ export function DaysTimeline() {
   const [selectedDay, setSelectedDay] = useState<'day1' | 'day2'>('day1');
 
   return (
-    <section id="schedule" className="relative w-full py-10 sm:py-14 bg-[#dcecfe]/45 backdrop-blur-sm select-none border-b border-black/10">
+    <section id="schedule" className="relative w-full py-10 sm:py-14 bg-[#dcecfe]/45 backdrop-blur-sm select-none border-b border-black/10 scroll-mt-16 sm:scroll-mt-20">
+      <span id="timeline" className="sr-only" aria-hidden="true" />
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         
         {/* Curatorial Header */}

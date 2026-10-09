@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Play } from 'lucide-react';
 import { playRetroBeep } from '@/lib/sound';
@@ -14,7 +15,8 @@ interface NavbarProps {
 type NavAnimationPhase = 'closed' | 'rotating' | 'splitting' | 'open' | 'closing';
 
 export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
-  const [activeSection, setActiveSection] = useState<'home' | 'events' | 'schedule' | 'join'>('home');
+  const pathname = usePathname();
+  const [activeSection, setActiveSection] = useState<'home' | 'events' | 'announcements' | 'schedule' | 'join' | 'contact'>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasMaxEvents, setHasMaxEvents] = useState(false);
 
@@ -75,13 +77,17 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPos = window.scrollY + 200;
+      const scrollPos = window.scrollY + 280;
       const sections = ['join', 'schedule', 'announcements', 'events', 'home'] as const;
 
       for (const section of sections) {
-        const el = document.getElementById(section);
+        const el =
+          document.getElementById(section) ||
+          (section === 'join' ? document.getElementById('how-to-join') : null) ||
+          (section === 'schedule' ? document.getElementById('timeline') : null);
+
         if (el && el.offsetTop <= scrollPos) {
-          setActiveSection(section as any);
+          setActiveSection(section);
           break;
         }
       }
@@ -201,9 +207,22 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
     handleCollapse();
-    const el = document.getElementById(id);
+
+    // Support canonical targets and aliases
+    const targetId =
+      id === 'join'
+        ? (document.getElementById('join') ? 'join' : 'how-to-join')
+        : id === 'schedule'
+        ? (document.getElementById('schedule') ? 'schedule' : 'timeline')
+        : id;
+
+    const el = document.getElementById(targetId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      if (typeof window !== 'undefined') {
+        window.location.href = `/#${id}`;
+      }
     }
   };
 
@@ -367,8 +386,12 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
               <Link
                 href="/"
                 onClick={(e) => {
-                  e.preventDefault();
-                  scrollToSection('home');
+                  if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+                    e.preventDefault();
+                    scrollToSection('home');
+                  } else {
+                    handleCollapse();
+                  }
                 }}
                 className="flex items-center gap-2.5 group cursor-pointer shrink-0"
               >
@@ -390,6 +413,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                   const delay = 0.06 + index * 0.025;
 
                   if (link.href) {
+                    const isLinkActive = pathname === link.href || activeSection === link.id;
                     return (
                       <motion.div
                         key={link.id}
@@ -400,9 +424,16 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                         <Link
                           href={link.href}
                           onClick={() => handleCollapse()}
-                          className="font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 text-[#AFAEA2] hover:text-white"
+                          className={`relative font-grotesk text-xs uppercase tracking-[0.2em] transition-colors py-1 whitespace-nowrap ${
+                            isLinkActive
+                              ? 'text-white font-bold'
+                              : 'text-[#AFAEA2] hover:text-white'
+                          }`}
                         >
                           {link.label}
+                          {isLinkActive && (
+                            <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#D21319] shadow-[0_0_8px_#D21319]" />
+                          )}
                         </Link>
                       </motion.div>
                     );
@@ -517,8 +548,12 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                   <Link
                     href="/"
                     onClick={(e) => {
-                      e.preventDefault();
-                      scrollToSection('home');
+                      if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+                        e.preventDefault();
+                        scrollToSection('home');
+                      } else {
+                        handleCollapse();
+                      }
                     }}
                     className="flex items-center gap-2.5 group cursor-pointer"
                   >
@@ -556,6 +591,7 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                       const indexStr = `0${idx + 1}`;
 
                       if (link.href) {
+                        const isLinkActive = pathname === link.href || activeSection === link.id;
                         return (
                           <Link
                             key={link.id}
@@ -564,10 +600,16 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                             className="flex items-center justify-between group py-1.5 transition-colors"
                           >
                             <div className="flex items-center gap-3">
-                              <span className="font-mono text-[10px] text-[#D21319]/70 tracking-widest">
+                              <span className={`font-mono text-[10px] tracking-widest ${
+                                isLinkActive ? 'text-[#D21319] font-bold' : 'text-[#D21319]/70'
+                              }`}>
                                 {indexStr}
                               </span>
-                              <span className="font-grotesk text-xs tracking-[0.18em] uppercase text-[#AFAEA2] group-hover:text-white transition-colors">
+                              <span className={`font-grotesk text-xs tracking-[0.18em] uppercase transition-colors ${
+                                isLinkActive
+                                  ? 'text-white font-bold'
+                                  : 'text-[#AFAEA2] group-hover:text-white'
+                              }`}>
                                 {link.label}
                               </span>
                             </div>

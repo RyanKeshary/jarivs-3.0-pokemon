@@ -89,7 +89,7 @@ export function AnnouncementsSection({ initialNotices = [] }: AnnouncementsSecti
   return (
     <section
       id="announcements"
-      className="relative z-10 py-16 px-4 sm:px-6 bg-[#FAF9F5] text-black border-t-2 border-black"
+      className="relative z-10 py-16 px-4 sm:px-6 bg-[#FAF9F5] text-black border-t-2 border-black scroll-mt-16 sm:scroll-mt-20"
     >
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}

@@ -88,7 +88,7 @@ export function Footer() {
 
                 <button
                   type="button"
-                  onClick={() => scrollToSection('timeline')}
+                  onClick={() => scrollToSection('schedule')}
                   className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   SCHEDULE
@@ -96,7 +96,7 @@ export function Footer() {
 
                 <button
                   type="button"
-                  onClick={() => scrollToSection('how-to-join')}
+                  onClick={() => scrollToSection('join')}
                   className="py-1 px-1.5 sm:px-2 bg-white hover:bg-black hover:text-white border border-black text-[9px] sm:text-[10px] font-mono font-bold uppercase transition-all shadow-[1px_1px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] text-center cursor-pointer block truncate"
                 >
                   HOW TO ENLIST
