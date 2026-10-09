@@ -57,6 +57,7 @@ import {
   resetAdminPassword
 } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
+import { AdminPokemonGuardian } from './AdminPokemonGuardian';
 
 interface IndigoAdminDashboardProps {
   data: any;
@@ -660,14 +661,13 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 );
               })}
 
-              <button
-                onClick={() => setSideExportOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 hover:text-slate-900 ml-auto shrink-0 shadow-2xs"
-                title="Open CSV Export Sidebar"
-              >
-                <Download size={13} className="text-[#D21319]" />
-                <span>Export CSV</span>
-              </button>
+              <div className="ml-auto shrink-0 pl-2">
+                <AdminPokemonGuardian
+                  totalCandidates={registrations.length}
+                  totalSquads={teams.length}
+                  onOpenExport={() => setSideExportOpen(true)}
+                />
+              </div>
             </div>
 
             {/* Mobile Tab Navigator (Strictly Zero Horizontal Scroll) */}

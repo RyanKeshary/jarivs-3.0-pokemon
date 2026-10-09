@@ -11,50 +11,104 @@ interface PokemonProps {
   size?: number | string;
 }
 
-// 1. PHOENIX (Stays still, majestic crown engraving)
-export function EngravedPhoenix({ className = '', size = 160 }: PokemonProps) {
+// 1. PHOENIX (Majestic crown engraving with active celestial loop)
+export function EngravedPhoenix({ className = '', animateIdle = true, size = 160 }: PokemonProps) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 200 160"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={`select-none ${className}`}
+    <motion.div
+      animate={animateIdle ? { translateY: [0, -4, 0] } : {}}
+      transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+      className={`inline-block ${className}`}
+      style={{ width: size, height: size }}
     >
-      {/* Crown Crest & Sun Halo Rays */}
-      <path d="M100 12 L100 2 M100 12 L88 4 M100 12 L112 4 M100 12 L78 9 M100 12 L122 9" stroke="#D21319" strokeWidth="1.2" strokeLinecap="square" />
-      <circle cx="100" cy="40" r="28" stroke="#AFAEA2" strokeWidth="0.8" strokeDasharray="2 3" opacity="0.6" />
-      
-      {/* Phoenix Head and Beak */}
-      <path d="M100 16 C95 24 93 30 96 36 C99 42 101 42 104 36 C107 30 105 24 100 16 Z" fill="#1B1E4A" stroke="#AFAEA2" strokeWidth="1.4" />
-      <path d="M96 26 L88 28 L95 30 Z" fill="#D21319" stroke="#D21319" strokeWidth="0.8" />
-      <circle cx="98" cy="27" r="1.2" fill="#E9E6DA" />
-      
-      {/* Crest plumes */}
-      <path d="M99 18 C92 12 84 14 78 18 C83 19 89 18 95 20" stroke="#D21319" strokeWidth="1" />
-      <path d="M101 18 C108 12 116 14 122 18 C117 19 111 18 105 20" stroke="#D21319" strokeWidth="1" />
+      <svg
+        viewBox="0 0 200 160"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full select-none"
+      >
+        {/* Crown Crest & Sun Halo Rays */}
+        <motion.g
+          animate={animateIdle ? { rotate: [0, 360] } : {}}
+          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+          style={{ transformOrigin: '100px 40px' }}
+        >
+          <circle cx="100" cy="40" r="28" stroke="#AFAEA2" strokeWidth="0.8" strokeDasharray="2 3" opacity="0.65" />
+        </motion.g>
 
-      {/* Majestic Sweeping Wings (Engraved Feather Hatching) */}
-      <path d="M93 38 C75 32 40 38 18 64 C28 66 38 65 48 60 C32 72 24 88 16 102 C28 98 42 90 54 80 C40 96 34 114 30 128 C45 116 62 100 76 82 C84 94 90 106 93 118" stroke="#AFAEA2" strokeWidth="1.4" fill="none" />
-      <path d="M107 38 C125 32 160 38 182 64 C172 66 162 65 152 60 C168 72 176 88 184 102 C172 98 158 90 146 80 C160 96 166 114 170 128 C155 116 138 100 124 82 C116 94 110 106 107 118" stroke="#AFAEA2" strokeWidth="1.4" fill="none" />
+        {/* Crown Crest Radiance Rays */}
+        <motion.path
+          animate={animateIdle ? { opacity: [0.65, 1, 0.65], scale: [0.98, 1.05, 0.98] } : {}}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ transformOrigin: '100px 12px' }}
+          d="M100 12 L100 2 M100 12 L88 4 M100 12 L112 4 M100 12 L78 9 M100 12 L122 9"
+          stroke="#D21319"
+          strokeWidth="1.2"
+          strokeLinecap="square"
+        />
+        
+        {/* Phoenix Head and Beak */}
+        <path d="M100 16 C95 24 93 30 96 36 C99 42 101 42 104 36 C107 30 105 24 100 16 Z" fill="#1B1E4A" stroke="#AFAEA2" strokeWidth="1.4" />
+        <path d="M96 26 L88 28 L95 30 Z" fill="#D21319" stroke="#D21319" strokeWidth="0.8" />
+        <circle cx="98" cy="27" r="1.2" fill="#E9E6DA" />
+        
+        {/* Crest plumes */}
+        <path d="M99 18 C92 12 84 14 78 18 C83 19 89 18 95 20" stroke="#D21319" strokeWidth="1" />
+        <path d="M101 18 C108 12 116 14 122 18 C117 19 111 18 105 20" stroke="#D21319" strokeWidth="1" />
 
-      {/* Internal Feather Line Stipples */}
-      <path d="M35 66 L55 64 M30 76 L60 70 M25 88 L68 78 M35 104 L74 88 M45 116 L80 96" stroke="#AFAEA2" strokeWidth="0.7" opacity="0.75" />
-      <path d="M165 66 L145 64 M170 76 L140 70 M175 88 L132 78 M165 104 L126 88 M155 116 L120 96" stroke="#AFAEA2" strokeWidth="0.7" opacity="0.75" />
+        {/* Majestic Sweeping Wings (Engraved Feather Hatching) */}
+        {/* Left Wing with smooth flap */}
+        <motion.g
+          animate={animateIdle ? { rotate: [0, -3.8, 0], scaleY: [1, 1.035, 1] } : {}}
+          transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ transformOrigin: '93px 38px' }}
+        >
+          <path d="M93 38 C75 32 40 38 18 64 C28 66 38 65 48 60 C32 72 24 88 16 102 C28 98 42 90 54 80 C40 96 34 114 30 128 C45 116 62 100 76 82 C84 94 90 106 93 118" stroke="#AFAEA2" strokeWidth="1.4" fill="none" />
+          <path d="M35 66 L55 64 M30 76 L60 70 M25 88 L68 78 M35 104 L74 88 M45 116 L80 96" stroke="#AFAEA2" strokeWidth="0.7" opacity="0.75" />
+        </motion.g>
 
-      {/* Central Body & Torso */}
-      <path d="M93 38 C90 55 92 78 95 104 C98 108 102 108 105 104 C108 78 110 55 107 38 Z" fill="#121435" stroke="#AFAEA2" strokeWidth="1.3" />
-      <path d="M96 52 L104 52 M95 62 L105 62 M96 74 L104 74 M97 86 L103 86" stroke="#AFAEA2" strokeWidth="0.8" opacity="0.7" />
+        {/* Right Wing with smooth flap */}
+        <motion.g
+          animate={animateIdle ? { rotate: [0, 3.8, 0], scaleY: [1, 1.035, 1] } : {}}
+          transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ transformOrigin: '107px 38px' }}
+        >
+          <path d="M107 38 C125 32 160 38 182 64 C172 66 162 65 152 60 C168 72 176 88 184 102 C172 98 158 90 146 80 C160 96 166 114 170 128 C155 116 138 100 124 82 C116 94 110 106 107 118" stroke="#AFAEA2" strokeWidth="1.4" fill="none" />
+          <path d="M165 66 L145 64 M170 76 L140 70 M175 88 L132 78 M165 104 L126 88 M155 116 L120 96" stroke="#AFAEA2" strokeWidth="0.7" opacity="0.75" />
+        </motion.g>
 
-      {/* Flowing Tail Feathers with Ribbon Ties */}
-      <path d="M97 106 C92 124 80 142 65 154" stroke="#D21319" strokeWidth="1.5" />
-      <path d="M100 108 C100 128 100 144 100 158" stroke="#D21319" strokeWidth="1.5" />
-      <path d="M103 106 C108 124 120 142 135 154" stroke="#D21319" strokeWidth="1.5" />
-      <circle cx="65" cy="154" r="2.5" fill="#D21319" />
-      <circle cx="100" cy="158" r="2.5" fill="#D21319" />
-      <circle cx="135" cy="154" r="2.5" fill="#D21319" />
-    </svg>
+        {/* Central Body & Torso */}
+        <path d="M93 38 C90 55 92 78 95 104 C98 108 102 108 105 104 C108 78 110 55 107 38 Z" fill="#121435" stroke="#AFAEA2" strokeWidth="1.3" />
+        <path d="M96 52 L104 52 M95 62 L105 62 M96 74 L104 74 M97 86 L103 86" stroke="#AFAEA2" strokeWidth="0.8" opacity="0.7" />
+
+        {/* Flowing Tail Feathers with Ribbon Ties & wave motion */}
+        <motion.g
+          animate={animateIdle ? { rotate: [-2.5, 2.5, -2.5] } : {}}
+          transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ transformOrigin: '97px 106px' }}
+        >
+          <path d="M97 106 C92 124 80 142 65 154" stroke="#D21319" strokeWidth="1.5" />
+          <circle cx="65" cy="154" r="2.5" fill="#D21319" />
+        </motion.g>
+
+        <motion.g
+          animate={animateIdle ? { scaleY: [1, 1.06, 1] } : {}}
+          transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ transformOrigin: '100px 108px' }}
+        >
+          <path d="M100 108 C100 128 100 144 100 158" stroke="#D21319" strokeWidth="1.5" />
+          <circle cx="100" cy="158" r="2.5" fill="#D21319" />
+        </motion.g>
+
+        <motion.g
+          animate={animateIdle ? { rotate: [2.5, -2.5, 2.5] } : {}}
+          transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ transformOrigin: '103px 106px' }}
+        >
+          <path d="M103 106 C108 124 120 142 135 154" stroke="#D21319" strokeWidth="1.5" />
+          <circle cx="135" cy="154" r="2.5" fill="#D21319" />
+        </motion.g>
+      </svg>
+    </motion.div>
   );
 }
 
