@@ -38,6 +38,6 @@ __pycache__/
 *.pyc
 
 # Temp media artifacts
-wmremove-transformed.mp4
-original-*.jpg
+/wmremove-transformed.mp4
+/original-*.jpg
 

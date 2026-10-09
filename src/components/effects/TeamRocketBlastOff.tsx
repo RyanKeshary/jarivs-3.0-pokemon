@@ -193,9 +193,9 @@ export function TeamRocketBlastOff() {
   const [mounted, setMounted] = useState(false);
   const [waveVibration, setWaveVibration] = useState(0);
 
-  // Easter egg counter: random target between 10 and 67
+  // Easter egg counter: random target between 10 and 20
   const [clickCount, setClickCount] = useState(0);
-  const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 10 + 1)) + 10);
+  const targetClicksRef = useRef(Math.floor(Math.random() * (20 - 10 + 1)) + 10);
   const [showMemeModal, setShowMemeModal] = useState(false);
   const lastTriggerTimeRef = useRef(0);
 
@@ -258,9 +258,9 @@ export function TeamRocketBlastOff() {
     if (nextClicks >= targetClicksRef.current) {
       // Trigger funny meme presentation!
       setShowMemeModal(true);
-      // Reset counter and set new random target between 10 and 67
+      // Reset counter and set new random target between 10 and 20
       setClickCount(0);
-      targetClicksRef.current = Math.floor(Math.random() * (67 - 10 + 1)) + 10;
+      targetClicksRef.current = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
     }
   };
 

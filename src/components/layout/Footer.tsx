@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { ArrowUp, Play, X, Volume2, VolumeX } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 
 export function Footer() {
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
 
   const scrollToTop = () => {
     if (typeof window !== 'undefined') {
@@ -151,26 +149,6 @@ export function Footer() {
                 </div>
               </div>
             </div>
-
-            {/* EASTER EGG VIDEO BLOCK */}
-            <div className="pt-2 sm:pt-2.5 mt-1.5 sm:mt-2 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setVideoModalOpen(true)}
-                className="w-full py-1 sm:py-1.5 px-2 sm:px-2.5 bg-[#FAF8F5] hover:bg-black hover:text-white border border-black text-[10px] sm:text-[11px] font-mono font-bold flex items-center justify-between shadow-[1.5px_1.5px_0px_#000] sm:shadow-[2px_2px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] transition-all cursor-pointer group"
-                title="Click to view Festival Archive Reel"
-              >
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-black text-white group-hover:bg-[#D21319] flex items-center justify-center rounded-xs transition-colors">
-                    <Play size={8} className="fill-current ml-0.5" />
-                  </div>
-                  <span className="uppercase tracking-wider">ARCHIVAL LOGS</span>
-                </div>
-                <span className="text-[8.5px] sm:text-[9px] bg-black text-white group-hover:bg-[#D21319] px-1 py-0.2 rounded-xs transition-colors">
-                  PLAY ➔
-                </span>
-              </button>
-            </div>
           </div>
 
         </div>
@@ -188,70 +166,6 @@ export function Footer() {
         </div>
 
       </div>
-
-      {/* ========================================================
-          EASTER EGG VIDEO PLAYER MODAL
-         ======================================================== */}
-      {videoModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-2xl bg-black border-2 border-white shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="p-2.5 bg-[#161A35] border-b border-white/20 flex items-center justify-between text-white font-mono text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#D21319] animate-pulse" />
-                <span className="font-bold tracking-wider uppercase">FESTIVAL ARCHIVAL REEL</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setVideoModalOpen(false)}
-                className="p-1 hover:bg-white/20 rounded transition-colors text-white"
-                title="Close"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            {/* Video Player Area */}
-            <div className="relative aspect-video bg-black flex items-center justify-center">
-              <video
-                src="/media/gemini_generated_video.mp4"
-                autoPlay
-                controls
-                muted={isMuted}
-                loop
-                playsInline
-                preload="metadata"
-                className="w-full h-full object-contain"
-              />
-            </div>
-
-            {/* Modal Controls / Footer */}
-            <div className="p-2 bg-[#0F1226] border-t border-white/10 flex items-center justify-between font-mono text-[10px] text-slate-400">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="flex items-center gap-1 text-slate-300 hover:text-white transition-colors"
-                >
-                  {isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
-                  <span>{isMuted ? 'UNMUTE' : 'MUTE'}</span>
-                </button>
-                <span>SOURCE: GEMINI ARCHIVE REEL</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setVideoModalOpen(false)}
-                className="px-2.5 py-1 bg-white hover:bg-[#D21319] text-black hover:text-white font-bold uppercase transition-colors rounded-xs text-[10px]"
-              >
-                CLOSE [ESC]
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </footer>
   );
