@@ -143,75 +143,234 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       );
     }
 
-    // Generate unique code
-    let uniqueCode = generateHumanFriendlyCode();
-    let codeExists = await sql`SELECT id FROM public.fest_teams WHERE code = ${uniqueCode}`;
-    while (codeExists.length > 0) {
-      uniqueCode = generateHumanFriendlyCode();
-      codeExists = await sql`SELECT id FROM public.fest_teams WHERE code = ${uniqueCode}`;
+    const cleanTeamName = teamName.trim();
+    let createdTeams: any[] = [];
+
+    if (eventIds.length === 2) {
+      // 2 Events selected: Create 2 separate teams named "${teamName}-A" and "${teamName}-B"
+      // Generate unique code for Team A
+      let codeA = generateHumanFriendlyCode();
+      while ((await sql`SELECT id FROM public.fest_teams WHERE code = ${codeA}`).length > 0) {
+        codeA = generateHumanFriendlyCode();
+      }
+      const tokenA = crypto.randomUUID().replace(/-/g, '') + crypto.randomBytes(8).toString('hex');
+      const nameA = `${cleanTeamName}-A`;
+
+      const teamARows = await sql`
+        INSERT INTO public.fest_teams (
+          code,
+          name,
+          event_ids,
+          leader_email,
+          leader_token,
+          is_locked,
+          status
+        ) VALUES (
+          ${codeA},
+          ${nameA},
+          ARRAY[${eventIds[0]}],
+          ${email},
+          ${tokenA},
+          FALSE,
+          'Confirmed'
+        )
+        RETURNING id, code, name, event_ids, leader_token, created_at;
+      `;
+      const newTeamA = teamARows[0];
+
+      // Leader registration in Team A
+      await sql`
+        INSERT INTO public.fest_registrations (
+          team_id,
+          team_code,
+          is_leader,
+          full_name,
+          email,
+          phone,
+          college,
+          department,
+          year_of_study,
+          college_id,
+          reference_id,
+          division,
+          roll_no,
+          status
+        ) VALUES (
+          ${newTeamA.id},
+          ${newTeamA.code},
+          TRUE,
+          ${leader.fullName.trim()},
+          ${email},
+          ${phone},
+          ${leader.college.trim()},
+          ${leader.department.trim()},
+          ${leader.yearOfStudy.trim()},
+          ${referenceId},
+          ${referenceId},
+          ${division},
+          ${rollNo},
+          'Confirmed'
+        );
+      `;
+
+      // Generate unique code for Team B
+      let codeB = generateHumanFriendlyCode();
+      while (codeB === codeA || (await sql`SELECT id FROM public.fest_teams WHERE code = ${codeB}`).length > 0) {
+        codeB = generateHumanFriendlyCode();
+      }
+      const tokenB = crypto.randomUUID().replace(/-/g, '') + crypto.randomBytes(8).toString('hex');
+      const nameB = `${cleanTeamName}-B`;
+
+      const teamBRows = await sql`
+        INSERT INTO public.fest_teams (
+          code,
+          name,
+          event_ids,
+          leader_email,
+          leader_token,
+          is_locked,
+          status
+        ) VALUES (
+          ${codeB},
+          ${nameB},
+          ARRAY[${eventIds[1]}],
+          ${email},
+          ${tokenB},
+          FALSE,
+          'Confirmed'
+        )
+        RETURNING id, code, name, event_ids, leader_token, created_at;
+      `;
+      const newTeamB = teamBRows[0];
+
+      // Leader registration in Team B
+      await sql`
+        INSERT INTO public.fest_registrations (
+          team_id,
+          team_code,
+          is_leader,
+          full_name,
+          email,
+          phone,
+          college,
+          department,
+          year_of_study,
+          college_id,
+          reference_id,
+          division,
+          roll_no,
+          status
+        ) VALUES (
+          ${newTeamB.id},
+          ${newTeamB.code},
+          TRUE,
+          ${leader.fullName.trim()},
+          ${email},
+          ${phone},
+          ${leader.college.trim()},
+          ${leader.department.trim()},
+          ${leader.yearOfStudy.trim()},
+          ${referenceId},
+          ${referenceId},
+          ${division},
+          ${rollNo},
+          'Confirmed'
+        );
+      `;
+
+      createdTeams = [
+        {
+          id: newTeamA.id,
+          code: newTeamA.code,
+          name: newTeamA.name,
+          eventIds: newTeamA.event_ids,
+          eventId: eventIds[0],
+          leaderToken: newTeamA.leader_token,
+        },
+        {
+          id: newTeamB.id,
+          code: newTeamB.code,
+          name: newTeamB.name,
+          eventIds: newTeamB.event_ids,
+          eventId: eventIds[1],
+          leaderToken: newTeamB.leader_token,
+        }
+      ];
+    } else {
+      // 1 Event selected
+      let uniqueCode = generateHumanFriendlyCode();
+      while ((await sql`SELECT id FROM public.fest_teams WHERE code = ${uniqueCode}`).length > 0) {
+        uniqueCode = generateHumanFriendlyCode();
+      }
+      const leaderToken = crypto.randomUUID().replace(/-/g, '') + crypto.randomBytes(8).toString('hex');
+
+      const singleTeamRows = await sql`
+        INSERT INTO public.fest_teams (
+          code,
+          name,
+          event_ids,
+          leader_email,
+          leader_token,
+          is_locked,
+          status
+        ) VALUES (
+          ${uniqueCode},
+          ${cleanTeamName},
+          ARRAY[${eventIds[0]}],
+          ${email},
+          ${leaderToken},
+          FALSE,
+          'Confirmed'
+        )
+        RETURNING id, code, name, event_ids, leader_token, created_at;
+      `;
+      const newTeamSingle = singleTeamRows[0];
+
+      await sql`
+        INSERT INTO public.fest_registrations (
+          team_id,
+          team_code,
+          is_leader,
+          full_name,
+          email,
+          phone,
+          college,
+          department,
+          year_of_study,
+          college_id,
+          reference_id,
+          division,
+          roll_no,
+          status
+        ) VALUES (
+          ${newTeamSingle.id},
+          ${newTeamSingle.code},
+          TRUE,
+          ${leader.fullName.trim()},
+          ${email},
+          ${phone},
+          ${leader.college.trim()},
+          ${leader.department.trim()},
+          ${leader.yearOfStudy.trim()},
+          ${referenceId},
+          ${referenceId},
+          ${division},
+          ${rollNo},
+          'Confirmed'
+        );
+      `;
+
+      createdTeams = [
+        {
+          id: newTeamSingle.id,
+          code: newTeamSingle.code,
+          name: newTeamSingle.name,
+          eventIds: newTeamSingle.event_ids,
+          eventId: eventIds[0],
+          leaderToken: newTeamSingle.leader_token,
+        }
+      ];
     }
-
-    // Generate secret magic link token for leader management
-    const leaderToken = crypto.randomUUID().replace(/-/g, '') + crypto.randomBytes(8).toString('hex');
-
-    // Insert Team
-    const newTeamRows = await sql`
-      INSERT INTO public.fest_teams (
-        code,
-        name,
-        event_ids,
-        leader_email,
-        leader_token,
-        is_locked,
-        status
-      ) VALUES (
-        ${uniqueCode},
-        ${teamName.trim()},
-        ${eventIds},
-        ${email},
-        ${leaderToken},
-        FALSE,
-        'Confirmed'
-      )
-      RETURNING id, code, name, event_ids, leader_token, created_at;
-    `;
-
-    const newTeam = newTeamRows[0];
-
-    // Insert Leader Registration
-    await sql`
-      INSERT INTO public.fest_registrations (
-        team_id,
-        team_code,
-        is_leader,
-        full_name,
-        email,
-        phone,
-        college,
-        department,
-        year_of_study,
-        college_id,
-        reference_id,
-        division,
-        roll_no,
-        status
-      ) VALUES (
-        ${newTeam.id},
-        ${newTeam.code},
-        TRUE,
-        ${leader.fullName.trim()},
-        ${email},
-        ${phone},
-        ${leader.college.trim()},
-        ${leader.department.trim()},
-        ${leader.yearOfStudy.trim()},
-        ${referenceId},
-        ${referenceId},
-        ${division},
-        ${rollNo},
-        'Confirmed'
-      );
-    `;
 
     // Audit Log
     try {
@@ -221,7 +380,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           'fest_team_created',
           ${email},
           'fest_team',
-          ${JSON.stringify({ code: newTeam.code, teamName: newTeam.name, events: eventIds })}::jsonb
+          ${JSON.stringify({ teams: createdTeams.map(t => ({ code: t.code, name: t.name, events: t.eventIds })) })}::jsonb
         );
       `;
     } catch (e) {
@@ -244,7 +403,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
 
       const uid = authUser?.user?.id;
       if (uid) {
-        const trainerId = 'TR-' + newTeam.code.replace('JRV-', '');
+        const trainerId = 'TR-' + createdTeams[0].code.replace('JRV-', '');
         await sql`
           INSERT INTO public.profiles (id, trainer_id, full_name, email, role)
           VALUES (${uid}, ${trainerId}, ${leader.fullName.trim()}, ${email}, 'participant')
@@ -257,13 +416,8 @@ export async function createFestTeam(payload: CreateTeamPayload) {
 
     return {
       success: true,
-      team: {
-        id: newTeam.id,
-        code: newTeam.code,
-        name: newTeam.name,
-        eventIds: newTeam.event_ids,
-        leaderToken: newTeam.leader_token,
-      },
+      team: createdTeams[0],
+      teams: createdTeams,
       credentials: {
         email,
         password: defaultPassword,
@@ -344,13 +498,31 @@ export async function joinFestTeam(payload: {
     `;
 
     if (teamRows.length === 0) {
-      throw new Error('Invalid or expired team code.');
+      throw new Error('Invalid or expired team code. Please check and try again.');
     }
 
     const team = teamRows[0];
 
-    if (team.is_locked) {
-      throw new Error('This squad roster has already been locked by the leader.');
+    // Immediate capacity and lock verification
+    const currentMembers = await sql`
+      SELECT COUNT(*)::int as count FROM public.fest_registrations WHERE team_id = ${team.id}
+    `;
+    const memberCount = currentMembers[0].count;
+
+    const eventRows = await sql`
+      SELECT max_team_size FROM public.fest_events WHERE id = ANY(${team.event_ids})
+    `;
+    const maxCapacity = eventRows.length > 0 
+      ? Math.min(...eventRows.map((e: any) => e.max_team_size || 4))
+      : 4;
+
+    if (memberCount >= maxCapacity || team.is_locked) {
+      if (!team.is_locked) {
+        await sql`UPDATE public.fest_teams SET is_locked = TRUE WHERE id = ${team.id}`;
+      }
+      throw new Error(
+        `Team Limit Reached: Squad "${team.name}" has already reached its maximum roster limit of ${maxCapacity} member(s). Registration is closed for this squad.`
+      );
     }
 
     const member = payload.member;
@@ -395,24 +567,6 @@ export async function joinFestTeam(payload: {
       );
     }
 
-    // Capacity verification
-    const currentMembers = await sql`
-      SELECT COUNT(*)::int as count FROM public.fest_registrations WHERE team_id = ${team.id}
-    `;
-    const memberCount = currentMembers[0].count;
-
-    const eventRows = await sql`
-      SELECT max_team_size FROM public.fest_events WHERE id = ANY(${team.event_ids})
-    `;
-    const maxCapacity = eventRows.length > 0 
-      ? Math.max(...eventRows.map((e: any) => e.max_team_size || 4))
-      : 4;
-
-    if (memberCount >= maxCapacity) {
-      // Auto-lock team
-      await sql`UPDATE public.fest_teams SET is_locked = TRUE WHERE id = ${team.id}`;
-      throw new Error('This team has already reached its maximum allowed roster capacity.');
-    }
 
     const cleanRefId = (referenceId || '').trim().toLowerCase();
     const phone10 = phone.slice(-10);

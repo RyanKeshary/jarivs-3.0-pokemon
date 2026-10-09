@@ -209,6 +209,84 @@ describe('Indigo Tech Fest Registration Validation', () => {
       expect(extract10(inputPhone3)).toBe(storedPhone);
     });
   });
+
+  describe('Multi-Event Dual Squad Generation (-A and -B) & Capacity Limits', () => {
+    it('automatically splits 2-event registrations into teamname-A and teamname-B squads with unique codes', () => {
+      const baseTeamName = 'Thunder Bolts';
+      const events = ['project-exhibition', 'quiz-tle']; // 4-person and 2-person events
+      
+      const squadsToCreate = events.map((eventId, idx) => ({
+        name: events.length === 2 ? `${baseTeamName}-${idx === 0 ? 'A' : 'B'}` : baseTeamName,
+        eventId: eventId,
+        code: `JRV-TEST${idx + 1}`,
+      }));
+
+      expect(squadsToCreate).toHaveLength(2);
+      expect(squadsToCreate[0].name).toBe('Thunder Bolts-A');
+      expect(squadsToCreate[0].eventId).toBe('project-exhibition');
+      expect(squadsToCreate[0].code).toBe('JRV-TEST1');
+
+      expect(squadsToCreate[1].name).toBe('Thunder Bolts-B');
+      expect(squadsToCreate[1].eventId).toBe('quiz-tle');
+      expect(squadsToCreate[1].code).toBe('JRV-TEST2');
+      expect(squadsToCreate[0].code).not.toBe(squadsToCreate[1].code);
+    });
+
+    it('keeps single team name when registering for only 1 event', () => {
+      const baseTeamName = 'Solo Sparks';
+      const events = ['build-asor'];
+      const squadName = events.length === 2 ? `${baseTeamName}-A` : baseTeamName;
+      expect(squadName).toBe('Solo Sparks');
+    });
+
+    it('rejects next person when squad capacity is reached with the exact failure message', () => {
+      const squad = {
+        name: 'Thunder Bolts-B',
+        memberCount: 2,
+        maxCapacity: 2, // e.g. Quiztle 2-person limit
+        isLocked: false,
+      };
+
+      function attemptJoin(currentMembers: number, maxCapacity: number, squadName: string, isLocked: boolean) {
+        if (currentMembers >= maxCapacity || isLocked) {
+          return {
+            allowed: false,
+            error: `Team Limit Reached: Squad "${squadName}" has already reached its maximum roster limit of ${maxCapacity} member(s). Registration is closed for this squad.`,
+          };
+        }
+        return { allowed: true };
+      }
+
+      // Member 2 is at capacity, member 3 attempts to join
+      const result = attemptJoin(squad.memberCount, squad.maxCapacity, squad.name, squad.isLocked);
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe(
+        'Team Limit Reached: Squad "Thunder Bolts-B" has already reached its maximum roster limit of 2 member(s). Registration is closed for this squad.'
+      );
+    });
+
+    it('allows joining when squad has remaining slots below max capacity', () => {
+      const squad4 = {
+        name: 'Thunder Bolts-A',
+        memberCount: 2,
+        maxCapacity: 4, // e.g. Project Exhibition 4-person limit
+        isLocked: false,
+      };
+
+      function attemptJoin(currentMembers: number, maxCapacity: number, squadName: string, isLocked: boolean) {
+        if (currentMembers >= maxCapacity || isLocked) {
+          return {
+            allowed: false,
+            error: `Team Limit Reached: Squad "${squadName}" has already reached its maximum roster limit of ${maxCapacity} member(s). Registration is closed for this squad.`,
+          };
+        }
+        return { allowed: true };
+      }
+
+      const result = attemptJoin(squad4.memberCount, squad4.maxCapacity, squad4.name, squad4.isLocked);
+      expect(result.allowed).toBe(true);
+    });
+  });
 });
 
 

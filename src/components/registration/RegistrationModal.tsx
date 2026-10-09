@@ -55,6 +55,7 @@ export function RegistrationModal({
   const [maxWarning, setMaxWarning] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -192,6 +193,11 @@ export function RegistrationModal({
       if (evIds && evIds.length > 0) {
         setSelectedEvents(evIds);
       }
+      if (res.team.remainingSlots <= 0 || res.team.isLocked) {
+        setStepError(
+          `Team Limit Reached: Squad "${res.team.name}" is already at full capacity (${res.team.maxCapacity}/${res.team.maxCapacity} members).`
+        );
+      }
     } else {
       setTargetTeam(null);
       setStepError(res.error || 'Squad not found. Please verify the code.');
@@ -297,7 +303,13 @@ export function RegistrationModal({
       }
     } else {
       if (!joinCodeInput.trim()) {
-        setErrorMsg('Please enter your 8-character squad join code.');
+        setErrorMsg('Please enter your squad join code.');
+        return;
+      }
+      if (targetTeam && (targetTeam.remainingSlots <= 0 || targetTeam.isLocked)) {
+        setErrorMsg(
+          `Team Limit Reached: Squad "${targetTeam.name}" has already reached its maximum roster limit of ${targetTeam.maxCapacity} member(s). Registration is closed for this squad.`
+        );
         return;
       }
     }
@@ -354,7 +366,8 @@ export function RegistrationModal({
           code: res.team.code,
           name: res.team.name,
           leaderToken: res.team.leaderToken,
-          eventIds: res.team.eventIds,
+          eventIds: selectedEvents,
+          teams: (res as any).teams || [res.team],
         });
         launchCelebration();
       } else {
@@ -413,7 +426,11 @@ export function RegistrationModal({
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedCode(text);
+    setTimeout(() => {
+      setCopied(false);
+      setCopiedCode(null);
+    }, 2000);
   };
 
   if (!isOpen || !mounted || typeof document === 'undefined') return null;
@@ -489,18 +506,97 @@ export function RegistrationModal({
               </h3>
             </div>
 
-            {/* Credential Card */}
-            <div className="p-6 bg-white border-2 border-black shadow-[6px_6px_0px_#000] text-center relative">
-              <span className="font-mono text-[10px] tracking-widest text-neutral-600 uppercase block mb-1 font-bold">
-                YOUR UNIQUE SQUAD CODE
-              </span>
-              <div className="text-4xl sm:text-5xl font-mono font-black text-[#D21319] tracking-widest my-2">
-                {successData.code}
+            {/* Credential Cards: Render two distinct cards if 2 events were registered */}
+            {successData.teams && successData.teams.length > 1 ? (
+              <div className="space-y-3.5 text-left">
+                <div className="text-center pb-0.5">
+                  <span className="font-mono text-[10px] tracking-widest text-emerald-800 uppercase font-black bg-emerald-100 px-3 py-1 border border-emerald-300 rounded-full inline-block">
+                    2 Separate Squads Auto-Generated for Your 2 Events
+                  </span>
+                  <p className="text-[11px] text-neutral-600 mt-1">
+                    Each discipline enforces its own team limit. Share each squad code with the appropriate teammates:
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {successData.teams.map((t: any, idx: number) => {
+                    const eventId = t.eventId || (t.eventIds && t.eventIds[0]);
+                    const ev = FEST_EVENTS.find((e) => e.id === eventId);
+                    const isCodeCopied = copiedCode === t.code;
+                    return (
+                      <div
+                        key={t.code}
+                        className="p-3.5 bg-white border-2 border-black shadow-[4px_4px_0px_#000] flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between border-b border-neutral-200 pb-1.5 mb-2">
+                            <span className="font-mono text-[10px] font-black uppercase text-[#D21319]">
+                              {idx === 0 ? 'Discipline 1 · Squad A' : 'Discipline 2 · Squad B'}
+                            </span>
+                            {ev && (
+                              <span className="text-[10px] font-mono font-bold bg-neutral-100 px-1.5 py-0.5 border border-neutral-300">
+                                {ev.teamSize}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="font-black text-sm text-black mb-1 line-clamp-1">
+                            {ev?.name || t.name}
+                          </div>
+
+                          <div className="text-xs text-neutral-600 font-mono mb-2">
+                            Squad Name: <span className="font-bold text-black">{t.name}</span>
+                          </div>
+
+                          <div className="p-2 bg-neutral-50 border border-black text-center my-2">
+                            <span className="font-mono text-[9px] text-neutral-500 uppercase tracking-wider block">
+                              Unique Squad Code
+                            </span>
+                            <div className="text-2xl sm:text-3xl font-mono font-black text-[#D21319] tracking-wider my-0.5">
+                              {t.code}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 space-y-1.5">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(t.code)}
+                            className="w-full py-1.5 bg-white hover:bg-neutral-100 border border-black shadow-[2px_2px_0px_#000] text-black font-mono font-bold text-xs transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
+                          >
+                            {isCodeCopied ? '✓ Code Copied!' : `Copy ${t.code}`}
+                          </button>
+
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(
+                              `Join our squad for ${ev?.title || 'Jarvis 3.0'} (${t.name})!\nSquad Code: ${t.code}\nJoin Link: https://indigo-techfest.vercel.app/join/${t.code}`
+                            )}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full py-1.5 bg-[#25D366] hover:bg-[#20ba5a] border border-black shadow-[2px_2px_0px_#000] text-black font-bold text-xs transition text-center block active:translate-x-[1px] active:translate-y-[1px]"
+                          >
+                            Share on WhatsApp ➔
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="text-xs font-mono text-black">
-                SQUAD NAME: <span className="font-bold">{successData.name}</span>
+            ) : (
+              /* Single Credential Card */
+              <div className="p-6 bg-white border-2 border-black shadow-[6px_6px_0px_#000] text-center relative">
+                <span className="font-mono text-[10px] tracking-widest text-neutral-600 uppercase block mb-1 font-bold">
+                  YOUR UNIQUE SQUAD CODE
+                </span>
+                <div className="text-4xl sm:text-5xl font-mono font-black text-[#D21319] tracking-widest my-2">
+                  {successData.code}
+                </div>
+                <div className="text-xs font-mono text-black">
+                  SQUAD NAME: <span className="font-bold">{successData.name}</span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* EVENT WHATSAPP GROUPS PROMINENT JOIN LINKS */}
             {successData.eventIds && successData.eventIds.length > 0 && (
@@ -535,7 +631,7 @@ export function RegistrationModal({
               </div>
             )}
 
-            {successData.type === 'created' && (
+            {successData.type === 'created' && !(successData.teams && successData.teams.length > 1) && (
               <div className="space-y-3">
                 <p className="text-xs text-neutral-700 font-sans">
                   Share this code with your teammates so they can join your squad roster:
