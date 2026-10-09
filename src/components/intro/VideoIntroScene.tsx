@@ -9,7 +9,8 @@ interface VideoIntroSceneProps {
 }
 
 export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
-  const [soundOn, setSoundOn] = useState(false);
+  // Sound is ON by default
+  const [soundOn, setSoundOn] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(13.9);
@@ -106,13 +107,14 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
   }, [hasTriedFallback, videoSrc, handleFinishOrSkip]);
 
-  // Attempt playback with mobile-safe defaults
+  // Attempt playback with default unmuted sound, graceful fallback if blocked by browser policy
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
-    // Enforce DOM properties directly for WebKit/iOS compatibility
+    // Set unmuted sound by default
     vid.muted = !soundOn;
+    vid.volume = 1.0;
     vid.playsInline = true;
 
     const playPromise = vid.play();
@@ -124,10 +126,22 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
         })
         .catch((err) => {
-          // Autoplay policy blocked (iOS low-power mode, battery saver, strict webviews)
-          console.log('Mobile autoplay waiting for user gesture:', err);
-          setIsPlaying(false);
-          setIsWaitingForUserTap(true);
+          // If browser policy blocks unmuted autoplay without prior interaction,
+          // temporarily start muted to avoid blocking the user, and allow easy unmuting on tap
+          console.log('Unmuted autoplay prevented by policy, falling back to muted video:', err);
+          if (vid) {
+            vid.muted = true;
+            vid.play()
+              .then(() => {
+                setIsPlaying(true);
+                setIsWaitingForUserTap(false);
+              })
+              .catch(() => {
+                setIsPlaying(false);
+                setIsWaitingForUserTap(true);
+              });
+          }
+          setSoundOn(false);
         });
     }
   }, [soundOn]);
@@ -137,17 +151,17 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     const vid = videoRef.current;
     if (!vid) return;
 
-    // Force strict inline & muted attributes for iOS Safari / Android Chrome
-    vid.muted = true;
-    vid.defaultMuted = true;
+    vid.volume = 1.0;
     vid.playsInline = true;
     vid.setAttribute('playsinline', '');
     vid.setAttribute('webkit-playsinline', '');
     vid.setAttribute('x5-playsinline', '');
     vid.setAttribute('x5-video-player-type', 'h5-page');
 
+    // Default to unmuted
+    vid.muted = !soundOn;
     attemptPlay();
-  }, [videoSrc, attemptPlay]);
+  }, [videoSrc, attemptPlay, soundOn]);
 
   // Universal Touch & Click listeners: ANY tap on screen immediately starts playback or un-mutes
   useEffect(() => {
@@ -589,7 +603,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
                 ? 'bg-black/75 hover:bg-black/90 border-[#D21319]/80 text-white shadow-[0_0_15px_rgba(210,19,25,0.3)]'
                 : 'bg-black/70 hover:bg-black/90 border-amber-500/60 text-[#FFCB05] shadow-[0_0_12px_rgba(255,203,5,0.3)]'
             }`}
-            title="Toggle Audio (Hotkey: M)"
+            title={soundOn ? "Mute Audio (Hotkey: M)" : "Unmute Audio (Hotkey: M)"}
           >
             {soundOn ? (
               <>
@@ -601,7 +615,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
                   <span className="w-0.5 bg-[#D21319] animate-[bounce_0.5s_ease-in-out_infinite]" style={{ height: '85%', animationDelay: '-0.1s' }} />
                 </div>
                 <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider hidden xs:inline">
-                  SOUND ON
+                  MUTE 🔇
                 </span>
               </>
             ) : (
