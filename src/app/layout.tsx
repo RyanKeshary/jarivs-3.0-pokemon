@@ -20,7 +20,12 @@ export const metadata: Metadata = {
   title: 'INDIGO TECH FEST · Jarvis 3.0',
   description: 'An editorial vintage natural-history tech fest of algorithmic craft. 16 - 17 October 2026.',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
   },
 };
 

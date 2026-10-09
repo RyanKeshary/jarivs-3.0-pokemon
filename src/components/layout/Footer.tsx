@@ -38,12 +38,20 @@ export function Footer() {
              ======================================================== */}
           <div className="bg-white border sm:border-2 border-black shadow-[2px_2px_0px_#000] sm:shadow-[4px_4px_0px_#000] p-3 sm:p-5 flex flex-col justify-between">
             <div>
-              <div className="inline-block bg-black text-white px-2 sm:px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-wider mb-1 sm:mb-1.5 shadow-[1.5px_1.5px_0px_#D21319] sm:shadow-[2px_2px_0px_#D21319]">
-                INDIGO TECH FEST
-              </div>
-              
-              <div className="font-mono text-[8px] sm:text-[9px] text-slate-500 font-bold tracking-widest uppercase mb-1.5 sm:mb-2">
-                SPECTRUM OF INNOVATION · JARVIS 3.0
+              <div className="flex items-center gap-3 mb-2.5">
+                <img
+                  src="/logo.png"
+                  alt="Indigo Tech Fest Logo"
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border-2 border-black shadow-[2px_2px_0px_#000] object-contain shrink-0"
+                />
+                <div>
+                  <div className="inline-block bg-black text-white px-2 sm:px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_#D21319] sm:shadow-[2px_2px_0px_#D21319]">
+                    INDIGO TECH FEST
+                  </div>
+                  <div className="font-mono text-[8px] sm:text-[9px] text-slate-500 font-bold tracking-widest uppercase mt-0.5">
+                    SPECTRUM OF INNOVATION · JARVIS 3.0
+                  </div>
+                </div>
               </div>
 
               <p className="font-sans text-[11px] sm:text-xs text-slate-700 leading-snug sm:leading-relaxed">

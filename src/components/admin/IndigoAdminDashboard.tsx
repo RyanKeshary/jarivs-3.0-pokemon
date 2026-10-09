@@ -659,8 +659,12 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2 w-full">
           
           {/* Brand & Identity */}
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#D21319] rounded-xs shadow-xs shrink-0" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img
+              src="/logo.png"
+              alt="Indigo Tech Fest Logo"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-contain shrink-0 ring-1 ring-slate-200 shadow-xs"
+            />
             <div className="flex items-center gap-1.5 min-w-0">
               <Link
                 href="/"

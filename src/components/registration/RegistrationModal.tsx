@@ -446,21 +446,27 @@ export function RegistrationModal({
       >
         {/* HEADER BAR */}
         <div className="relative flex items-center justify-between pb-2 mb-2 border-b-2 border-black flex-shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#D21319] animate-pulse border border-black" />
-              <span className="font-mono text-[10px] tracking-wider text-neutral-600 uppercase font-bold">
-                INDIGO TECH FEST · JARVIS 3.0
-              </span>
-              {draftRestored && (
-                <span className="font-mono text-[9px] bg-green-100 text-green-800 px-1.5 py-0.2 border border-green-800 font-bold">
-                  Draft Restored
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Indigo Logo"
+              className="w-10 h-10 rounded-full border-2 border-black shadow-[2px_2px_0px_#000] object-contain shrink-0"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] tracking-wider text-neutral-600 uppercase font-bold">
+                  INDIGO TECH FEST · JARVIS 3.0
                 </span>
-              )}
+                {draftRestored && (
+                  <span className="font-mono text-[9px] bg-green-100 text-green-800 px-1.5 py-0.2 border border-green-800 font-bold">
+                    Draft Restored
+                  </span>
+                )}
+              </div>
+              <h2 className="text-lg sm:text-xl font-black font-sans uppercase tracking-tight text-black mt-0.5">
+                Festival Enlistment & Team Roster
+              </h2>
             </div>
-            <h2 className="text-lg sm:text-xl font-black font-sans uppercase tracking-tight text-black mt-0.5">
-              Festival Enlistment & Team Roster
-            </h2>
           </div>
 
           <button

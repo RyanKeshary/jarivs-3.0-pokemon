@@ -83,9 +83,14 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-4 select-none">
       <div className="w-full max-w-md bg-white border-2 border-black p-6 sm:p-8 shadow-[8px_8px_0px_#000] text-black">
         
-        {/* Animated Psyduck Scratching Head */}
-        <div className="flex justify-center mb-3">
-          <AnimatedPsyduck size={100} className="hover:scale-105 transition-transform" />
+        {/* Brand Logo & Animated Psyduck */}
+        <div className="flex items-center justify-center gap-4 mb-3">
+          <img
+            src="/logo.png"
+            alt="Indigo Tech Fest Logo"
+            className="w-16 h-16 rounded-full border-2 border-black shadow-[3px_3px_0px_#000] object-contain hover:scale-105 transition-transform shrink-0"
+          />
+          <AnimatedPsyduck size={88} className="hover:scale-105 transition-transform" />
         </div>
 
         <div className="border-b-2 border-black pb-4 mb-5 text-center">

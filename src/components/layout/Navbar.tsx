@@ -395,7 +395,11 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                 }}
                 className="flex items-center gap-2.5 group cursor-pointer shrink-0"
               >
-                <span className="w-2.5 h-2.5 bg-[#D21319] group-hover:scale-125 transition-transform rounded-xs shadow-[0_0_8px_#D21319]" />
+                <img
+                  src="/logo.png"
+                  alt="Indigo Logo"
+                  className="w-8 h-8 rounded-full object-contain shrink-0 ring-1 ring-white/20 group-hover:ring-[#D21319] group-hover:scale-105 transition-all shadow-[0_0_10px_rgba(210,19,25,0.3)]"
+                />
                 <div className="flex flex-col">
                   <span className="font-serif text-lg font-black tracking-tight text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
                     INDIGO TECH FEST
@@ -557,7 +561,11 @@ export function Navbar({ onRegisterClick, onReplayIntro }: NavbarProps) {
                     }}
                     className="flex items-center gap-2.5 group cursor-pointer"
                   >
-                    <span className="w-2 h-2 bg-[#D21319] rounded-xs shadow-[0_0_8px_#D21319] shrink-0 animate-pulse" />
+                    <img
+                      src="/logo.png"
+                      alt="Indigo Logo"
+                      className="w-7 h-7 rounded-full object-contain shrink-0 ring-1 ring-white/20 group-hover:ring-[#D21319] transition-all"
+                    />
                     <div className="flex flex-col">
                       <span className="font-serif text-sm font-black tracking-wider text-[#D21319] group-hover:text-white transition-colors leading-none uppercase">
                         INDIGO TECH FEST
