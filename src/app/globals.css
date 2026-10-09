@@ -348,6 +348,13 @@ select:-webkit-autofill {
   72% { transform: rotate(-2deg); }
 }
 
+@keyframes mime {
+  0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+  25% { transform: translateY(-4px) rotate(-2deg) scale(1.02); }
+  50% { transform: translateY(-1px) rotate(2deg) scale(0.99); }
+  75% { transform: translateY(-5px) rotate(-1.5deg) scale(1.03); }
+}
+
 @keyframes pop {
   0% { transform: none; }
   25% { transform: scale(1.1, 0.9); }

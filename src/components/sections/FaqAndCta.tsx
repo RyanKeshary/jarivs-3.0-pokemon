@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EngravedPhoenix } from '@/components/illustrations/EngravedPokemon';
+import { AnimatedMrMime } from '@/components/illustrations/AnimatedMrMime';
 
 const FAQS = [
   {
@@ -113,9 +113,9 @@ export function FaqAndCta({ onRegisterClick }: { onRegisterClick: () => void }) 
         {/* REDESIGNED ELEGANT LIGHT THEME CONVOCATION FINALE CARD */}
         <div className="border-2 border-black bg-[#FAF8F5] text-black p-6 sm:p-10 text-center relative shadow-[5px_5px_0px_#000]">
           
-          {/* Engraved Phoenix Motif */}
-          <div className="flex justify-center mb-3">
-            <EngravedPhoenix size={95} className="w-20 sm:w-24 opacity-95" />
+          {/* 3D Model Animated Mr. Mime Loop */}
+          <div className="flex justify-center mb-1">
+            <AnimatedMrMime size={110} className="hover:scale-105 transition-transform" />
           </div>
 
           <span className="font-mono text-[10px] text-[#D21319] block mb-1.5 tracking-[0.25em] font-bold uppercase">
