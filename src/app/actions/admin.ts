@@ -553,10 +553,9 @@ export async function changeAdminPassword(newPassword: string) {
   return { success: true };
 }
 
-// 9. Master Set or Reset Admin Password
+// 9. Master / Admin Set or Reset Admin Password
 export async function resetAdminPassword(targetUserId: string, customPassword?: string) {
-  const { user, isMaster } = await requireAdmin();
-  if (!isMaster) throw new Error('Only Master can change admin credentials');
+  const { user } = await requireAdminOrManager();
 
   const appliedPassword = (customPassword && customPassword.trim().length >= 6)
     ? customPassword.trim()
@@ -593,6 +592,143 @@ export async function resetAdminPassword(targetUserId: string, customPassword?: 
   });
   revalidatePath('/admin');
   return { success: true, newPassword: appliedPassword, email: targetEmail };
+}
+
+// 9b. Batch Reset Passwords for All Admins, All Coordinators, or All Staff at Once
+export async function adminResetBatchPasswords(
+  scope: 'all_admins' | 'all_coordinators' | 'all_staff',
+  customPassword?: string
+) {
+  const { user } = await requireAdminOrManager();
+
+  const appliedPassword =
+    customPassword && customPassword.trim().length >= 6
+      ? customPassword.trim()
+      : 'password@67';
+
+  let targetUsers: { id: string; email: string; full_name?: string; role?: string }[] = [];
+
+  if (scope === 'all_admins') {
+    const profileAdmins = await sql`
+      SELECT id, email, full_name, role::text as role 
+      FROM public.profiles 
+      WHERE role::text = 'admin' OR role::text = 'master'
+    `;
+    const authAdmins = await sql`
+      SELECT id, email, raw_user_meta_data->>'full_name' as full_name, 'admin' as role
+      FROM auth.users
+      WHERE raw_user_meta_data->>'role' = 'admin'
+    `;
+    const seen = new Set<string>();
+    for (const u of [...profileAdmins, ...authAdmins]) {
+      const row = u as any;
+      if (row.id && row.email && !seen.has(row.id)) {
+        seen.add(row.id);
+        targetUsers.push({
+          id: String(row.id),
+          email: String(row.email),
+          full_name: row.full_name ? String(row.full_name) : undefined,
+          role: row.role ? String(row.role) : undefined,
+        });
+      }
+    }
+  } else if (scope === 'all_coordinators') {
+    const coords = await sql`
+      SELECT id, email, full_name, role::text as role 
+      FROM public.profiles 
+      WHERE role::text = 'coordinator'
+    `;
+    targetUsers = coords.map((c: any) => ({
+      id: String(c.id),
+      email: String(c.email),
+      full_name: c.full_name ? String(c.full_name) : undefined,
+      role: c.role ? String(c.role) : undefined,
+    }));
+  } else if (scope === 'all_staff') {
+    const profileStaff = await sql`
+      SELECT id, email, full_name, role::text as role 
+      FROM public.profiles 
+      WHERE role::text = 'admin' OR role::text = 'master' OR role::text = 'coordinator'
+    `;
+    const seen = new Set<string>();
+    for (const u of profileStaff) {
+      const row = u as any;
+      if (row.id && row.email && !seen.has(row.id)) {
+        seen.add(row.id);
+        targetUsers.push({
+          id: String(row.id),
+          email: String(row.email),
+          full_name: row.full_name ? String(row.full_name) : undefined,
+          role: row.role ? String(row.role) : undefined,
+        });
+      }
+    }
+  }
+
+  if (targetUsers.length === 0) {
+    return {
+      success: false,
+      error: `No accounts found for target scope (${scope}).`,
+    };
+  }
+
+  for (const tUser of targetUsers) {
+    await sql`
+      UPDATE auth.users
+      SET encrypted_password = crypt(${appliedPassword}, gen_salt('bf', 10)),
+          instance_id = '00000000-0000-0000-0000-000000000000',
+          aud = 'authenticated',
+          role = 'authenticated',
+          updated_at = NOW()
+      WHERE id = ${tUser.id}::uuid
+    `;
+
+    if (tUser.email) {
+      const existingIdentities = await sql`
+        SELECT id FROM auth.identities WHERE user_id = ${tUser.id}::uuid
+      `;
+      if (existingIdentities.length === 0) {
+        await sql`
+          INSERT INTO auth.identities (
+            id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+          ) VALUES (
+            gen_random_uuid(), ${tUser.id}, ${tUser.id}::uuid, ${sql.json({ sub: tUser.id, email: tUser.email, email_verified: true, phone_verified: false })}, 'email', null, NOW(), NOW()
+          )
+        `;
+      }
+    }
+  }
+
+  await logAudit(
+    user.id,
+    user.email || '',
+    'BATCH_PASSWORD_RESET',
+    'auth.users',
+    user.id,
+    {
+      scope,
+      newPassword: appliedPassword,
+      count: targetUsers.length,
+      emails: targetUsers.map((u) => u.email),
+    }
+  );
+
+  revalidatePath('/admin');
+  return {
+    success: true,
+    newPassword: appliedPassword,
+    count: targetUsers.length,
+    scope,
+    emails: targetUsers.map((u) => u.email),
+  };
+}
+
+export async function adminResetAllAdminsPassword(customPassword?: string) {
+  return adminResetBatchPasswords('all_admins', customPassword);
+}
+
+export async function adminResetAllCoordinatorsPassword(customPassword?: string) {
+  return adminResetBatchPasswords('all_coordinators', customPassword);
 }
 
 // 10. Master Appoint New Administrator with default password password@67
