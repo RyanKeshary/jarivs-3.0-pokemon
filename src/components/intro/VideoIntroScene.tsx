@@ -107,13 +107,13 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
   }, [hasTriedFallback, videoSrc, handleFinishOrSkip]);
 
-  // Attempt playback with default unmuted sound, graceful fallback if blocked by browser policy
+  // Playback with audio ON by default
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
-    // Set unmuted sound by default
-    vid.muted = !soundOn;
+    // Never muted: audio is ALWAYS on by default
+    vid.muted = false;
     vid.volume = 1.0;
     vid.playsInline = true;
 
@@ -126,25 +126,14 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
         })
         .catch((err) => {
-          // If browser policy blocks unmuted autoplay without prior interaction,
-          // temporarily start muted to avoid blocking the user, and allow easy unmuting on tap
-          console.log('Unmuted autoplay prevented by policy, falling back to muted video:', err);
-          if (vid) {
-            vid.muted = true;
-            vid.play()
-              .then(() => {
-                setIsPlaying(true);
-                setIsWaitingForUserTap(false);
-              })
-              .catch(() => {
-                setIsPlaying(false);
-                setIsWaitingForUserTap(true);
-              });
-          }
-          setSoundOn(false);
+          // If browser policy requires user gesture before playing audio,
+          // do NOT mute the video! Prompt user to tap so it plays with sound!
+          console.log('Unmuted autoplay awaiting user tap gesture:', err);
+          setIsPlaying(false);
+          setIsWaitingForUserTap(true);
         });
     }
-  }, [soundOn]);
+  }, []);
 
   // Initial video setup & autoplay kick-off
   useEffect(() => {
@@ -158,35 +147,27 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     vid.setAttribute('x5-playsinline', '');
     vid.setAttribute('x5-video-player-type', 'h5-page');
 
-    // Default to unmuted
-    vid.muted = !soundOn;
+    // Audio is strictly ON
+    vid.muted = false;
     attemptPlay();
-  }, [videoSrc, attemptPlay, soundOn]);
+  }, [videoSrc, attemptPlay]);
 
-  // Universal Touch & Click listeners: ANY tap on screen immediately starts playback or un-mutes
+  // Universal Touch & Click listeners: ANY tap on screen starts playback with FULL audio
   useEffect(() => {
     const handleGlobalInteraction = () => {
       const vid = videoRef.current;
       if (!vid || isExiting) return;
 
-      // If video is paused or stuck, immediate touch gesture guarantees play authorization
+      vid.muted = false;
+      vid.volume = 1.0;
+
       if (vid.paused) {
-        vid.muted = !soundOn;
         vid.play()
           .then(() => {
             setIsPlaying(true);
             setIsWaitingForUserTap(false);
           })
           .catch(() => {});
-        return;
-      }
-
-      // If video is already playing but muted, first tap unlocks audio
-      if (!soundOn) {
-        vid.muted = false;
-        vid.volume = 1.0;
-        setSoundOn(true);
-        playTacticalChime(659.25, 'triangle');
       }
     };
 
@@ -261,11 +242,10 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           setIsWaitingForUserTap(false);
         })
         .catch((err) => {
-          console.warn('Audio unmute retry fell back to muted:', err);
-          // If browser rejects unmuting, preserve video playback in muted mode
-          vid.muted = true;
-          vid.play().catch(() => {});
-          setSoundOn(false);
+          console.warn('Audio unmute retry error:', err);
+          // Audio must NEVER be muted by default
+          vid.muted = false;
+          setIsWaitingForUserTap(true);
         });
     }
     playTacticalChime(659.25, 'triangle');
@@ -412,7 +392,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           webkit-playsinline="true"
           x5-playsinline="true"
           preload="auto"
-          muted={!soundOn}
+          muted={false}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={() => {
             handleTimeUpdate();

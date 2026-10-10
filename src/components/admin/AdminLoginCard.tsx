@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
@@ -14,6 +14,17 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPsyduckVideo, setShowPsyduckVideo] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (showPsyduckVideo && videoRef.current) {
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1.0;
+      videoRef.current.play().catch((err) => {
+        console.warn('Psyduck video playback awaiting user gesture:', err);
+      });
+    }
+  }, [showPsyduckVideo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,6 +230,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
           {/* Full Screen Video Container */}
           <div className="relative w-full h-full flex-1 bg-black flex items-center justify-center overflow-hidden">
             <video
+              ref={videoRef}
               src="/media/untitled-design.mp4"
               controls
               autoPlay
@@ -226,6 +238,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
               // @ts-ignore
               webkit-playsinline="true"
               x5-playsinline="true"
+              muted={false}
               loop
               className="w-full h-full object-contain"
             >

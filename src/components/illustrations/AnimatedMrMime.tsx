@@ -41,14 +41,8 @@ export function AnimatedMrMime({
           setIsPlaying(true);
         })
         .catch((err) => {
-          console.warn('Autoplay restricted by browser policy; trying muted fallback with instant tap unmute:', err);
-          vid.muted = true;
-          setIsMuted(true);
-          vid.play()
-            .then(() => setIsPlaying(true))
-            .catch(() => {
-              setIsPlaying(false);
-            });
+          console.warn('Autoplay awaiting user gesture for unmuted playback:', err);
+          setIsPlaying(false);
         });
     }
   }, [isMuted]);
@@ -330,10 +324,8 @@ export function AnimatedMrMime({
                       vid.volume = 1.0;
                       vid.play()
                         .then(() => setIsPlaying(true))
-                        .catch(() => {
-                          vid.muted = true;
-                          setIsMuted(true);
-                          vid.play().then(() => setIsPlaying(true));
+                        .catch((err) => {
+                          console.warn('Playback error:', err);
                         });
                     }
                   }}

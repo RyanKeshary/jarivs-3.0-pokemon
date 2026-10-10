@@ -60,12 +60,9 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
           videoRef.current
             .play()
             .then(() => setIsPlaying(true))
-            .catch(() => {
-              if (videoRef.current) {
-                videoRef.current.muted = true;
-                setIsMuted(true);
-                videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-              }
+            .catch((err) => {
+              console.warn('Unmuted playback awaiting tap:', err);
+              setIsPlaying(false);
             });
         }
       }, 60);
@@ -335,10 +332,8 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                       vid.volume = 1.0;
                       vid.play()
                         .then(() => setIsPlaying(true))
-                        .catch(() => {
-                          vid.muted = true;
-                          setIsMuted(true);
-                          vid.play().then(() => setIsPlaying(true));
+                        .catch((err) => {
+                          console.warn('Playback error:', err);
                         });
                     }
                   }}
