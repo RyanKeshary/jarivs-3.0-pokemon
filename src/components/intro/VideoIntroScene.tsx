@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, VolumeX, FastForward, Play, Pause, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, FastForward, Play, Pause } from 'lucide-react';
 
 interface VideoIntroSceneProps {
   onComplete: () => void;
@@ -15,7 +15,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(13.9);
   const [showCenterFeedback, setShowCenterFeedback] = useState<'play' | 'pause' | null>(null);
-  const [isWaitingForUserTap, setIsWaitingForUserTap] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
 
@@ -96,9 +95,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
         const vid = videoRef.current;
         if (vid) {
           vid.load();
-          vid.play().catch(() => {
-            setIsWaitingForUserTap(true);
-          });
+          attemptPlay();
         }
       }, 100);
     } else {
@@ -107,30 +104,34 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
   }, [hasTriedFallback, videoSrc, handleFinishOrSkip]);
 
-  // Playback with audio ON by default
+  // Playback automatically - try unmuted first, seamlessly fallback to muted autoplay if browser restricts
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
-    // Never muted: audio is ALWAYS on by default
-    vid.muted = false;
     vid.volume = 1.0;
     vid.playsInline = true;
 
+    // Try unmuted autoplay first
+    vid.muted = false;
     const playPromise = vid.play();
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
           setIsPlaying(true);
-          setIsWaitingForUserTap(false);
+          setSoundOn(true);
           lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
         })
-        .catch((err) => {
-          // If browser policy requires user gesture before playing audio,
-          // do NOT mute the video! Prompt user to tap so it plays with sound!
-          console.log('Unmuted autoplay awaiting user tap gesture:', err);
-          setIsPlaying(false);
-          setIsWaitingForUserTap(true);
+        .catch(() => {
+          // If browser restricts unmuted autoplay, immediately start playing automatically without asking for permission!
+          vid.muted = true;
+          setSoundOn(false);
+          vid.play()
+            .then(() => {
+              setIsPlaying(true);
+              lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
+            })
+            .catch(() => {});
         });
     }
   }, []);
@@ -152,26 +153,28 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     attemptPlay();
   }, [videoSrc, attemptPlay]);
 
-  // Universal Touch & Click listeners: ANY tap on screen starts playback with FULL audio
+  // Universal listeners: ANY interaction on screen immediately un-mutes and ensures playback with FULL audio
   useEffect(() => {
     const handleGlobalInteraction = () => {
       const vid = videoRef.current;
       if (!vid || isExiting) return;
 
-      vid.muted = false;
-      vid.volume = 1.0;
+      if (vid.muted || !soundOn) {
+        vid.muted = false;
+        vid.volume = 1.0;
+        setSoundOn(true);
+      }
 
       if (vid.paused) {
         vid.play()
           .then(() => {
             setIsPlaying(true);
-            setIsWaitingForUserTap(false);
           })
           .catch(() => {});
       }
     };
 
-    const events = ['touchstart', 'touchend', 'pointerdown', 'click'];
+    const events = ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown', 'scroll'];
     events.forEach((evt) => {
       window.addEventListener(evt, handleGlobalInteraction, { passive: true, capture: true });
     });
@@ -181,7 +184,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
         window.removeEventListener(evt, handleGlobalInteraction, { capture: true } as any);
       });
     };
-  }, [soundOn, isExiting, playTacticalChime]);
+  }, [soundOn, isExiting]);
 
   // Tab switch / Screen unlock recovery
   useEffect(() => {
@@ -201,15 +204,15 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       const vid = videoRef.current;
       if (!vid) return;
 
-      if (vid.paused && !vid.ended && !isWaitingForUserTap) {
-        // Nudge paused video
+      if (vid.paused && !vid.ended && !isExiting) {
+        // Nudge paused video to keep playing automatically
         vid.play()
           .then(() => {
             setIsPlaying(true);
-            setIsWaitingForUserTap(false);
           })
           .catch(() => {
-            setIsWaitingForUserTap(true);
+            vid.muted = true;
+            vid.play().catch(() => {});
           });
       } else if (!vid.paused && !vid.ended) {
         const stalledDuration = Date.now() - lastProgressRef.current.wallClock;
@@ -225,7 +228,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }, 1000);
 
     return () => clearInterval(watchdogInterval);
-  }, [isExiting, isWaitingForUserTap, handleFinishOrSkip]);
+  }, [isExiting, handleFinishOrSkip]);
 
   const unmuteAndPlay = useCallback(() => {
     const vid = videoRef.current;
@@ -233,21 +236,8 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
     vid.muted = false;
     vid.volume = 1.0;
-    const playPromise = vid.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          setSoundOn(true);
-          setIsPlaying(true);
-          setIsWaitingForUserTap(false);
-        })
-        .catch((err) => {
-          console.warn('Audio unmute retry error:', err);
-          // Audio must NEVER be muted by default
-          vid.muted = false;
-          setIsWaitingForUserTap(true);
-        });
-    }
+    setSoundOn(true);
+    vid.play().then(() => setIsPlaying(true)).catch(() => {});
     playTacticalChime(659.25, 'triangle');
   }, [playTacticalChime]);
 
@@ -272,7 +262,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       vid.play()
         .then(() => {
           setIsPlaying(true);
-          setIsWaitingForUserTap(false);
         })
         .catch(() => {});
       setShowCenterFeedback('play');
@@ -294,7 +283,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       vid.play()
         .then(() => {
           setIsPlaying(true);
-          setIsWaitingForUserTap(false);
         })
         .catch(() => {});
       return;
@@ -339,9 +327,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       setCurrentTime(ct);
       if (vid.duration && !isNaN(vid.duration)) {
         setDuration(vid.duration);
-      }
-      if (isWaitingForUserTap) {
-        setIsWaitingForUserTap(false);
       }
     }
 
@@ -392,7 +377,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           webkit-playsinline="true"
           x5-playsinline="true"
           preload="auto"
-          muted={false}
+          muted={!soundOn}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={() => {
             handleTimeUpdate();
@@ -401,7 +386,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           onCanPlay={attemptPlay}
           onPlaying={() => {
             setIsPlaying(true);
-            setIsWaitingForUserTap(false);
           }}
           onPause={() => {
             setIsPlaying(false);
@@ -472,71 +456,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           )}
         </AnimatePresence>
 
-        {/* 6. Universal Mobile Tap-to-Play Overlay (Appears if browser autoplay is blocked or paused) */}
-        <AnimatePresence>
-          {isWaitingForUserTap && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.92 }}
-              transition={{ duration: 0.25 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                attemptPlay();
-              }}
-              className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm cursor-pointer"
-            >
-              <div className="flex flex-col items-center gap-3.5 px-6 py-6 sm:px-8 sm:py-7 bg-black/90 border-2 border-[#D21319] shadow-[0_0_50px_rgba(210,19,25,0.85)] max-w-[340px] text-center select-none active:scale-95 transition-transform">
-                <div className="w-16 h-16 rounded-full bg-[#D21319] flex items-center justify-center shadow-[0_0_25px_#D21319] animate-pulse">
-                  <Play className="w-8 h-8 text-white fill-white ml-1" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-sans text-sm sm:text-base font-black uppercase tracking-wider text-white">
-                    TAP TO PLAY INTRO
-                  </span>
-                  <span className="font-mono text-[10px] sm:text-xs text-[#AFAEA2]">
-                    Tap anywhere on your screen to start festival video transmission
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-1 px-3 py-1 bg-white/10 border border-white/20 rounded-full">
-                  <Sparkles className="w-3 h-3 text-[#FFCB05] animate-spin" />
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-[#FFCB05] font-bold">
-                    SYSTEM READY · TAP SCREEN
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
-
-      {/* Center Tap-to-Unmute Prompt on Mobile/Muted */}
-      <AnimatePresence>
-        {!soundOn && !isWaitingForUserTap && (
-          <motion.div
-            initial={{ opacity: 0, y: 15, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.25 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              unmuteAndPlay();
-            }}
-            className="absolute bottom-16 sm:bottom-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5 px-4 py-2.5 bg-black/90 hover:bg-black border-2 border-[#D21319] text-white shadow-[0_0_30px_rgba(210,19,25,0.8)] backdrop-blur-xl rounded-full cursor-pointer group active:scale-95 transition-all select-none touch-manipulation"
-          >
-            <Volume2 className="w-4 h-4 text-[#D21319] animate-bounce shrink-0" />
-            <div className="flex flex-col text-left">
-              <span className="font-mono text-[11px] sm:text-xs font-black uppercase tracking-wider text-white whitespace-nowrap">
-                TAP ANYWHERE FOR SOUND 🔊
-              </span>
-              <span className="font-mono text-[8.5px] sm:text-[9px] text-[#AFAEA2] whitespace-nowrap">
-                Tap anywhere to start festival audio
-              </span>
-            </div>
-            <span className="w-2 h-2 rounded-full bg-[#D21319] animate-ping ml-1 shrink-0" />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* 7. TOP CONTROL DOCK (Glassmorphic, Editorial, High-Tech) */}
       <header className="absolute top-0 left-0 right-0 p-2.5 sm:p-6 sm:px-8 flex items-center justify-between z-30 pointer-events-auto">
