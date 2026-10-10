@@ -1,21 +1,27 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AnimatedPsyduckProps {
   size?: number;
   className?: string;
   showConfusionFx?: boolean;
+  onEasterEggTrigger?: () => void;
+  onTap?: () => void;
 }
 
 export function AnimatedPsyduck({
   size = 100,
   className = '',
   showConfusionFx = true,
+  onEasterEggTrigger,
+  onTap,
 }: AnimatedPsyduckProps) {
   const [isScratching, setIsScratching] = useState(false);
   const [floatingNotes, setFloatingNotes] = useState<{ id: number; text: string; x: number }[]>([]);
+  const [clickCount, setClickCount] = useState(0);
+  const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
 
   // Synthesize Psyduck's nostalgic confused "Psy-yi-yi?!" quack chime via native Web Audio API
   const playPsyduckCry = useCallback(() => {
@@ -61,7 +67,22 @@ export function AnimatedPsyduck({
     setIsScratching(true);
     playPsyduckCry();
 
-    const phrases = ['💫 PSY...?!', '❓ *scratches head*', '✨ PSY-DUCK! ✨', '💭 *headache intensifies*'];
+    if (onTap) {
+      onTap();
+    }
+
+    const nextClicks = clickCount + 1;
+    setClickCount(nextClicks);
+
+    if (nextClicks >= targetClicksRef.current) {
+      if (onEasterEggTrigger) {
+        onEasterEggTrigger();
+      }
+      setClickCount(0);
+      targetClicksRef.current = Math.floor(Math.random() * (67 - 40 + 1)) + 40;
+    }
+
+    const phrases = ['💫 PSY...?!', '❓ *scratches head*', '✨ PSY-DUCK! ✨', '💭 *headache intensifies*', `💫 *tap ${nextClicks}*`];
     const text = phrases[Math.floor(Math.random() * phrases.length)];
     const id = Date.now();
     const xOffset = (Math.random() - 0.5) * 32;

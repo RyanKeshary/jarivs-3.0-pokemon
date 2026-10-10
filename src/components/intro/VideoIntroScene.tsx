@@ -413,8 +413,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           x5-playsinline="true"
           preload="auto"
           muted={!soundOn}
-          // @ts-ignore
-          defaultMuted={true}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={() => {
             handleTimeUpdate();

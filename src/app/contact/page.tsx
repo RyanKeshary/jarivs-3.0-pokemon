@@ -11,6 +11,7 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { Footer } from '@/components/layout/Footer';
+import { NurseJoyHelpCompanion } from '@/components/illustrations/NurseJoyHelpCompanion';
 
 interface ContactPerson {
   name: string;
@@ -277,6 +278,9 @@ export default function ContactPage() {
         </div>
 
       </main>
+
+      {/* 2D Pixelated Nurse Joy & Chansey Helper Companion (Contact Page Only) */}
+      <NurseJoyHelpCompanion />
 
       {/* 4. SLIM RETRO FOOTER */}
       <Footer />

@@ -42,5 +42,7 @@ __pycache__/
 /original-*.jpg
 /Untitled design.mp4
 /public/untitled-design.mp4
+/*.mp4
+/*.mp3
 
 

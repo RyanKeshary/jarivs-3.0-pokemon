@@ -84,16 +84,17 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
     <div className="min-h-screen bg-[#FAF9F5] flex items-center justify-center p-4 select-none">
       <div className="w-full max-w-md bg-white border-2 border-black p-6 sm:p-8 shadow-[8px_8px_0px_#000] text-black">
         
-        {/* Animated Psyduck Easter Egg (Click plays secret transmission video) */}
+        {/* Animated Psyduck Easter Egg (40-67 taps to unlock secret full-screen transmission) */}
         <div className="flex items-center justify-center mb-3">
-          <button
-            type="button"
-            onClick={() => setShowPsyduckVideo(true)}
+          <div
             className="cursor-pointer group hover:scale-105 transition-transform bg-transparent border-0 p-0 focus:outline-none"
-            title="Psyduck · Click to inspect secret transmission!"
+            title="Psyduck · Tap repeatedly (40-67 times) to inspect secret transmission!"
           >
-            <AnimatedPsyduck size={96} />
-          </button>
+            <AnimatedPsyduck
+              size={96}
+              onEasterEggTrigger={() => setShowPsyduckVideo(true)}
+            />
+          </div>
         </div>
 
         <div className="border-b-2 border-black pb-4 mb-5 text-center">
@@ -190,54 +191,56 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
 
       </div>
 
-      {/* Secret Psyduck Transmission Video Modal (Closes strictly on ✕ button) */}
+      {/* Secret Psyduck Fullscreen Transmission Video Modal */}
       {showPsyduckVideo && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="relative w-full max-w-2xl bg-white border-2 border-black p-4 sm:p-5 shadow-[8px_8px_0px_#000] text-black animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 mb-3 border-b-2 border-black">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-[#D21319] rounded-xs shadow-[1px_1px_0px_#000]" />
-                <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-wider text-black">
-                  PSYDUCK CLASSIFIED TRANSMISSION
-                </span>
-                <span className="hidden sm:inline-block font-mono text-[9px] bg-amber-200 text-amber-900 border border-amber-400 px-1.5 py-0.5 rounded font-bold">
-                  EASTER EGG
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPsyduckVideo(false)}
-                className="w-8 h-8 bg-white hover:bg-[#D21319] hover:text-white border-2 border-black flex items-center justify-center font-black text-sm transition-all cursor-pointer shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px]"
-                title="Close transmission"
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Video Player Box */}
-            <div className="relative w-full aspect-video bg-black border-2 border-black overflow-hidden shadow-[4px_4px_0px_#000]">
-              <video
-                src="/media/untitled-design.mp4"
-                controls
-                autoPlay
-                playsInline
-                className="w-full h-full object-contain"
-              >
-                <source src="/media/untitled-design.mp4" type="video/mp4" />
-                <source src="/untitled-design.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-
-            {/* Exit Instruction Notice */}
-            <div className="mt-3 flex items-center justify-between text-[10px] font-mono text-neutral-500">
-              <span className="text-[#D21319] font-bold">JARVIS 3.0 ARCHIVES</span>
-              <span className="font-bold uppercase tracking-wider">
-                Press the ✕ button to exit
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden cursor-default select-none animate-in fade-in duration-200">
+          {/* Top Bar Header */}
+          <div className="relative z-30 p-3 sm:p-4 bg-gradient-to-b from-black/95 via-black/75 to-transparent flex items-center justify-between text-white font-mono text-xs select-none">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 bg-[#D21319] rounded-xs shadow-[0_0_8px_#D21319] animate-pulse" />
+              <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                PSYDUCK CLASSIFIED TRANSMISSION
+              </span>
+              <span className="hidden sm:inline-block font-mono text-[9px] bg-amber-400 text-black px-2 py-0.5 rounded font-black border border-amber-300">
+                EASTER EGG (40-67 TAPS)
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowPsyduckVideo(false)}
+              className="w-9 h-9 sm:w-10 sm:h-10 bg-white/10 hover:bg-[#D21319] text-white border border-white/30 rounded-full flex items-center justify-center font-black transition-all cursor-pointer shadow-lg active:scale-95"
+              title="Close transmission"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Full Screen Video Container */}
+          <div className="relative w-full h-full flex-1 bg-black flex items-center justify-center overflow-hidden">
+            <video
+              src="/media/untitled-design.mp4"
+              controls
+              autoPlay
+              playsInline
+              // @ts-ignore
+              webkit-playsinline="true"
+              x5-playsinline="true"
+              loop
+              className="w-full h-full object-contain"
+            >
+              <source src="/media/untitled-design.mp4" type="video/mp4" />
+              <source src="/untitled-design.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+
+          {/* Bottom Bar Notice */}
+          <div className="relative z-30 p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/75 to-transparent flex items-center justify-between text-[11px] font-mono text-neutral-400">
+            <span className="text-[#D21319] font-bold">JARVIS 3.0 ARCHIVES</span>
+            <span className="font-bold uppercase tracking-wider text-white/80">
+              Audio ON by default · Press ✕ to exit full screen
+            </span>
           </div>
         </div>
       )}
