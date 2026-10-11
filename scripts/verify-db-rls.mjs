@@ -58,8 +58,8 @@ async function verify() {
     failed++;
   }
 
-  // Pick an existing user from auth.users for relation testing
-  const existingUsers = await sql`SELECT id FROM auth.users LIMIT 1`;
+  // Pick an existing user from public.profiles for relation testing
+  const existingUsers = await sql`SELECT id FROM public.profiles LIMIT 1`;
   const validUserId = existingUsers[0]?.id;
 
   // 4. Verify Social Links max 3 constraint trigger
