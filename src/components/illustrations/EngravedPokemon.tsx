@@ -9,16 +9,18 @@ interface PokemonProps {
   className?: string;
   animateIdle?: boolean;
   size?: number | string;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 // 1. PHOENIX (Majestic crown engraving with active celestial loop)
-export function EngravedPhoenix({ className = '', animateIdle = true, size = 160 }: PokemonProps) {
+export function EngravedPhoenix({ className = '', animateIdle = true, size = 160, onClick }: PokemonProps) {
   return (
     <motion.div
       animate={animateIdle ? { translateY: [0, -4, 0] } : {}}
       transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
       className={`inline-block ${className}`}
       style={{ width: size, height: size }}
+      onClick={onClick}
     >
       <svg
         viewBox="0 0 200 160"
@@ -156,13 +158,24 @@ export function EngravedSnorlax({ className = '', animateIdle = true, size = 110
 }
 
 // 3. JIGGLYPUFF (Sways: rotate -3 to 3 deg)
-export function EngravedJigglypuff({ className = '', animateIdle = true, size = 95 }: PokemonProps) {
+export function EngravedJigglypuff({ className = '', animateIdle = true, size = 95, onClick }: PokemonProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      onClick(e);
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('toggle_jigglypuff_song'));
+    }
+  };
+
   return (
     <motion.div
       animate={animateIdle ? { rotate: [-3.5, 3.5, -3.5], translateY: [0, -2, 0] } : {}}
       transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-      className={`inline-block origin-bottom ${className}`}
+      className={`inline-block origin-bottom cursor-pointer hover:scale-105 transition-transform ${className}`}
       style={{ width: size, height: size }}
+      onClick={handleClick}
+      title="Jigglypuff · Click to play lullaby 🎵"
     >
       <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
         {/* Round Body Sphere */}

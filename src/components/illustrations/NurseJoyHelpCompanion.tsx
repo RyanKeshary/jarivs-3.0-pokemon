@@ -9,8 +9,9 @@ interface NurseJoyHelpCompanionProps {
 }
 
 export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionProps) {
-  // Silent easter egg counter: strictly 7 edge-to-edge screen drags (NO visible hint)
+  // Easter egg counter: counts edge-to-edge drags in ANY direction (left-right, top-bottom, etc.)
   const [completedEdgeDrags, setCompletedEdgeDrags] = useState(0);
+  const [clickCount, setClickCount] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState<string>(
     'Welcome to the Indigo Pokémon Center Help Desk! Need assistance reaching our coordinators? 💖'
@@ -22,6 +23,7 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const dragStartPointRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const maxTravelRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Synthesize authentic 8-bit/16-bit retro chime via Web Audio API
   const playRetroChime = useCallback(() => {
@@ -49,29 +51,82 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
     }
   }, []);
 
-  // Ensure body scroll is locked while full screen video modal is active
+  // Reliable video autoplay with unmuted -> muted fallback
+  const attemptPlay = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+
+    vid.muted = isMuted;
+    const playPromise = vid.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('Unmuted playback restricted by browser policy; trying muted fallback:', err);
+          vid.muted = true;
+          setIsMuted(true);
+          vid.play()
+            .then(() => setIsPlaying(true))
+            .catch((e2) => {
+              console.warn('Playback requires direct user tap:', e2);
+              setIsPlaying(false);
+            });
+        });
+    }
+  }, [isMuted]);
+
+  // Lock body scroll while video lightbox is active & pause background lullaby
   useEffect(() => {
     if (showVideo) {
       document.body.style.overflow = 'hidden';
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pause_background_audio'));
+      }
       const timer = setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.muted = isMuted;
-          videoRef.current.volume = 1.0;
-          videoRef.current
-            .play()
-            .then(() => setIsPlaying(true))
-            .catch((err) => {
-              console.warn('Unmuted playback awaiting tap:', err);
-              setIsPlaying(false);
-            });
-        }
+        attemptPlay();
       }, 60);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = '';
+      };
     } else {
       document.body.style.overflow = '';
       setIsPlaying(false);
     }
-  }, [showVideo, isMuted]);
+  }, [showVideo, attemptPlay]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showVideo) {
+        closeLightbox();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showVideo]);
+
+  // Listen for global pause requests
+  useEffect(() => {
+    const handlePauseVideo = () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+      setIsPlaying(false);
+    };
+    window.addEventListener('pause_video_transmission', handlePauseVideo);
+    return () => window.removeEventListener('pause_video_transmission', handlePauseVideo);
+  }, []);
+
+  const closeLightbox = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    setShowVideo(false);
+    setIsPlaying(false);
+  };
 
   const handleDragStart = (
     _: MouseEvent | TouchEvent | PointerEvent,
@@ -79,15 +134,22 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
   ) => {
     setIsDragging(true);
     dragStartPointRef.current = { x: info.point.x, y: info.point.y };
+    maxTravelRef.current = { x: 0, y: 0 };
   };
 
   const handleDrag = (
     _: MouseEvent | TouchEvent | PointerEvent,
-    info: { offset: { x: number; y: number } }
+    info: { point: { x: number; y: number }; offset: { x: number; y: number } }
   ) => {
     const { x, y } = info.offset;
     const absX = Math.abs(x);
     const absY = Math.abs(y);
+
+    const distX = Math.abs(info.point.x - dragStartPointRef.current.x);
+    const distY = Math.abs(info.point.y - dragStartPointRef.current.y);
+
+    maxTravelRef.current.x = Math.max(maxTravelRef.current.x, distX, absX);
+    maxTravelRef.current.y = Math.max(maxTravelRef.current.y, distY, absY);
 
     if (absX > 25 || absY > 25) {
       if (absX > absY) {
@@ -120,26 +182,80 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
   ) => {
     setIsDragging(false);
 
-    // Require an across-the-screen drag from edge to edge
-    // Measured either by total distance traversed or spanning across at least 45% of viewport width
     const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
-    const dragDistanceX = Math.abs(info.point.x - dragStartPointRef.current.x);
-    const minEdgeToEdgeThreshold = Math.min(screenWidth * 0.45, 340);
+    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
 
-    const isAcrossScreen = dragDistanceX >= minEdgeToEdgeThreshold;
+    // Check travel across ANY axis: horizontal (left <-> right) OR vertical (top <-> bottom)
+    const totalTravelX = Math.max(
+      Math.abs(info.point.x - dragStartPointRef.current.x),
+      Math.abs(info.offset.x),
+      maxTravelRef.current.x
+    );
+    const totalTravelY = Math.max(
+      Math.abs(info.point.y - dragStartPointRef.current.y),
+      Math.abs(info.offset.y),
+      maxTravelRef.current.y
+    );
 
-    if (isAcrossScreen) {
+    // Responsive thresholds: ~18% screen dimension or 130px
+    const thresholdX = Math.min(screenWidth * 0.18, 140);
+    const thresholdY = Math.min(screenHeight * 0.16, 120);
+
+    // Also count if dragged close to ANY screen edge (left, right, top, or bottom)
+    const nearAnyEdge =
+      info.point.x < 130 ||
+      info.point.x > screenWidth - 130 ||
+      info.point.y < 130 ||
+      info.point.y > screenHeight - 130;
+
+    const isEdgeToEdge =
+      totalTravelX >= thresholdX ||
+      totalTravelY >= thresholdY ||
+      (nearAnyEdge && (totalTravelX >= 70 || totalTravelY >= 70)) ||
+      Math.hypot(totalTravelX, totalTravelY) >= 150;
+
+    if (isEdgeToEdge) {
       playRetroChime();
       const nextCount = completedEdgeDrags + 1;
       setCompletedEdgeDrags(nextCount);
 
-      if (nextCount >= 7) {
+      if (nextCount >= 5) {
         setShowVideo(true);
         setCompletedEdgeDrags(0);
         setCurrentPrompt(
           '💖 Special archive transmission unlocked! Enjoy the exclusive Pokémon Center presentation!'
         );
+      } else {
+        setCurrentPrompt(
+          `💖 Healing wave [${nextCount}/5] registered! Keep sweeping across the screen in any direction!`
+        );
       }
+    }
+  };
+
+  const handleCharacterClick = () => {
+    if (!showSpeechBubble) setShowSpeechBubble(true);
+    playRetroChime();
+
+    const nextClicks = clickCount + 1;
+    setClickCount(nextClicks);
+
+    // Quick tap shortcut: 3 taps opens the video directly
+    if (nextClicks >= 3) {
+      setShowVideo(true);
+      setClickCount(0);
+    }
+  };
+
+  const handleToggleSound = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const vid = videoRef.current;
+    if (!vid) return;
+    const nextMuted = !isMuted;
+    vid.muted = nextMuted;
+    setIsMuted(nextMuted);
+    if (vid.paused) {
+      vid.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   };
 
@@ -159,7 +275,7 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
       >
-        {/* RETRO 2D DIALOGUE BUBBLE OFFERING HELP (NO 0/7 OR DRAG HINTS) */}
+        {/* RETRO 2D DIALOGUE BUBBLE OFFERING HELP */}
         <AnimatePresence>
           {showSpeechBubble && (
             <motion.div
@@ -174,18 +290,31 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                   <Heart size={12} className="fill-[#D21319]" />
                   <span>POKÉMON CENTER DESK</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowSpeechBubble(false);
-                  }}
-                  className="text-neutral-500 hover:text-black cursor-pointer p-0.5"
-                  title="Dismiss dialogue"
-                  aria-label="Dismiss dialogue"
-                >
-                  <X size={12} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowVideo(true);
+                    }}
+                    className="text-[9px] font-bold text-pink-600 hover:text-pink-700 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-200 cursor-pointer"
+                    title="Watch secret transmission"
+                  >
+                    ▶ Transmission
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSpeechBubble(false);
+                    }}
+                    className="text-neutral-500 hover:text-black cursor-pointer p-0.5"
+                    title="Dismiss dialogue"
+                    aria-label="Dismiss dialogue"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
               </div>
 
               {/* Dynamic Speech Text */}
@@ -202,13 +331,10 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
         {/* 2D PIXELATED SPRITE CONTAINER */}
         <div
           className="relative group flex items-end justify-center"
-          onClick={() => {
-            if (!showSpeechBubble) setShowSpeechBubble(true);
-            playRetroChime();
-          }}
-          title="Nurse Joy & Chansey · 2D Pixel Pokémon Center Companion"
+          onClick={handleCharacterClick}
+          title="Nurse Joy & Chansey · Drag across the screen in any direction (left-right or top-bottom) to unlock secret!"
         >
-          {/* Authentic 2D Pixel Art Sprite (Nurse Joy with clipboard & Chansey with egg) */}
+          {/* Authentic 2D Pixel Art Sprite */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <motion.img
             src="/assets/pixel-nurse-joy-chansey.png"
@@ -239,124 +365,135 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
         </div>
       </motion.div>
 
-      {/* FULL-SCREEN SECRET NURSE JOY VIDEO MODAL */}
+      {/* ============================================================== */}
+      {/* NURSE JOY ELEGANT RETRO LIGHTBOX MODAL                         */}
+      {/* ============================================================== */}
       <AnimatePresence>
         {showVideo && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] bg-black flex flex-col justify-between overflow-hidden cursor-default select-none"
+            className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto cursor-default select-none"
+            onClick={closeLightbox}
           >
-            {/* Top Bar Header */}
-            <div className="relative z-30 p-3 sm:p-4 bg-gradient-to-b from-black/95 via-black/75 to-transparent flex items-center justify-between text-white font-mono text-xs select-none">
-              <div className="flex items-center gap-2.5">
-                <span className="w-3 h-3 rounded-full bg-pink-500 animate-pulse shadow-[0_0_8px_#ec4899]" />
-                <span className="font-bold tracking-wider uppercase text-xs sm:text-sm text-[#E9E6DA]">
-                  NURSE JOY &amp; CHANSEY · SECRET TRANSMISSION
-                </span>
-                <span className="hidden sm:inline-block text-[10px] bg-pink-900/80 text-pink-200 border border-pink-500/50 px-2 py-0.5 rounded font-mono font-bold">
-                  HEALING ARCHIVES UNLOCKED
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* Audio Status & Toggle */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const vid = videoRef.current;
-                    if (!vid) return;
-                    const nextMuted = !isMuted;
-                    vid.muted = nextMuted;
-                    setIsMuted(nextMuted);
-                    if (vid.paused) {
-                      vid.play().then(() => setIsPlaying(true)).catch(() => {});
-                    }
-                  }}
-                  className="flex items-center gap-1.5 text-slate-200 hover:text-white transition-colors cursor-pointer px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded border border-white/20 font-bold text-xs"
-                >
-                  {isMuted ? <VolumeX size={15} className="text-amber-400" /> : <Volume2 size={15} className="text-emerald-400" />}
-                  <span>{isMuted ? 'UNMUTE SOUND 🔊' : 'AUDIO ON 🔊'}</span>
-                </button>
-                {/* Close Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (videoRef.current) {
-                      videoRef.current.pause();
-                    }
-                    setShowVideo(false);
-                  }}
-                  className="w-9 h-9 sm:w-10 sm:h-10 bg-black/80 hover:bg-[#D21319] text-white border border-white/30 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95"
-                  title="Close transmission"
-                  aria-label="Close"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Video Player Area: Takes Full Screen */}
-            <div className="relative w-full h-full flex-1 bg-black flex items-center justify-center overflow-hidden">
-              <video
-                ref={videoRef}
-                src="/media/nurse-joy-video.mp4"
-                autoPlay
-                controls
-                playsInline
-                // @ts-ignore
-                webkit-playsinline="true"
-                x5-playsinline="true"
-                muted={isMuted}
-                loop
-                preload="auto"
-                onPlay={() => setIsPlaying(true)}
-                onPlaying={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                className="w-full h-full object-contain"
-              >
-                <source src="/media/nurse-joy-video.mp4" type="video/mp4" />
-                <source src="/media/Oh-Nurse-Joy-SnapYT.App.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-
-              {/* Big Tap to Play / Resume Fallback Overlay */}
-              {!isPlaying && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const vid = videoRef.current;
-                    if (vid) {
-                      vid.muted = isMuted;
-                      vid.volume = 1.0;
-                      vid.play()
-                        .then(() => setIsPlaying(true))
-                        .catch((err) => {
-                          console.warn('Playback error:', err);
-                        });
-                    }
-                  }}
-                  className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] cursor-pointer"
-                  aria-label="Play video"
-                >
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-pink-600 hover:bg-pink-700 text-white flex items-center justify-center shadow-2xl border-2 border-white animate-pulse mb-3 transition-transform hover:scale-110">
-                    <Play size={30} className="translate-x-0.5 fill-white" />
-                  </div>
-                  <span className="font-mono text-xs sm:text-sm font-bold text-white bg-black/80 px-4 py-1.5 rounded border border-white/20 uppercase tracking-wider">
-                    Tap to Play Full Screen Video
+            {/* Centered Lightbox Card: Sized for 16:9 landscape presentation */}
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+              className="relative w-full max-w-2xl sm:max-w-3xl bg-[#0E101D] border-2 border-pink-500 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(236,72,153,0.35)] overflow-hidden flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Lightbox Top Header Bar */}
+              <div className="relative z-30 px-3.5 py-2.5 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-b border-white/10 flex items-center justify-between text-white font-mono text-xs select-none">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse shadow-[0_0_8px_#ec4899]" />
+                  <span className="font-bold tracking-wider uppercase text-xs sm:text-sm text-[#E9E6DA]">
+                    NURSE JOY &amp; CHANSEY TRANSMISSION
                   </span>
-                </button>
-              )}
-            </div>
+                  <span className="hidden sm:inline-block text-[9px] bg-pink-950/80 text-pink-300 border border-pink-500/50 px-2 py-0.5 rounded font-bold">
+                    HEALING ARCHIVES
+                  </span>
+                </div>
 
-            {/* Bottom Bar Info */}
-            <div className="relative z-30 p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/75 to-transparent flex items-center justify-between font-mono text-[11px] text-slate-300 select-none">
-              <span className="text-pink-400 font-bold">JARVIS 3.0 · POKÉMON CENTER ARCHIVES</span>
-              <span className="text-slate-400 uppercase tracking-wider">
-                Audio ON by default · Press ✕ to exit full screen
-              </span>
-            </div>
+                <div className="flex items-center gap-2">
+                  {/* Audio Status & Toggle */}
+                  <button
+                    type="button"
+                    onClick={handleToggleSound}
+                    className="flex items-center gap-1 text-[11px] text-slate-200 hover:text-white px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded border border-white/20 transition-all cursor-pointer font-bold"
+                    title={isMuted ? 'Unmute' : 'Mute'}
+                  >
+                    {isMuted ? (
+                      <>
+                        <VolumeX size={13} className="text-amber-400" />
+                        <span className="text-amber-300">UNMUTE</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 size={13} className="text-emerald-400" />
+                        <span className="text-emerald-300">AUDIO ON</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Close Lightbox Button */}
+                  <button
+                    type="button"
+                    onClick={closeLightbox}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 hover:bg-[#D21319] text-white border border-white/20 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow"
+                    title="Close transmission (Esc)"
+                    aria-label="Close"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Video Player Area with Aspect Ratio matching 16:9 */}
+              <div className="relative w-full aspect-video max-h-[70vh] bg-black flex items-center justify-center overflow-hidden">
+                <video
+                  ref={videoRef}
+                  poster="/media/nurse-joy-poster.jpg"
+                  autoPlay
+                  controls
+                  playsInline
+                  loop
+                  preload="auto"
+                  muted={isMuted}
+                  onPlay={() => setIsPlaying(true)}
+                  onPlaying={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  className="w-full h-full object-contain bg-black"
+                >
+                  <source src="/media/nurse-joy-video.mp4" type="video/mp4" />
+                  <source src="/media/nurse-joy-video.webm" type="video/webm" />
+                  Your browser does not support HTML5 video.
+                </video>
+
+                {/* Big Center Play Overlay (visible if paused or awaiting interaction) */}
+                {!isPlaying && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const vid = videoRef.current;
+                      if (vid) {
+                        vid.muted = false;
+                        setIsMuted(false);
+                        vid.play()
+                          .then(() => setIsPlaying(true))
+                          .catch((err) => {
+                            console.warn('Playback error:', err);
+                            vid.muted = true;
+                            setIsMuted(true);
+                            vid.play().then(() => setIsPlaying(true)).catch(() => {});
+                          });
+                      }
+                    }}
+                    className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
+                    aria-label="Play video"
+                  >
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-pink-600 hover:bg-pink-700 text-white flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95">
+                      <Play size={26} className="translate-x-0.5 fill-white" />
+                    </div>
+                    <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
+                      Tap to Play Transmission
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Lightbox Footer Bar */}
+              <div className="px-3.5 py-2 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-t border-white/10 flex items-center justify-between font-mono text-[10px] text-slate-300">
+                <span className="text-pink-400 font-bold">JARVIS 3.0 · POKÉMON CENTER ARCHIVES</span>
+                <span className="text-slate-400 uppercase tracking-wider">
+                  Click backdrop or ✕ to close
+                </span>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -18,22 +18,19 @@ export function AnimatedMrMime({
   const [isTapping, setIsTapping] = useState(false);
   const [floatingTexts, setFloatingTexts] = useState<{ id: number; text: string; x: number }[]>([]);
 
-  // Easter egg: random target click threshold between 40 and 67
+  // Click tracking to trigger the secret tape lightbox
   const [clickCount, setClickCount] = useState(0);
-  const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
   const [showVideoModal, setShowVideoModal] = useState(false);
-  // Audio is ON by default
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Reliable mobile play trigger with unmuted audio by default
+  // Play video with robust browser autoplay fallback (unmuted -> muted fallback)
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
     vid.muted = isMuted;
-    vid.volume = 1.0;
     const playPromise = vid.play();
     if (playPromise !== undefined) {
       playPromise
@@ -41,28 +38,73 @@ export function AnimatedMrMime({
           setIsPlaying(true);
         })
         .catch((err) => {
-          console.warn('Autoplay awaiting user gesture for unmuted playback:', err);
-          setIsPlaying(false);
+          console.warn('Unmuted autoplay restricted by browser policy; trying muted fallback:', err);
+          // Gracefully fallback to muted autoplay so the video starts rendering frames immediately
+          vid.muted = true;
+          setIsMuted(true);
+          vid.play()
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch((e2) => {
+              console.warn('Autoplay requires direct user tap:', e2);
+              setIsPlaying(false);
+            });
         });
     }
   }, [isMuted]);
 
-  // Lock body scroll while video modal is active; ONLY closeable via the cross button
+  // Lock body scroll while lightbox is active & listen for Escape key
   useEffect(() => {
     if (showVideoModal) {
       document.body.style.overflow = 'hidden';
+      // Pause any background audio / lullaby
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pause_background_audio'));
+      }
       const timer = setTimeout(() => {
         attemptPlay();
-      }, 50);
-      return () => clearTimeout(timer);
+      }, 60);
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = '';
+      };
     } else {
       document.body.style.overflow = '';
       setIsPlaying(false);
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [showVideoModal, attemptPlay]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showVideoModal) {
+        closeLightbox();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showVideoModal]);
+
+  // Listen for global pause requests
+  useEffect(() => {
+    const handlePauseVideo = () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+      setIsPlaying(false);
+    };
+    window.addEventListener('pause_video_transmission', handlePauseVideo);
+    return () => window.removeEventListener('pause_video_transmission', handlePauseVideo);
+  }, []);
+
+  const closeLightbox = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    setShowVideoModal(false);
+    setIsPlaying(false);
+  };
 
   // Synthesize Mr. Mime's signature playful psychic tap sound via native Web Audio API
   const playMimeSound = useCallback(() => {
@@ -121,234 +163,280 @@ export function AnimatedMrMime({
       setFloatingTexts((prev) => prev.filter((item) => item.id !== id));
     }, 1800);
 
-    // Easter egg random click tracking (40 to 67 clicks)
     const nextClicks = clickCount + 1;
     setClickCount(nextClicks);
 
-    if (nextClicks >= targetClicksRef.current) {
+    // Open lightbox smoothly on 2 taps or directly
+    if (nextClicks >= 2) {
       setShowVideoModal(true);
       setClickCount(0);
-      targetClicksRef.current = Math.floor(Math.random() * (67 - 40 + 1)) + 40;
+    }
+  };
+
+  const handleDirectPlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    playMimeSound();
+    setShowVideoModal(true);
+    setClickCount(0);
+  };
+
+  const handleToggleSound = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const vid = videoRef.current;
+    if (!vid) return;
+    const nextMuted = !isMuted;
+    vid.muted = nextMuted;
+    setIsMuted(nextMuted);
+    if (vid.paused) {
+      vid.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   };
 
   return (
     <>
-      <div
-        className={`relative inline-flex flex-col items-center justify-center select-none cursor-pointer group ${className}`}
-        onClick={handleInteract}
-        title="Mr. Mime · No. 122 (Barrier Pokémon) — Click to tap the invisible wall!"
-        style={{ width: size, height: size + 20 }}
-      >
-        {/* Floating Sparkles / Onomatopoeia */}
-        <div className="absolute inset-x-0 -top-6 h-8 pointer-events-none flex justify-center items-center z-30">
-          <AnimatePresence>
-            {floatingTexts.map((item) => (
-              <motion.span
-                key={item.id}
-                initial={{ opacity: 0, y: 10, scale: 0.8, x: item.x }}
-                animate={{ opacity: 1, y: -16, scale: 1.05 }}
-                exit={{ opacity: 0, y: -28, scale: 0.7 }}
-                transition={{ duration: 1.2, ease: 'easeOut' }}
-                className="absolute font-mono text-[10px] font-bold text-[#D21319] bg-white/95 px-2 py-0.5 rounded-full border border-black/20 shadow-[1px_1px_0px_#000] tracking-wider whitespace-nowrap"
+      <div className="relative inline-flex flex-col items-center justify-center">
+        <div
+          className={`relative inline-flex flex-col items-center justify-center select-none cursor-pointer group ${className}`}
+          onClick={handleInteract}
+          title="Mr. Mime · No. 122 (Barrier Pokémon) — Tap to interact or watch secret tape!"
+          style={{ width: size, height: size + 16 }}
+        >
+          {/* Floating Sparkles / Onomatopoeia */}
+          <div className="absolute inset-x-0 -top-6 h-8 pointer-events-none flex justify-center items-center z-30">
+            <AnimatePresence>
+              {floatingTexts.map((item) => (
+                <motion.span
+                  key={item.id}
+                  initial={{ opacity: 0, y: 10, scale: 0.8, x: item.x }}
+                  animate={{ opacity: 1, y: -16, scale: 1.05 }}
+                  exit={{ opacity: 0, y: -28, scale: 0.7 }}
+                  transition={{ duration: 1.2, ease: 'easeOut' }}
+                  className="absolute font-mono text-[10px] font-bold text-[#D21319] bg-white/95 px-2 py-0.5 rounded-full border border-black/20 shadow-[1px_1px_0px_#000] tracking-wider whitespace-nowrap"
+                >
+                  {item.text}
+                </motion.span>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* 3D Model Floating Stage */}
+          <motion.div
+            animate={{
+              y: [0, -4, 0],
+              rotate: [-1.2, 1.2, -1.2],
+            }}
+            transition={{
+              duration: 2.25,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            className="relative flex items-center justify-center"
+            style={{ width: size, height: size }}
+          >
+            {/* Ambient Back Glow */}
+            <div
+              className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#D21319]/10 via-[#FF7A8A]/15 to-transparent blur-md scale-95 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+            />
+
+            {/* Authentic 3D Model Animated Mr. Mime */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/mr-mime.gif"
+              alt="Mr. Mime 3D Model Animation"
+              width={size}
+              height={size}
+              className="relative z-10 w-full h-full object-contain filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.18)] transition-transform duration-200"
+              style={{ imageRendering: 'auto' }}
+              loading="lazy"
+            />
+
+            {/* Signature Invisible Barrier Glass Screen (Visible on Hover / Tap) */}
+            {showBarrier && (
+              <motion.div
+                animate={
+                  isTapping
+                    ? { opacity: [0.9, 0.4, 0], scale: [1.05, 1.08, 1.05] }
+                    : { opacity: [0.08, 0.22, 0.08] }
+                }
+                transition={
+                  isTapping
+                    ? { duration: 0.5, ease: 'easeOut' }
+                    : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+                }
+                className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center"
               >
-                {item.text}
-              </motion.span>
-            ))}
-          </AnimatePresence>
+                <div className="w-[88%] h-[88%] rounded-xl border border-[#D21319]/40 bg-gradient-to-b from-[#FAF8F5]/30 to-[#FF7A8A]/10 backdrop-blur-[0.5px] shadow-[0_0_12px_rgba(210,19,25,0.25)] flex items-center justify-center overflow-hidden">
+                  {/* Glass Sheen Shimmer Reflection */}
+                  <div className="w-[200%] h-1 bg-gradient-to-r from-transparent via-white/80 to-transparent rotate-45 transform -translate-y-4 animate-pulse" />
+                  {/* Barrier Hex Grid Accents */}
+                  <svg className="w-full h-full opacity-30 stroke-[#D21319]" viewBox="0 0 100 100" fill="none">
+                    <circle cx="50" cy="50" r="32" strokeWidth="1" strokeDasharray="3 3" />
+                    <path d="M20 50 H80 M50 20 V80" strokeWidth="0.75" strokeDasharray="2 4" />
+                  </svg>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* 3D Perspective Ground Shadow */}
+          <motion.div
+            animate={{
+              scaleX: [1, 1.12, 1],
+              opacity: [0.35, 0.5, 0.35],
+            }}
+            transition={{
+              duration: 2.25,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="h-2 w-16 bg-black/20 rounded-full blur-[2px] mt-1 pointer-events-none"
+          />
         </div>
 
-        {/* 3D Model Floating Stage */}
-        <motion.div
-          animate={{
-            y: [0, -4, 0],
-            rotate: [-1.2, 1.2, -1.2],
-          }}
-          transition={{
-            duration: 2.25,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.94 }}
-          className="relative flex items-center justify-center"
-          style={{ width: size, height: size }}
+        {/* Small Direct Play Pill beneath Mr. Mime */}
+        <button
+          type="button"
+          onClick={handleDirectPlay}
+          className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/80 hover:bg-[#D21319] text-[#E9E6DA] hover:text-white font-mono text-[9px] uppercase tracking-wider font-bold border border-black/30 shadow-[1px_1px_0px_#000] transition-all cursor-pointer hover:scale-105 active:scale-95"
+          title="Play Mr. Mime Secret Archive Tape"
         >
-          {/* Ambient Back Glow */}
-          <div
-            className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#D21319]/10 via-[#FF7A8A]/15 to-transparent blur-md scale-95 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
-          />
-
-          {/* Authentic 3D Model Animated Mr. Mime */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/assets/mr-mime.gif"
-            alt="Mr. Mime 3D Model Animation"
-            width={size}
-            height={size}
-            className="relative z-10 w-full h-full object-contain filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.18)] transition-transform duration-200"
-            style={{ imageRendering: 'auto' }}
-            loading="lazy"
-          />
-
-          {/* Signature Invisible Barrier Glass Screen (Visible on Hover / Tap) */}
-          {showBarrier && (
-            <motion.div
-              animate={
-                isTapping
-                  ? { opacity: [0.9, 0.4, 0], scale: [1.05, 1.08, 1.05] }
-                  : { opacity: [0.08, 0.22, 0.08] }
-              }
-              transition={
-                isTapping
-                  ? { duration: 0.5, ease: 'easeOut' }
-                  : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
-              }
-              className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center"
-            >
-              <div className="w-[88%] h-[88%] rounded-xl border border-[#D21319]/40 bg-gradient-to-b from-[#FAF8F5]/30 to-[#FF7A8A]/10 backdrop-blur-[0.5px] shadow-[0_0_12px_rgba(210,19,25,0.25)] flex items-center justify-center overflow-hidden">
-                {/* Glass Sheen Shimmer Reflection */}
-                <div className="w-[200%] h-1 bg-gradient-to-r from-transparent via-white/80 to-transparent rotate-45 transform -translate-y-4 animate-pulse" />
-                {/* Barrier Hex Grid Accents */}
-                <svg className="w-full h-full opacity-30 stroke-[#D21319]" viewBox="0 0 100 100" fill="none">
-                  <circle cx="50" cy="50" r="32" strokeWidth="1" strokeDasharray="3 3" />
-                  <path d="M20 50 H80 M50 20 V80" strokeWidth="0.75" strokeDasharray="2 4" />
-                </svg>
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
-
-        {/* 3D Perspective Ground Shadow (Breathes with Mr. Mime's animation) */}
-        <motion.div
-          animate={{
-            scaleX: [1, 1.12, 1],
-            opacity: [0.35, 0.5, 0.35],
-          }}
-          transition={{
-            duration: 2.25,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          className="h-2 w-16 bg-black/20 rounded-full blur-[2px] mt-1 pointer-events-none"
-        />
+          <Play size={10} className="fill-current" />
+          <span>Secret Tape</span>
+        </button>
       </div>
 
-      {/* MR. MIME EASTER EGG FULL-SCREEN VIDEO MODAL */}
+      {/* ============================================================== */}
+      {/* MR. MIME ELEGANT RETRO LIGHTBOX MODAL                         */}
+      {/* ============================================================== */}
       <AnimatePresence>
         {showVideoModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden cursor-default select-none"
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto cursor-default select-none"
+            onClick={closeLightbox}
           >
-            {/* Top Bar Header with Title and Close ✕ Button */}
-            <div className="relative z-30 p-3 sm:p-4 bg-gradient-to-b from-black/95 via-black/75 to-transparent flex items-center justify-between text-white font-mono text-xs select-none">
-              <div className="flex items-center gap-2.5">
-                <span className="w-3 h-3 rounded-full bg-[#D21319] animate-pulse shadow-[0_0_8px_#D21319]" />
-                <span className="font-bold tracking-wider uppercase text-xs sm:text-sm text-[#E9E6DA]">
-                  MR. MIME SECRET ARCHIVE TAPE
-                </span>
-                <span className="hidden sm:inline-block text-[10px] bg-red-900/80 text-red-200 border border-red-500/50 px-2 py-0.5 rounded font-mono font-bold">
-                  UNLOCKED ARCHIVE
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const vid = videoRef.current;
-                    if (!vid) return;
-                    const nextMuted = !isMuted;
-                    vid.muted = nextMuted;
-                    setIsMuted(nextMuted);
-                    if (vid.paused) {
-                      vid.play().then(() => setIsPlaying(true)).catch(() => {});
-                    }
-                  }}
-                  className="flex items-center gap-1.5 text-slate-200 hover:text-white transition-colors cursor-pointer px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded border border-white/20 font-bold text-xs"
-                >
-                  {isMuted ? <VolumeX size={15} className="text-amber-400" /> : <Volume2 size={15} className="text-emerald-400" />}
-                  <span>{isMuted ? 'UNMUTE SOUND 🔊' : 'AUDIO ON 🔊'}</span>
-                </button>
-                {/* Close Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (videoRef.current) {
-                      videoRef.current.pause();
-                    }
-                    setShowVideoModal(false);
-                  }}
-                  className="w-9 h-9 sm:w-10 sm:h-10 bg-black/80 hover:bg-[#D21319] text-white border border-white/30 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95"
-                  title="Close"
-                  aria-label="Close"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Video Player Area: Takes Full Screen */}
-            <div className="relative w-full h-full flex-1 bg-black flex items-center justify-center overflow-hidden">
-              <video
-                ref={videoRef}
-                src="/media/mr-mime-secret.mp4"
-                autoPlay
-                controls
-                playsInline
-                // @ts-ignore
-                webkit-playsinline="true"
-                x5-playsinline="true"
-                muted={isMuted}
-                loop
-                preload="auto"
-                onPlay={() => setIsPlaying(true)}
-                onPlaying={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onLoadedMetadata={attemptPlay}
-                onCanPlay={attemptPlay}
-                className="w-full h-full object-contain"
-              />
-
-              {/* Big Tap to Play / Resume Fallback Overlay */}
-              {!isPlaying && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const vid = videoRef.current;
-                    if (vid) {
-                      vid.muted = isMuted;
-                      vid.volume = 1.0;
-                      vid.play()
-                        .then(() => setIsPlaying(true))
-                        .catch((err) => {
-                          console.warn('Playback error:', err);
-                        });
-                    }
-                  }}
-                  className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] cursor-pointer"
-                  aria-label="Play video"
-                >
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#D21319] hover:bg-[#b00f14] text-white flex items-center justify-center shadow-2xl border-2 border-white animate-pulse mb-3 transition-transform hover:scale-110">
-                    <Play size={30} className="translate-x-0.5 fill-white" />
-                  </div>
-                  <span className="font-mono text-xs sm:text-sm font-bold text-white bg-black/80 px-4 py-1.5 rounded border border-white/20 uppercase tracking-wider">
-                    Tap to Play Full Screen Video
+            {/* Centered Lightbox Card: Sized to fit 9:16 portrait video seamlessly */}
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+              className="relative w-full max-w-[360px] sm:max-w-[420px] bg-[#0E101D] border-2 border-[#D21319] rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(210,19,25,0.35)] overflow-hidden flex flex-col my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Lightbox Header Bar */}
+              <div className="relative z-30 px-3.5 py-2.5 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-b border-white/10 flex items-center justify-between text-white font-mono text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D21319] animate-pulse shadow-[0_0_8px_#D21319]" />
+                  <span className="font-bold tracking-wider uppercase text-xs text-[#E9E6DA]">
+                    MR. MIME SECRET TAPE
                   </span>
-                </button>
-              )}
-            </div>
+                  <span className="text-[9px] bg-red-950/80 text-red-300 border border-red-500/50 px-1.5 py-0.2 rounded font-bold">
+                    #122
+                  </span>
+                </div>
 
-            {/* Bottom Bar Info */}
-            <div className="relative z-30 p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/75 to-transparent flex items-center justify-between font-mono text-[11px] text-slate-300 select-none">
-              <span className="text-[#D21319] font-bold">JARVIS 3.0 · MR. MIME ARCHIVES</span>
-              <span className="text-slate-400 uppercase tracking-wider">
-                Press ✕ to exit full screen
-              </span>
-            </div>
+                <div className="flex items-center gap-2">
+                  {/* Audio Mute/Unmute toggle */}
+                  <button
+                    type="button"
+                    onClick={handleToggleSound}
+                    className="flex items-center gap-1 text-[11px] text-slate-200 hover:text-white px-2 py-1 bg-white/10 hover:bg-white/20 rounded border border-white/20 transition-all cursor-pointer font-bold"
+                    title={isMuted ? 'Unmute' : 'Mute'}
+                  >
+                    {isMuted ? (
+                      <>
+                        <VolumeX size={13} className="text-amber-400" />
+                        <span className="text-amber-300">UNMUTE</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 size={13} className="text-emerald-400" />
+                        <span className="text-emerald-300">AUDIO ON</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Close Lightbox Button */}
+                  <button
+                    type="button"
+                    onClick={closeLightbox}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 hover:bg-[#D21319] text-white border border-white/20 flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow"
+                    title="Close Lightbox (Esc)"
+                    aria-label="Close Lightbox"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Video Player Area with Aspect Ratio matching 480x864 portrait */}
+              <div className="relative w-full aspect-[9/16] max-h-[68vh] bg-black flex items-center justify-center overflow-hidden">
+                <video
+                  ref={videoRef}
+                  poster="/media/mr-mime-poster.jpg"
+                  autoPlay
+                  controls
+                  playsInline
+                  loop
+                  preload="auto"
+                  muted={isMuted}
+                  onPlay={() => setIsPlaying(true)}
+                  onPlaying={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  className="w-full h-full object-contain bg-black"
+                >
+                  <source src="/media/mr-mime-secret.mp4" type="video/mp4" />
+                  <source src="/media/mr-mime-secret.webm" type="video/webm" />
+                  Your browser does not support HTML5 video.
+                </video>
+
+                {/* Big Center Play Overlay (visible if paused or awaiting interaction) */}
+                {!isPlaying && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const vid = videoRef.current;
+                      if (vid) {
+                        vid.muted = false;
+                        setIsMuted(false);
+                        vid.play()
+                          .then(() => setIsPlaying(true))
+                          .catch((err) => {
+                            console.warn('Playback error:', err);
+                            // Fallback to muted play
+                            vid.muted = true;
+                            setIsMuted(true);
+                            vid.play().then(() => setIsPlaying(true)).catch(() => {});
+                          });
+                      }
+                    }}
+                    className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
+                    aria-label="Play video"
+                  >
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#D21319] text-white flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95">
+                      <Play size={26} className="translate-x-0.5 fill-white" />
+                    </div>
+                    <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
+                      Tap to Play
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Lightbox Footer Bar */}
+              <div className="px-3.5 py-2 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-t border-white/10 flex items-center justify-between font-mono text-[10px] text-slate-300">
+                <span className="text-[#D21319] font-bold">JARVIS 3.0 · ARCHIVES</span>
+                <span className="text-slate-400 uppercase tracking-wider">
+                  Click backdrop or ✕ to close
+                </span>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

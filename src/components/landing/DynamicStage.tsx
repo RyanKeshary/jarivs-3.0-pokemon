@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 interface DynamicStageProps {
   onEnterClick?: () => void;
@@ -118,6 +118,76 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
     };
   }, []);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isJigglyPlaying, setIsJigglyPlaying] = useState(false);
+
+  // Initialize Jigglypuff audio player (Audio Only)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const audio = new Audio('/media/jigglypuff-song.mp3');
+    audio.preload = 'auto';
+    audio.loop = true;
+    audioRef.current = audio;
+
+    const onPlay = () => setIsJigglyPlaying(true);
+    const onPause = () => setIsJigglyPlaying(false);
+    const onEnded = () => setIsJigglyPlaying(false);
+
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+
+    const handleToggleEvent = () => {
+      toggleJigglySong();
+    };
+
+    const handlePauseEvent = () => {
+      audio.pause();
+      setIsJigglyPlaying(false);
+    };
+
+    window.addEventListener('toggle_jigglypuff_song', handleToggleEvent);
+    window.addEventListener('pause_background_audio', handlePauseEvent);
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+      window.removeEventListener('toggle_jigglypuff_song', handleToggleEvent);
+      window.removeEventListener('pause_background_audio', handlePauseEvent);
+    };
+  }, []);
+
+  const toggleJigglySong = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (audio.paused) {
+      // Pause any ongoing video transmission modals
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pause_video_transmission'));
+      }
+      audio.play()
+        .then(() => {
+          setIsJigglyPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('Audio play gesture required:', err);
+        });
+    } else {
+      audio.pause();
+      setIsJigglyPlaying(false);
+    }
+  }, []);
+
+  const handleJigglyClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    playRetroBeep(440);
+    toggleJigglySong();
+  };
+
   const playRetroBeep = (freq: number) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -196,7 +266,11 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
 
             {/* Interactive Pokémon Sprites */}
             <div className="L" style={{ ['--z' as any]: '55px', ['--s' as any]: 0.9542 }}>
-              <div className="s jiggly" title="Jigglypuff" onClick={() => playRetroBeep(440)} />
+              <div
+                className={`s jiggly cursor-pointer transition-all duration-300 ${isJigglyPlaying ? 'ring-2 ring-pink-400 drop-shadow-[0_0_20px_rgba(255,105,180,0.95)] scale-110' : 'hover:drop-shadow-[0_0_12px_rgba(255,182,193,0.8)] hover:scale-105'}`}
+                title={isJigglyPlaying ? "Jigglypuff · Singing Lullaby 🎶 (Click to Pause)" : "Jigglypuff · Click to play 1-Hour Sleep Song 🎶"}
+                onClick={handleJigglyClick}
+              />
               <div className="s gengar" title="Gengar" onClick={() => playRetroBeep(330)} />
               <div className="s pika" title="Pikachu" onClick={() => playRetroBeep(880)} />
               <div className="s psy" title="Psyduck" onClick={() => playRetroBeep(520)} />
@@ -300,7 +374,11 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
 
             {/* Interactive Pokémon Sprites (Portrait Composition) */}
             <div className="L" style={{ ['--z' as any]: '55px', ['--s' as any]: 0.9542 }}>
-              <div className="s jiggly" title="Jigglypuff" onClick={() => playRetroBeep(440)} />
+              <div
+                className={`s jiggly cursor-pointer transition-all duration-300 ${isJigglyPlaying ? 'ring-2 ring-pink-400 drop-shadow-[0_0_20px_rgba(255,105,180,0.95)] scale-110' : 'hover:drop-shadow-[0_0_12px_rgba(255,182,193,0.8)] hover:scale-105'}`}
+                title={isJigglyPlaying ? "Jigglypuff · Singing Lullaby 🎶 (Click to Pause)" : "Jigglypuff · Click to play 1-Hour Sleep Song 🎶"}
+                onClick={handleJigglyClick}
+              />
               <div className="s gengar" title="Gengar" onClick={() => playRetroBeep(330)} />
               <div className="s pika" title="Pikachu" onClick={() => playRetroBeep(880)} />
               <div className="s psy" title="Psyduck" onClick={() => playRetroBeep(520)} />
@@ -386,6 +464,30 @@ export function DynamicStage({ onEnterClick, onRegisterClick, hideActionDock = f
           <div className="grain" />
         </div>
       </div>
+
+      {/* Floating Singing Pill when Jigglypuff's song is active */}
+      {isJigglyPlaying && (
+        <div className="fixed bottom-5 right-5 z-40 bg-[#121435]/95 border-2 border-[#FF7A8A] text-white px-4 py-2 rounded-full shadow-[0_8px_30px_rgba(255,122,138,0.5)] backdrop-blur-md flex items-center gap-3 font-mono text-xs select-none animate-pulse">
+          <span className="text-base animate-bounce">🎶</span>
+          <div className="flex flex-col text-left">
+            <span className="font-bold text-[#FF7A8A] text-[11px] uppercase tracking-wider">
+              Jigglypuff Lullaby
+            </span>
+            <span className="text-[10px] text-slate-300">1 Hour Sleep Song · Playing (Audio Only)</span>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleJigglySong();
+            }}
+            className="ml-1 px-3 py-1 bg-[#FF7A8A] hover:bg-[#ff5268] text-[#121435] font-black rounded-full text-[10px] uppercase transition-all cursor-pointer shadow active:scale-95"
+            title="Pause song"
+          >
+            Pause ⏸
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -100,5 +100,23 @@ setInterval(function(){ids.forEach(function(i){emit(i,CFG[i].n,'\u266A\u266B\u26
 setInterval(function(){ids.forEach(function(i){emit(i,CFG[i].s,'zZ'[R()*2|0],1+R()*.7)})},1700);
 setInterval(function(){ids.forEach(function(i){emit(i,CFG[i].e,'z',.9+R()*.4)})},2300);
 })();
+(function(){
+  var audio = new Audio('assets/jigglypuff-song.mp3');
+  audio.loop = true;
+  document.querySelectorAll('.jiggly').forEach(function(el){
+    el.style.cursor = 'pointer';
+    el.title = 'Jigglypuff · Click to play lullaby 🎵';
+    el.addEventListener('click', function(e){
+      e.stopPropagation();
+      if(audio.paused){
+        audio.play().catch(function(){});
+        el.style.filter = 'drop-shadow(0 0 16px rgba(255,105,180,0.9))';
+      } else {
+        audio.pause();
+        el.style.filter = '';
+      }
+    });
+  });
+})();
 </script>
 </body></html>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
 import { AnimatedPsyduck } from '@/components/illustrations/AnimatedPsyduck';
-import { Eye, EyeOff, X } from 'lucide-react';
+import { Eye, EyeOff, X, Volume2, VolumeX, Play } from 'lucide-react';
 
 export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any) => void }) {
   const [email, setEmail] = useState('');
@@ -14,16 +14,45 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPsyduckVideo, setShowPsyduckVideo] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    if (showPsyduckVideo && videoRef.current) {
-      videoRef.current.muted = false;
-      videoRef.current.volume = 1.0;
-      videoRef.current.play().catch((err) => {
-        console.warn('Psyduck video playback awaiting user gesture:', err);
-      });
+    if (showPsyduckVideo) {
+      document.body.style.overflow = 'hidden';
+      const timer = setTimeout(() => {
+        const vid = videoRef.current;
+        if (!vid) return;
+        vid.muted = isMuted;
+        vid.play()
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            console.warn('Psyduck video autoplay restricted, trying muted fallback:', err);
+            vid.muted = true;
+            setIsMuted(true);
+            vid.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+          });
+      }, 60);
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = '';
+      };
+    } else {
+      document.body.style.overflow = '';
+      setIsPlaying(false);
     }
+  }, [showPsyduckVideo, isMuted]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showPsyduckVideo) {
+        if (videoRef.current) videoRef.current.pause();
+        setShowPsyduckVideo(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showPsyduckVideo]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -202,58 +231,134 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
 
       </div>
 
-      {/* Secret Psyduck Fullscreen Transmission Video Modal */}
+      {/* Secret Psyduck Lightbox Modal */}
       {showPsyduckVideo && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden cursor-default select-none animate-in fade-in duration-200">
-          {/* Top Bar Header */}
-          <div className="relative z-30 p-3 sm:p-4 bg-gradient-to-b from-black/95 via-black/75 to-transparent flex items-center justify-between text-white font-mono text-xs select-none">
-            <div className="flex items-center gap-2.5">
-              <span className="w-3 h-3 bg-[#D21319] rounded-xs shadow-[0_0_8px_#D21319] animate-pulse" />
-              <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                PSYDUCK CLASSIFIED TRANSMISSION
-              </span>
-              <span className="hidden sm:inline-block font-mono text-[9px] bg-amber-400 text-black px-2 py-0.5 rounded font-black border border-amber-300">
-                EASTER EGG (40-67 TAPS)
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto cursor-default select-none animate-in fade-in duration-200"
+          onClick={() => {
+            if (videoRef.current) videoRef.current.pause();
+            setShowPsyduckVideo(false);
+          }}
+        >
+          {/* Centered Lightbox Card */}
+          <div
+            className="relative w-full max-w-[380px] sm:max-w-[440px] bg-[#0E101D] border-2 border-amber-400 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(251,191,36,0.35)] overflow-hidden flex flex-col my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Bar Header */}
+            <div className="relative z-30 px-3.5 py-2.5 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-b border-white/10 flex items-center justify-between text-white font-mono text-xs select-none">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_8px_#fbbf24] animate-pulse" />
+                <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                  PSYDUCK TRANSMISSION
+                </span>
+                <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black border border-amber-300">
+                  CLASSIFIED
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const vid = videoRef.current;
+                    if (!vid) return;
+                    const nextMuted = !isMuted;
+                    vid.muted = nextMuted;
+                    setIsMuted(nextMuted);
+                    if (vid.paused) {
+                      vid.play().then(() => setIsPlaying(true)).catch(() => {});
+                    }
+                  }}
+                  className="flex items-center gap-1 text-[11px] text-slate-200 hover:text-white px-2 py-1 bg-white/10 hover:bg-white/20 rounded border border-white/20 transition-all cursor-pointer font-bold"
+                  title={isMuted ? 'Unmute' : 'Mute'}
+                >
+                  {isMuted ? (
+                    <>
+                      <VolumeX size={13} className="text-amber-400" />
+                      <span className="text-amber-300">UNMUTE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 size={13} className="text-emerald-400" />
+                      <span className="text-emerald-300">AUDIO ON</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (videoRef.current) videoRef.current.pause();
+                    setShowPsyduckVideo(false);
+                  }}
+                  className="w-7 h-7 sm:w-8 sm:h-8 bg-white/10 hover:bg-[#D21319] text-white border border-white/20 rounded-full flex items-center justify-center font-black transition-all cursor-pointer active:scale-95 shadow"
+                  title="Close transmission (Esc)"
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Video Container (1080x1350 aspect ratio) */}
+            <div className="relative w-full aspect-[4/5] max-h-[68vh] bg-black flex items-center justify-center overflow-hidden">
+              <video
+                ref={videoRef}
+                poster="/media/untitled-design-poster.jpg"
+                src="/media/untitled-design.mp4"
+                controls
+                autoPlay
+                playsInline
+                muted={isMuted}
+                loop
+                preload="auto"
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                className="w-full h-full object-contain bg-black"
+              >
+                <source src="/media/untitled-design.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+
+              {!isPlaying && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const vid = videoRef.current;
+                    if (vid) {
+                      vid.muted = false;
+                      setIsMuted(false);
+                      vid.play()
+                        .then(() => setIsPlaying(true))
+                        .catch(() => {
+                          vid.muted = true;
+                          setIsMuted(true);
+                          vid.play().then(() => setIsPlaying(true)).catch(() => {});
+                        });
+                    }
+                  }}
+                  className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
+                  aria-label="Play video"
+                >
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95 font-black">
+                    <Play size={26} className="translate-x-0.5 fill-black" />
+                  </div>
+                  <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
+                    Tap to Play
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Bottom Bar Notice */}
+            <div className="px-3.5 py-2 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-t border-white/10 flex items-center justify-between text-[10px] font-mono text-neutral-400">
+              <span className="text-amber-400 font-bold">JARVIS 3.0 · PSYDUCK ARCHIVES</span>
+              <span className="text-white/70 uppercase tracking-wider">
+                Click backdrop or ✕ to close
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowPsyduckVideo(false)}
-              className="w-9 h-9 sm:w-10 sm:h-10 bg-white/10 hover:bg-[#D21319] text-white border border-white/30 rounded-full flex items-center justify-center font-black transition-all cursor-pointer shadow-lg active:scale-95"
-              title="Close transmission"
-              aria-label="Close"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          {/* Full Screen Video Container */}
-          <div className="relative w-full h-full flex-1 bg-black flex items-center justify-center overflow-hidden">
-            <video
-              ref={videoRef}
-              src="/media/untitled-design.mp4"
-              controls
-              autoPlay
-              playsInline
-              // @ts-ignore
-              webkit-playsinline="true"
-              x5-playsinline="true"
-              muted={false}
-              loop
-              className="w-full h-full object-contain"
-            >
-              <source src="/media/untitled-design.mp4" type="video/mp4" />
-              <source src="/untitled-design.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          </div>
-
-          {/* Bottom Bar Notice */}
-          <div className="relative z-30 p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/75 to-transparent flex items-center justify-between text-[11px] font-mono text-neutral-400">
-            <span className="text-[#D21319] font-bold">JARVIS 3.0 ARCHIVES</span>
-            <span className="font-bold uppercase tracking-wider text-white/80">
-              Audio ON by default · Press ✕ to exit full screen
-            </span>
           </div>
         </div>
       )}

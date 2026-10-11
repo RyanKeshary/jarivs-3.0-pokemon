@@ -21,7 +21,7 @@ export function AnimatedPsyduck({
   const [isScratching, setIsScratching] = useState(false);
   const [floatingNotes, setFloatingNotes] = useState<{ id: number; text: string; x: number }[]>([]);
   const [clickCount, setClickCount] = useState(0);
-  const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
+  const targetClicksRef = useRef(2);
 
   // Synthesize Psyduck's nostalgic confused "Psy-yi-yi?!" quack chime via native Web Audio API
   const playPsyduckCry = useCallback(() => {
@@ -79,7 +79,6 @@ export function AnimatedPsyduck({
         onEasterEggTrigger();
       }
       setClickCount(0);
-      targetClicksRef.current = Math.floor(Math.random() * (67 - 40 + 1)) + 40;
     }
 
     const phrases = ['💫 PSY...?!', '❓ *scratches head*', '✨ PSY-DUCK! ✨', '💭 *headache intensifies*', `💫 *tap ${nextClicks}*`];
