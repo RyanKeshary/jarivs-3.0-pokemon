@@ -210,39 +210,52 @@ async function uploadToGoogleDrive(accessToken, filename, fileBuffer, mimeType, 
   return data;
 }
 
-// Update file in place if it exists in the folder; create if it doesn't
-// (Keeps the folder clean & preserves Google Drive shareable links!)
-async function uploadOrUpdateFile(accessToken, filename, fileBuffer, mimeType, folderId) {
+// Create a dedicated folder in Google Drive
+async function createDriveFolder(accessToken, folderName, parentFolderId) {
+  const metadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: parentFolderId ? [parentFolderId] : undefined,
+  };
+  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(metadata),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Failed to create Google Drive folder: ${data.error?.message || JSON.stringify(data)}`);
+  }
+  return data.id;
+}
+
+// Inspect Google Drive to calculate the next sequential backup number (#001, #002, ...)
+async function getNextBackupNumber(accessToken, parentFolderId) {
   try {
-    const query = `'${folderId}' in parents and name = '${filename}' and trashed = false`;
+    const query = `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     const listRes = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    const listData = await listRes.json();
-    const existing = listData.files && listData.files[0];
-
-    if (existing) {
-      const updateRes = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': mimeType,
-          },
-          body: fileBuffer,
+    const data = await listRes.json();
+    let maxNum = 0;
+    if (data.files && Array.isArray(data.files)) {
+      for (const file of data.files) {
+        const match = file.name.match(/^#(\d+)/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
         }
-      );
-      const updateData = await updateRes.json();
-      return { id: existing.id, action: 'updated', ...updateData };
+      }
     }
+    return maxNum + 1;
   } catch (err) {
-    console.warn(`Note: Could not check existing file ${filename}: ${err.message}. Creating fresh.`);
+    console.warn(`Could not determine backup sequence: ${err.message}. Defaulting to 1.`);
+    return 1;
   }
-
-  const created = await uploadToGoogleDrive(accessToken, filename, fileBuffer, mimeType, folderId);
-  return { id: created.id, action: 'created', ...created };
 }
 
 // ---------------------------------------------------------------------------
@@ -613,63 +626,88 @@ ${festEvents.map(e => `| \`${e.id}\` | **${e.name}** | ${e.subtitle} | ${e.day_l
     if (accessToken) {
       console.log('   Authenticated with Google Drive API.\n');
 
-      // Upload 1: Presentable Registrations CSV (Updated in-place)
+      // 1. Calculate next sequential backup number and create dedicated folder
+      const nextNum = await getNextBackupNumber(accessToken, gdriveFolderId);
+      const paddedNum = String(nextNum).padStart(3, '0');
+      const backupFolderName = `#${paddedNum} - Backup ${timestampStr}`;
+      console.log(`   Creating dedicated folder: "${backupFolderName}" ...`);
+      const targetFolderId = await createDriveFolder(accessToken, backupFolderName, gdriveFolderId);
+      console.log(`   ✅ Folder created! (Google Drive Folder ID: ${targetFolderId})\n`);
+
+      // 2. Upload presentable CSV sheets and reports into this folder
       console.log('   Uploading 📊_Live_Registrations_Roster.csv ...');
-      const regCsvRes = await uploadOrUpdateFile(
+      await uploadToGoogleDrive(
         accessToken,
         '📊_Live_Registrations_Roster.csv',
         Buffer.from(regsCsv, 'utf-8'),
         'text/csv',
-        gdriveFolderId
+        targetFolderId
       );
-      console.log(`   ✅ 📊_Live_Registrations_Roster.csv (${regCsvRes.action})`);
+      console.log('   ✅ 📊_Live_Registrations_Roster.csv');
 
-      // Upload 2: Presentable Teams CSV (Updated in-place)
       console.log('   Uploading 🛡️_Live_Teams_Overview.csv ...');
-      const teamsCsvRes = await uploadOrUpdateFile(
+      await uploadToGoogleDrive(
         accessToken,
         '🛡️_Live_Teams_Overview.csv',
         Buffer.from(teamsCsv, 'utf-8'),
         'text/csv',
-        gdriveFolderId
+        targetFolderId
       );
-      console.log(`   ✅ 🛡️_Live_Teams_Overview.csv (${teamsCsvRes.action})`);
+      console.log('   ✅ 🛡️_Live_Teams_Overview.csv');
 
-      // Upload 3: Presentable Summary Markdown (Updated in-place)
       console.log('   Uploading 📋_LATEST_BACKUP_REPORT.md ...');
-      const mdRes = await uploadOrUpdateFile(
+      await uploadToGoogleDrive(
         accessToken,
         '📋_LATEST_BACKUP_REPORT.md',
         Buffer.from(summaryMarkdown, 'utf-8'),
         'text/markdown',
-        gdriveFolderId
+        targetFolderId
       );
-      console.log(`   ✅ 📋_LATEST_BACKUP_REPORT.md (${mdRes.action})`);
+      console.log('   ✅ 📋_LATEST_BACKUP_REPORT.md');
 
-      // Upload 4: Presentable HTML Dashboard (Updated in-place)
       console.log('   Uploading 📊_Indigo_Fest_Live_Dashboard.html ...');
-      const htmlRes = await uploadOrUpdateFile(
+      await uploadToGoogleDrive(
         accessToken,
         '📊_Indigo_Fest_Live_Dashboard.html',
         Buffer.from(htmlDashboard, 'utf-8'),
         'text/html',
-        gdriveFolderId
+        targetFolderId
       );
-      console.log(`   ✅ 📊_Indigo_Fest_Live_Dashboard.html (${htmlRes.action})`);
+      console.log('   ✅ 📊_Indigo_Fest_Live_Dashboard.html');
 
-      // Upload 5: Full Disaster-Recovery Archive (Timestamped point-in-time)
-      console.log(`   Uploading archive ${archiveFileName} ...`);
+      console.log('   Uploading restore.sql (Disaster Recovery Script) ...');
+      await uploadToGoogleDrive(
+        accessToken,
+        'restore.sql',
+        Buffer.from(sqlDumpContent, 'utf-8'),
+        'application/sql',
+        targetFolderId
+      );
+      console.log('   ✅ restore.sql');
+
+      console.log('   Uploading manifest.json (Integrity Checksums) ...');
+      await uploadToGoogleDrive(
+        accessToken,
+        'manifest.json',
+        Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8'),
+        'application/json',
+        targetFolderId
+      );
+      console.log('   ✅ manifest.json');
+
+      console.log(`   Uploading compressed archive ${archiveFileName} ...`);
       const archiveRes = await uploadToGoogleDrive(
         accessToken,
         archiveFileName,
         compressedGzipBuffer,
         'application/gzip',
-        gdriveFolderId
+        targetFolderId
       );
       console.log(`   ✅ Archive uploaded: ${archiveFileName} (ID: ${archiveRes.id})`);
 
       console.log('\n====================================================');
-      console.log('🎉 ALL BACKUP & PRESENTABLE FILES UPLOADED SUCCESSFULLY!');
+      console.log(`🎉 BACKUP #${paddedNum} COMPLETE! ALL FILES STORED IN:`);
+      console.log(`Folder: "${backupFolderName}"`);
       console.log('Folder Link: https://drive.google.com/drive/folders/' + gdriveFolderId);
       console.log('====================================================\n');
     } else {

@@ -16,17 +16,24 @@ The system operates **completely independent of the live Next.js web application
 
 ## What Gets Backed Up Every 2 Hours
 
-Each backup produces a timestamped, gzip-compressed archive (`backup_jarvis_YYYY-MM-DD_HH-mm-ss.tar.gz`) containing:
+Each backup automatically creates a dedicated numbered folder in Google Drive (e.g., `#001 - Backup 2026-10-11_13-49-35`, `#002 - Backup ...`).
 
-1. **Full SQL Restore Script (`restore.sql`):**
-   - Contains transactional SQL statements to instantly reconstruct and repopulate all 24 public tables.
-2. **Structured JSON Datasets (`/tables/*.json`):**
-   - Individual JSON datasets for each table (`fest_registrations.json`, `fest_teams.json`, `profiles.json`, `submissions.json`, `master_credentials.json`, etc.).
-   - Can be opened directly, queried with tools like `jq`, or imported into Excel/Google Sheets without needing a PostgreSQL server.
-3. **Identity Registry Snapshot (`auth_users_summary.json`):**
-   - User identity mapping for account disaster recovery.
-4. **Integrity Manifest & Checksum (`manifest.json` and `.sha256`):**
-   - Total row counts per table, timestamp, source database cluster, and SHA-256 hash.
+Inside each backup folder, you will find:
+
+1. **`📊_Live_Registrations_Roster.csv`:**
+   - Formatted spreadsheet viewable directly in Google Drive or Google Sheets with all participant names, colleges, roll numbers, contact info, squad codes, and registered events.
+2. **`🛡️_Live_Teams_Overview.csv`:**
+   - Full squad list with team names, codes, event mappings, member counts, and leader details.
+3. **`📋_LATEST_BACKUP_REPORT.md`:**
+   - Formatted Markdown report with high-level KPI metrics, competition rosters, and timestamp.
+4. **`📊_Indigo_Fest_Live_Dashboard.html`:**
+   - Interactive, styled executive HTML dashboard.
+5. **`restore.sql`:**
+   - Standalone transactional SQL file to instantly reconstruct and repopulate all 24 public tables.
+6. **`manifest.json`:**
+   - Complete metadata summary and SHA-256 checksums.
+7. **`backup_jarvis_YYYY-MM-DD_HH-mm-ss.tar.gz`:**
+   - Full compressed disaster-recovery archive containing raw JSON datasets and SQL scripts.
 
 ---
 
