@@ -1,0 +1,61 @@
+name: Automated Database Backup (Google Drive)
+
+on:
+  schedule:
+    # Runs every 2 hours: at minute 0 past every 2nd hour (0:00, 2:00, 4:00, ...)
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      destination_folder_id:
+        description: 'Google Drive Destination Folder ID (optional override)'
+        required: false
+        default: '1Fsj_Lre5YDmv-iTGPa6BkuTZpGafqwS0'
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Execute Disaster Recovery Backup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Database Backup & Upload to Google Drive
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GDRIVE_SERVICE_ACCOUNT_KEY: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          GDRIVE_FOLDER_ID: ${{ github.event.inputs.destination_folder_id || secrets.GDRIVE_FOLDER_ID || '1Fsj_Lre5YDmv-iTGPa6BkuTZpGafqwS0' }}
+        run: |
+          node scripts/backup-database.mjs
+
+      - name: Upload Backup as Secondary GitHub Artifact (14-day Redundancy)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-backup-${{ github.run_id }}
+          path: |
+            .backup-temp/*.tar.gz
+            .backup-temp/*.sha256
+          retention-days: 14
+          if-no-files-found: ignore

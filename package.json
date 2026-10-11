@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "node scripts/apply-migrations.mjs",
+    "db:backup": "node scripts/backup-database.mjs",
+    "db:restore": "node scripts/restore-database.mjs",
     "assets:prep": "python scripts/prep-assets.py"
   },
   "dependencies": {
