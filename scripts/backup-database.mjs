@@ -48,14 +48,29 @@ for (const envFile of ['.env.local', '.env']) {
   }
 }
 
+// Sanitize credential inputs (trim whitespace/newlines, strip quotes or KEY= prefixes)
+function sanitizeCredential(val) {
+  if (!val || typeof val !== 'string') return '';
+  let cleaned = val.trim();
+  cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+  const eqIdx = cleaned.indexOf('=');
+  if (eqIdx > 0 && /^[A-Z0-9_]+$/.test(cleaned.slice(0, eqIdx))) {
+    cleaned = cleaned.slice(eqIdx + 1).trim();
+    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+  }
+  return cleaned;
+}
+
 // Destination Google Drive Folder ID
 const DEFAULT_GDRIVE_FOLDER_ID = '1Fsj_Lre5YDmv-iTGPa6BkuTZpGafqwS0';
-const gdriveFolderId = process.env.GDRIVE_FOLDER_ID || DEFAULT_GDRIVE_FOLDER_ID;
+const gdriveFolderId = sanitizeCredential(process.env.GDRIVE_FOLDER_ID) || DEFAULT_GDRIVE_FOLDER_ID;
 
 // Database connection
-const connectionString =
-  process.env.DATABASE_URL ||
-  'postgresql://postgres.oqqzzyombtcjvlqbjvla:golumolu1234$@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres';
+const connectionString = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : null;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is required');
+}
 
 const sql = postgres(connectionString, {
   ssl: 'require',
@@ -97,14 +112,18 @@ function toCsv(rows) {
 // Google Drive API OAuth & Upload (Drive API v3)
 // ---------------------------------------------------------------------------
 async function getGoogleAccessToken() {
-  const saRaw = process.env.GDRIVE_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  const refreshToken = process.env.GDRIVE_REFRESH_TOKEN;
+  const saRaw = sanitizeCredential(
+    process.env.GDRIVE_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+  );
+  const refreshToken = sanitizeCredential(process.env.GDRIVE_REFRESH_TOKEN);
+  const clientId = sanitizeCredential(process.env.GDRIVE_CLIENT_ID);
+  const clientSecret = sanitizeCredential(process.env.GDRIVE_CLIENT_SECRET);
 
   // Mode 1: Service Account Key (JSON)
   if (saRaw) {
     let sa;
     try {
-      sa = typeof saRaw === 'string' && saRaw.trim().startsWith('{')
+      sa = typeof saRaw === 'string' && saRaw.startsWith('{')
         ? JSON.parse(saRaw)
         : JSON.parse(fs.readFileSync(path.resolve(root, saRaw), 'utf-8'));
     } catch (e) {
@@ -148,13 +167,35 @@ async function getGoogleAccessToken() {
   }
 
   // Mode 2: OAuth2 Refresh Token (Web / Desktop Client)
-  if (refreshToken && process.env.GDRIVE_CLIENT_ID && process.env.GDRIVE_CLIENT_SECRET) {
+  const refreshCredentials = [refreshToken, clientId, clientSecret];
+  const hasAnyRefreshCred = refreshCredentials.some(Boolean);
+
+  if (hasAnyRefreshCred) {
+    const missing = [];
+    if (!refreshToken) missing.push('GDRIVE_REFRESH_TOKEN');
+    if (!clientId) missing.push('GDRIVE_CLIENT_ID');
+    if (!clientSecret) missing.push('GDRIVE_CLIENT_SECRET');
+
+    if (missing.length > 0) {
+      throw new Error(
+        'Google Drive credentials are incomplete. Configure either GDRIVE_SERVICE_ACCOUNT_KEY or all of ' +
+        'GDRIVE_REFRESH_TOKEN, GDRIVE_CLIENT_ID, and GDRIVE_CLIENT_SECRET. ' +
+        `Missing: ${missing.join(', ')}.`
+      );
+    }
+
+    // Diagnostic logging with safe masking
+    console.log('   [OAuth Diagnostic] Exchanging refresh token for access token...');
+    console.log(`   [OAuth Diagnostic] Client ID: ${clientId.slice(0, 15)}... (length: ${clientId.length})`);
+    console.log(`   [OAuth Diagnostic] Client Secret: ${clientSecret.slice(0, 7)}... (length: ${clientSecret.length})`);
+    console.log(`   [OAuth Diagnostic] Refresh Token: ${refreshToken.slice(0, 8)}... (length: ${refreshToken.length})`);
+
     const res = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: process.env.GDRIVE_CLIENT_ID,
-        client_secret: process.env.GDRIVE_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),
@@ -162,9 +203,27 @@ async function getGoogleAccessToken() {
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(`Google Refresh Token error: ${data.error_description || JSON.stringify(data)}`);
+      const errorMsg = data.error_description || data.error || JSON.stringify(data);
+      throw new Error(
+        `Google Refresh Token error: ${errorMsg}\n` +
+        `Troubleshooting info:\n` +
+        `- Client ID starts with: '${clientId.slice(0, 15)}...' (length ${clientId.length})\n` +
+        `- Client Secret starts with: '${clientSecret.slice(0, 7)}...' (length ${clientSecret.length})\n` +
+        `If you see "The provided client secret is invalid", verify:\n` +
+        `1. The secret in GitHub Settings (GDRIVE_CLIENT_SECRET) is the current Client Secret for OAuth client '${clientId}'.\n` +
+        `2. It contains no surrounding quotes, spaces, or prefix.\n` +
+        `3. The refresh token was issued by that same OAuth Client ID.`
+      );
     }
     return data.access_token;
+  }
+
+  // If running in GitHub Actions and no credentials configured
+  if (process.env.GITHUB_ACTIONS) {
+    throw new Error(
+      'Google Drive credentials are incomplete. Configure either GDRIVE_SERVICE_ACCOUNT_KEY or all of ' +
+      'GDRIVE_REFRESH_TOKEN, GDRIVE_CLIENT_ID, and GDRIVE_CLIENT_SECRET.'
+    );
   }
 
   return null;

@@ -64,9 +64,11 @@ if (!shouldApply) {
 }
 
 // Live restore mode
-const connectionString =
-  process.env.DATABASE_URL ||
-  'postgresql://postgres.oqqzzyombtcjvlqbjvla:golumolu1234$@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres';
+const connectionString = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : null;
+if (!connectionString) {
+  console.error('Error: DATABASE_URL is required for live restore (--apply).');
+  process.exit(1);
+}
 
 const sql = postgres(connectionString, {
   ssl: 'require',
