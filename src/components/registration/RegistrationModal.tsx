@@ -478,53 +478,55 @@ export function RegistrationModal({
           </button>
         </div>
 
-        {/* COMPACT DISQUALIFICATION WARNING BANNER - NO TRUNCATION */}
-        <div className="relative mb-2 px-2.5 py-1.5 bg-red-50 border-2 border-[#D21319] flex items-center justify-between gap-1.5 text-xs flex-shrink-0">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <span className="text-sm leading-none shrink-0">⚠️</span>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 leading-tight">
-              <span className="font-mono text-[10px] sm:text-[11px] font-black text-[#b91c1c] uppercase tracking-tight whitespace-normal">
-                STRICT RULE: MAX 2 EVENTS PER MEMBER
-              </span>
-              <span className="hidden md:inline text-neutral-700 text-[9px] font-sans">
-                (Disqualification if enrolled in &gt; 2 events)
-              </span>
+        {/* COMPACT DISQUALIFICATION WARNING BANNER - ONLY IN FORM REGISTRATION VIEW */}
+        {!successData && (
+          <div className="relative mb-2 px-2.5 py-1.5 bg-red-50 border-2 border-[#D21319] flex items-center justify-between gap-1.5 text-xs flex-shrink-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="text-sm leading-none shrink-0">⚠️</span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 leading-tight">
+                <span className="font-mono text-[10px] sm:text-[11px] font-black text-[#b91c1c] uppercase tracking-tight whitespace-normal">
+                  STRICT RULE: MAX 2 EVENTS PER MEMBER
+                </span>
+                <span className="hidden md:inline text-neutral-700 text-[9px] font-sans">
+                  (Disqualification if enrolled in &gt; 2 events)
+                </span>
+              </div>
             </div>
+            <span className="text-[9px] font-mono font-black bg-[#D21319] text-white px-1.5 py-0.5 shrink-0 border border-black shadow-[1px_1px_0px_#000]">
+              MAX 2
+            </span>
           </div>
-          <span className="text-[9px] font-mono font-black bg-[#D21319] text-white px-1.5 py-0.5 shrink-0 border border-black shadow-[1px_1px_0px_#000]">
-            MAX 2
-          </span>
-        </div>
+        )}
 
-        {/* SUCCESS BOARDING PASS VIEW */}
+        {/* SUCCESS BOARDING PASS VIEW - FULLY RESPONSIVE & SCROLLABLE */}
         {successData ? (
-          <div className="space-y-5 text-center py-4">
-            <div className="w-16 h-16 mx-auto bg-green-100 border-2 border-black shadow-[4px_4px_0px_#000] flex items-center justify-center text-green-800 text-3xl font-bold">
+          <div className="flex-1 overflow-y-auto space-y-3.5 sm:space-y-4 text-center py-2 sm:py-3 px-1 pr-1.5 pb-6">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto bg-green-100 border-2 border-black shadow-[3px_3px_0px_#000] flex items-center justify-center text-green-800 text-2xl sm:text-3xl font-bold">
               ✓
             </div>
 
             <div>
-              <span className="font-mono text-xs text-neutral-600 tracking-widest uppercase block font-bold">
+              <span className="font-mono text-[10px] sm:text-xs text-neutral-600 tracking-widest uppercase block font-bold">
                 Official Credential Issued
               </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-black uppercase mt-1">
+              <h3 className="text-xl sm:text-2xl font-black text-black uppercase mt-0.5">
                 {successData.type === 'created' ? 'Squad Created Successfully!' : 'Enrolled into Squad!'}
               </h3>
             </div>
 
             {/* Credential Cards: Render two distinct cards if 2 events were registered */}
             {successData.teams && successData.teams.length > 1 ? (
-              <div className="space-y-3.5 text-left">
+              <div className="space-y-3 text-left">
                 <div className="text-center pb-0.5">
-                  <span className="font-mono text-[10px] tracking-widest text-emerald-800 uppercase font-black bg-emerald-100 px-3 py-1 border border-emerald-300 rounded-full inline-block">
+                  <span className="font-mono text-[9px] sm:text-[10px] tracking-widest text-emerald-800 uppercase font-black bg-emerald-100 px-3 py-1 border border-emerald-300 rounded-full inline-block">
                     2 Separate Squads Auto-Generated for Your 2 Events
                   </span>
-                  <p className="text-[11px] text-neutral-600 mt-1">
+                  <p className="text-[10px] sm:text-[11px] text-neutral-600 mt-1">
                     Each discipline enforces its own team limit. Share each squad code with the appropriate teammates:
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                   {successData.teams.map((t: any, idx: number) => {
                     const eventId = t.eventId || (t.eventIds && t.eventIds[0]);
                     const ev = FEST_EVENTS.find((e) => e.id === eventId);
@@ -532,39 +534,39 @@ export function RegistrationModal({
                     return (
                       <div
                         key={t.code}
-                        className="p-3.5 bg-white border-2 border-black shadow-[4px_4px_0px_#000] flex flex-col justify-between"
+                        className="p-3 bg-white border-2 border-black shadow-[3px_3px_0px_#000] flex flex-col justify-between"
                       >
                         <div>
-                          <div className="flex items-center justify-between border-b border-neutral-200 pb-1.5 mb-2">
-                            <span className="font-mono text-[10px] font-black uppercase text-[#D21319]">
+                          <div className="flex items-center justify-between border-b border-neutral-200 pb-1 mb-1.5">
+                            <span className="font-mono text-[9px] sm:text-[10px] font-black uppercase text-[#D21319]">
                               {idx === 0 ? 'Discipline 1 · Squad A' : 'Discipline 2 · Squad B'}
                             </span>
                             {ev && (
-                              <span className="text-[10px] font-mono font-bold bg-neutral-100 px-1.5 py-0.5 border border-neutral-300">
+                              <span className="text-[9px] font-mono font-bold bg-neutral-100 px-1.5 py-0.5 border border-neutral-300">
                                 {ev.teamSize}
                               </span>
                             )}
                           </div>
 
-                          <div className="font-black text-sm text-black mb-1 line-clamp-1">
+                          <div className="font-black text-xs sm:text-sm text-black mb-0.5 line-clamp-1">
                             {ev?.name || t.name}
                           </div>
 
-                          <div className="text-xs text-neutral-600 font-mono mb-2">
+                          <div className="text-[11px] text-neutral-600 font-mono mb-1.5">
                             Squad Name: <span className="font-bold text-black">{t.name}</span>
                           </div>
 
-                          <div className="p-2 bg-neutral-50 border border-black text-center my-2">
-                            <span className="font-mono text-[9px] text-neutral-500 uppercase tracking-wider block">
+                          <div className="p-1.5 sm:p-2 bg-neutral-50 border border-black text-center my-1.5">
+                            <span className="font-mono text-[8.5px] text-neutral-500 uppercase tracking-wider block">
                               Unique Squad Code
                             </span>
-                            <div className="text-2xl sm:text-3xl font-mono font-black text-[#D21319] tracking-wider my-0.5">
+                            <div className="text-xl sm:text-2xl font-mono font-black text-[#D21319] tracking-wider my-0.5 select-all">
                               {t.code}
                             </div>
                           </div>
                         </div>
 
-                        <div className="pt-2 space-y-1.5">
+                        <div className="pt-1.5 space-y-1.5">
                           <button
                             type="button"
                             onClick={() => copyToClipboard(t.code)}
@@ -591,11 +593,11 @@ export function RegistrationModal({
               </div>
             ) : (
               /* Single Credential Card */
-              <div className="p-6 bg-white border-2 border-black shadow-[6px_6px_0px_#000] text-center relative">
-                <span className="font-mono text-[10px] tracking-widest text-neutral-600 uppercase block mb-1 font-bold">
+              <div className="p-4 sm:p-5 bg-white border-2 border-black shadow-[4px_4px_0px_#000] text-center relative">
+                <span className="font-mono text-[9px] sm:text-[10px] tracking-widest text-neutral-600 uppercase block mb-1 font-bold">
                   YOUR UNIQUE SQUAD CODE
                 </span>
-                <div className="text-4xl sm:text-5xl font-mono font-black text-[#D21319] tracking-widest my-2">
+                <div className="text-3xl sm:text-5xl font-mono font-black text-[#D21319] tracking-widest my-1.5 sm:my-2 select-all">
                   {successData.code}
                 </div>
                 <div className="text-xs font-mono text-black">
@@ -606,14 +608,14 @@ export function RegistrationModal({
 
             {/* EVENT WHATSAPP GROUPS PROMINENT JOIN LINKS */}
             {successData.eventIds && successData.eventIds.length > 0 && (
-              <div className="p-4 bg-emerald-50 border-2 border-emerald-800 shadow-[3px_3px_0px_#065f46] text-left space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">💬</span>
-                  <span className="font-mono text-xs font-bold text-emerald-900 uppercase">
+              <div className="p-3 sm:p-4 bg-emerald-50 border-2 border-emerald-800 shadow-[3px_3px_0px_#065f46] text-left space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base sm:text-lg">💬</span>
+                  <span className="font-mono text-[11px] sm:text-xs font-bold text-emerald-900 uppercase">
                     Join Your Event Official WhatsApp Groups:
                   </span>
                 </div>
-                <p className="text-[11px] text-emerald-800">
+                <p className="text-[10.5px] sm:text-[11px] text-emerald-800 leading-snug">
                   Stay updated with live slot calls, problem announcements, and round schedules:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
@@ -626,10 +628,10 @@ export function RegistrationModal({
                         href={ev.whatsappLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2.5 bg-white border-2 border-black hover:bg-emerald-100 flex items-center justify-between gap-2 shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer"
+                        className="p-2 sm:p-2.5 bg-white border-2 border-black hover:bg-emerald-100 flex items-center justify-between gap-2 shadow-[2px_2px_0px_#000] text-xs font-mono font-bold text-black transition cursor-pointer"
                       >
                         <span className="truncate">{ev.title}</span>
-                        <span className="text-emerald-700 shrink-0">Join ➔</span>
+                        <span className="text-emerald-700 shrink-0 font-bold">Join ➔</span>
                       </a>
                     );
                   })}
@@ -638,12 +640,12 @@ export function RegistrationModal({
             )}
 
             {successData.type === 'created' && !(successData.teams && successData.teams.length > 1) && (
-              <div className="space-y-3">
-                <p className="text-xs text-neutral-700 font-sans">
+              <div className="space-y-2.5 pt-1">
+                <p className="text-[11px] sm:text-xs text-neutral-700 font-sans">
                   Share this code with your teammates so they can join your squad roster:
                 </p>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
                   <button
                     onClick={() => copyToClipboard(successData.code)}
                     className="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-neutral-100 border-2 border-black shadow-[3px_3px_0px_#000] text-black font-mono font-bold text-xs transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
@@ -665,14 +667,14 @@ export function RegistrationModal({
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2 sm:pt-3">
               <button
                 onClick={() => {
                   setSuccessData(null);
                   onClose();
                   router.push('/dashboard');
                 }}
-                className="w-full sm:w-auto px-8 py-3 bg-[#D21319] hover:bg-[#b00f14] text-white border-2 border-black shadow-[4px_4px_0px_#000] font-mono text-xs font-bold uppercase tracking-wider transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
+                className="w-full sm:w-auto px-8 py-3 bg-[#D21319] hover:bg-[#b00f14] text-white border-2 border-black shadow-[4px_4px_0px_#000] font-mono text-xs sm:text-sm font-bold uppercase tracking-wider transition cursor-pointer active:translate-x-[1px] active:translate-y-[1px]"
               >
                 Proceed to Dashboard ➔
               </button>

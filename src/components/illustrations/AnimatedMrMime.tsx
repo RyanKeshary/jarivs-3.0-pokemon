@@ -41,9 +41,9 @@ export function AnimatedMrMime({
           setIsPlaying(true);
         })
         .catch((err) => {
-          console.warn('Initial unmuted autoplay restricted by browser policy; starting muted video with audio ready on first tap:', err);
-          // Start video frames so it doesn't freeze, but preserve audio-on user setting
+          console.warn('Browser policy required muted start; keeping state synchronized:', err);
           vid.muted = true;
+          setIsMuted(true); // Maintain strict synchronization with DOM
           vid.play()
             .then(() => {
               setIsPlaying(true);
@@ -56,6 +56,18 @@ export function AnimatedMrMime({
     }
   }, [isMuted]);
 
+  // Guaranteed unmute on any user gesture
+  const unlockAudio = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    vid.muted = false;
+    vid.volume = 1.0;
+    setIsMuted(false);
+    if (vid.paused) {
+      vid.play().then(() => setIsPlaying(true)).catch(() => {});
+    }
+  }, []);
+
   // Lock body scroll while lightbox is active & listen for Escape key
   useEffect(() => {
     if (showVideoModal) {
@@ -64,11 +76,12 @@ export function AnimatedMrMime({
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('pause_background_audio'));
       }
-      const timer = setTimeout(() => {
+      // Trigger immediately without artificial delay to preserve user gesture
+      const raf = requestAnimationFrame(() => {
         attemptPlay();
-      }, 60);
+      });
       return () => {
-        clearTimeout(timer);
+        cancelAnimationFrame(raf);
         document.body.style.overflow = '';
       };
     } else {
@@ -180,9 +193,8 @@ export function AnimatedMrMime({
   const handleModalInteraction = () => {
     const vid = videoRef.current;
     if (!vid) return;
-    if (!isMuted && vid.muted) {
-      vid.muted = false;
-      vid.volume = 1.0;
+    if (isMuted || vid.muted) {
+      unlockAudio();
     }
   };
 
@@ -397,25 +409,28 @@ export function AnimatedMrMime({
                   Your browser does not support HTML5 video.
                 </video>
 
+                {/* Floating Unmute Prompt if browser restricted initial unmuted play */}
+                {isMuted && isPlaying && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unlockAudio();
+                    }}
+                    className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-mono font-bold shadow-[0_4px_16px_rgba(210,19,25,0.7)] animate-bounce cursor-pointer border border-white/40 active:scale-95"
+                  >
+                    <Volume2 size={13} />
+                    <span>TAP FOR AUDIO 🔊</span>
+                  </button>
+                )}
+
                 {/* Big Center Play Overlay (visible if paused or awaiting interaction) */}
                 {!isPlaying && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      const vid = videoRef.current;
-                      if (vid) {
-                        vid.muted = false;
-                        vid.volume = 1.0;
-                        setIsMuted(false);
-                        vid.play()
-                          .then(() => setIsPlaying(true))
-                          .catch((err) => {
-                            console.warn('Playback error:', err);
-                            vid.muted = true;
-                            vid.play().then(() => setIsPlaying(true)).catch(() => {});
-                          });
-                      }
+                      unlockAudio();
                     }}
                     className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
                     aria-label="Play video"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
@@ -31,22 +31,35 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
       playPromise
         .then(() => setIsPlaying(true))
         .catch((err) => {
-          console.warn('Initial unmuted autoplay restricted, starting muted video with audio ready on first tap:', err);
-          // Start video frames so it doesn't freeze, but preserve audio-on user setting
+          console.warn('Browser policy required muted start; keeping state synchronized:', err);
           vid.muted = true;
+          setIsMuted(true); // Maintain strict synchronization with DOM
           vid.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
         });
     }
   }, [isMuted]);
 
+  // Guaranteed unmute on user gesture
+  const unlockAudio = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    vid.muted = false;
+    vid.volume = 1.0;
+    setIsMuted(false);
+    if (vid.paused) {
+      vid.play().then(() => setIsPlaying(true)).catch(() => {});
+    }
+  }, []);
+
   useEffect(() => {
     if (showPsyduckVideo) {
       document.body.style.overflow = 'hidden';
-      const timer = setTimeout(() => {
+      // Trigger immediately without artificial delay to preserve user gesture token
+      const raf = requestAnimationFrame(() => {
         attemptPlay();
-      }, 60);
+      });
       return () => {
-        clearTimeout(timer);
+        cancelAnimationFrame(raf);
         document.body.style.overflow = '';
       };
     } else {
@@ -259,18 +272,10 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
             className="relative w-full max-w-[380px] sm:max-w-[440px] bg-[#0E101D] border-2 border-amber-400 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(251,191,36,0.35)] overflow-hidden flex flex-col my-auto"
             onClick={(e) => {
               e.stopPropagation();
-              const vid = videoRef.current;
-              if (vid && !isMuted && vid.muted) {
-                vid.muted = false;
-                vid.volume = 1.0;
-              }
+              if (isMuted) unlockAudio();
             }}
             onPointerDown={() => {
-              const vid = videoRef.current;
-              if (vid && !isMuted && vid.muted) {
-                vid.muted = false;
-                vid.volume = 1.0;
-              }
+              if (isMuted) unlockAudio();
             }}
           >
             {/* Top Bar Header */}
@@ -352,35 +357,39 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
                 Your browser does not support the video tag.
               </video>
 
-              {!isPlaying && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const vid = videoRef.current;
-                    if (vid) {
-                      vid.muted = false;
-                      vid.volume = 1.0;
-                      setIsMuted(false);
-                      vid.play()
-                        .then(() => setIsPlaying(true))
-                        .catch(() => {
-                          vid.muted = true;
-                          vid.play().then(() => setIsPlaying(true)).catch(() => {});
-                        });
-                    }
-                  }}
-                  className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
-                  aria-label="Play video"
-                >
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95 font-black">
-                    <Play size={26} className="translate-x-0.5 fill-black" />
-                  </div>
-                  <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
-                    Tap to Play
-                  </span>
-                </button>
-              )}
+                {/* Floating Unmute Prompt if browser restricted initial unmuted play */}
+                {isMuted && isPlaying && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unlockAudio();
+                    }}
+                    className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-black text-xs font-mono font-black shadow-[0_4px_16px_rgba(245,158,11,0.7)] animate-bounce cursor-pointer border border-white/40 active:scale-95"
+                  >
+                    <Volume2 size={13} />
+                    <span>TAP FOR AUDIO 🔊</span>
+                  </button>
+                )}
+
+                {!isPlaying && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unlockAudio();
+                    }}
+                    className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
+                    aria-label="Play video"
+                  >
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95 font-black">
+                      <Play size={26} className="translate-x-0.5 fill-black" />
+                    </div>
+                    <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
+                      Tap to Play
+                    </span>
+                  </button>
+                )}
             </div>
 
             {/* Bottom Bar Notice */}

@@ -128,15 +128,15 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           // If browser restricts unmuted autoplay on cold page load, start playing frames,
           // and audio un-mutes automatically upon the very first user interaction anywhere
           vid.muted = true;
-          if (userDidMuteRef.current) {
-            setSoundOn(false);
-          }
+          setSoundOn(false); // Keep React state strictly synchronized with DOM
           vid.play()
             .then(() => {
               setIsPlaying(true);
               lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
             })
-            .catch(() => {});
+            .catch(() => {
+              setIsPlaying(false);
+            });
         });
     }
   }, []);
@@ -464,6 +464,22 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Floating Unmute Prompt if browser restricted initial unmuted play */}
+        {!soundOn && isPlaying && (
+          <div className="absolute bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                unmuteAndPlay();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-black/85 hover:bg-black text-[#FFCB05] border-2 border-[#FFCB05] rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.8)] font-mono text-xs font-bold uppercase tracking-wider animate-bounce cursor-pointer active:scale-95"
+            >
+              <Volume2 className="w-4 h-4 text-[#FFCB05]" />
+              <span>TAP TO UNMUTE 🔊</span>
+            </button>
+          </div>
+        )}
 
       </div>
 
