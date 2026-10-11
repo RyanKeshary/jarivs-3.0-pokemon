@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Bodoni_Moda, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const bodoni = Bodoni_Moda({
   subsets: ['latin'],
@@ -38,6 +39,7 @@ export default function RootLayout({
     <html lang="en" className={`${bodoni.variable} ${spaceGrotesk.variable}`}>
       <body className="min-h-screen bg-[#1B1E4A] text-[#E9E6DA] font-sans antialiased selection:bg-[#D21319] selection:text-[#E9E6DA]">
         <QueryProvider>{children}</QueryProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
