@@ -18,8 +18,9 @@ export function AnimatedMrMime({
   const [isTapping, setIsTapping] = useState(false);
   const [floatingTexts, setFloatingTexts] = useState<{ id: number; text: string; x: number }[]>([]);
 
-  // Click tracking to trigger the secret tape lightbox
+  // Click tracking to trigger the secret tape lightbox (random range 40-67)
   const [clickCount, setClickCount] = useState(0);
+  const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -167,20 +168,13 @@ export function AnimatedMrMime({
     const nextClicks = clickCount + 1;
     setClickCount(nextClicks);
 
-    // Open lightbox smoothly on 2 taps or directly
-    if (nextClicks >= 2) {
+    // Open lightbox when reaching target clicks (40-67 taps)
+    if (nextClicks >= targetClicksRef.current) {
       setIsMuted(false);
       setShowVideoModal(true);
       setClickCount(0);
+      targetClicksRef.current = Math.floor(Math.random() * (67 - 40 + 1)) + 40;
     }
-  };
-
-  const handleDirectPlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    playMimeSound();
-    setIsMuted(false);
-    setShowVideoModal(true);
-    setClickCount(0);
   };
 
   const handleModalInteraction = () => {
@@ -211,7 +205,7 @@ export function AnimatedMrMime({
         <div
           className={`relative inline-flex flex-col items-center justify-center select-none cursor-pointer group ${className}`}
           onClick={handleInteract}
-          title="Mr. Mime · No. 122 (Barrier Pokémon) — Tap to interact or watch secret tape!"
+          title="Mr. Mime · No. 122 (Barrier Pokémon) — Tap to interact!"
           style={{ width: size, height: size + 16 }}
         >
           {/* Floating Sparkles / Onomatopoeia */}
@@ -307,17 +301,6 @@ export function AnimatedMrMime({
             className="h-2 w-16 bg-black/20 rounded-full blur-[2px] mt-1 pointer-events-none"
           />
         </div>
-
-        {/* Small Direct Play Pill beneath Mr. Mime */}
-        <button
-          type="button"
-          onClick={handleDirectPlay}
-          className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/80 hover:bg-[#D21319] text-[#E9E6DA] hover:text-white font-mono text-[9px] uppercase tracking-wider font-bold border border-black/30 shadow-[1px_1px_0px_#000] transition-all cursor-pointer hover:scale-105 active:scale-95"
-          title="Play Mr. Mime Secret Archive Tape"
-        >
-          <Play size={10} className="fill-current" />
-          <span>Secret Tape</span>
-        </button>
       </div>
 
       {/* ============================================================== */}

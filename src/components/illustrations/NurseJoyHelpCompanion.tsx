@@ -9,9 +9,11 @@ interface NurseJoyHelpCompanionProps {
 }
 
 export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionProps) {
-  // Easter egg counter: counts edge-to-edge drags in ANY direction (left-right, top-bottom, etc.)
+  // Easter egg counter: counts edge-to-edge drags in ANY direction (random range 10-20)
   const [completedEdgeDrags, setCompletedEdgeDrags] = useState(0);
+  const targetSwipesRef = useRef(Math.floor(Math.random() * (20 - 10 + 1)) + 10);
   const [clickCount, setClickCount] = useState(0);
+  const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
   const [showVideo, setShowVideo] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState<string>(
     'Welcome to the Indigo Pokémon Center Help Desk! Need assistance reaching our coordinators? 💖'
@@ -221,16 +223,17 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
       const nextCount = completedEdgeDrags + 1;
       setCompletedEdgeDrags(nextCount);
 
-      if (nextCount >= 5) {
+      if (nextCount >= targetSwipesRef.current) {
         setIsMuted(false);
         setShowVideo(true);
         setCompletedEdgeDrags(0);
+        targetSwipesRef.current = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
         setCurrentPrompt(
           '💖 Special archive transmission unlocked! Enjoy the exclusive Pokémon Center presentation!'
         );
       } else {
         setCurrentPrompt(
-          `💖 Healing wave [${nextCount}/5] registered! Keep sweeping across the screen in any direction!`
+          `💖 Healing wave [${nextCount}/${targetSwipesRef.current}] registered! Keep sweeping across the screen in any direction!`
         );
       }
     }
@@ -243,11 +246,12 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
     const nextClicks = clickCount + 1;
     setClickCount(nextClicks);
 
-    // Quick tap shortcut: 3 taps opens the video directly
-    if (nextClicks >= 3) {
+    // Tap easter egg trigger (40-67 taps)
+    if (nextClicks >= targetClicksRef.current) {
       setIsMuted(false);
       setShowVideo(true);
       setClickCount(0);
+      targetClicksRef.current = Math.floor(Math.random() * (67 - 40 + 1)) + 40;
     }
   };
 
@@ -305,18 +309,6 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                   <span>POKÉMON CENTER DESK</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsMuted(false);
-                      setShowVideo(true);
-                    }}
-                    className="text-[9px] font-bold text-pink-600 hover:text-pink-700 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-200 cursor-pointer"
-                    title="Watch secret transmission"
-                  >
-                    ▶ Transmission
-                  </button>
                   <button
                     type="button"
                     onClick={(e) => {
