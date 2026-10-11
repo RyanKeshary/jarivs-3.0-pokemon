@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart } from 'lucide-react';
+import { X } from 'lucide-react';
 import { playInstantVoice, lazyStoreMedia } from '@/lib/mediaCache';
 
 interface NurseJoyHelpCompanionProps {
@@ -16,12 +16,8 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
   const [clickCount, setClickCount] = useState(0);
   const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
   const [showVideo, setShowVideo] = useState(false);
-  const [currentPrompt, setCurrentPrompt] = useState<string>(
-    'Welcome to the Indigo Pokémon Center Help Desk! Need assistance reaching our coordinators? 💖'
-  );
   const [isDragging, setIsDragging] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showSpeechBubble, setShowSpeechBubble] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const dragStartPointRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -133,29 +129,6 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
     maxTravelRef.current.x = Math.max(maxTravelRef.current.x, distX, absX);
     maxTravelRef.current.y = Math.max(maxTravelRef.current.y, distY, absY);
 
-    if (absX > 25 || absY > 25) {
-      if (absX > absY) {
-        if (x < 0) {
-          setCurrentPrompt(
-            'Heading towards the West wing? 👈 Coordinating with Manthan & Shreyash for festival directives!'
-          );
-        } else {
-          setCurrentPrompt(
-            'Swiping East across the desk? 👉 Ryan & Shlok are on standby at the Takniki Coordination Desk!'
-          );
-        }
-      } else {
-        if (y < 0) {
-          setCurrentPrompt(
-            'Moving up? 👆 Direct student inquiries to Aditya, Indresh & Vaibhav for on-ground assistance!'
-          );
-        } else {
-          setCurrentPrompt(
-            'Taking a breather at the Pokémon Center? 👇 All fest coordinators are just a call away!'
-          );
-        }
-      }
-    }
   };
 
   const handleDragEnd = (
@@ -205,19 +178,11 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
         setShowVideo(true);
         setCompletedEdgeDrags(0);
         targetSwipesRef.current = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
-        setCurrentPrompt(
-          '💖 Special archive transmission unlocked! Enjoy the exclusive Pokémon Center presentation!'
-        );
-      } else {
-        setCurrentPrompt(
-          `💖 Healing wave [${nextCount}/${targetSwipesRef.current}] registered! Keep sweeping across the screen in any direction!`
-        );
       }
     }
   };
 
   const handleCharacterClick = () => {
-    if (!showSpeechBubble) setShowSpeechBubble(true);
     playRetroChime();
 
     const nextClicks = clickCount + 1;
@@ -247,47 +212,6 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
       >
-        {/* RETRO 2D DIALOGUE BUBBLE OFFERING HELP */}
-        <AnimatePresence>
-          {showSpeechBubble && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.88, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.88, y: 10 }}
-              className="relative mb-2 max-w-[270px] sm:max-w-[320px] bg-white border-2 border-black p-3 sm:p-3.5 shadow-[4px_4px_0px_#000] text-black rounded-none"
-            >
-              {/* Header Badge */}
-              <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b-2 border-black/10 text-[10px] font-mono">
-                <div className="flex items-center gap-1.5 font-black text-[#D21319] tracking-wider uppercase">
-                  <Heart size={12} className="fill-[#D21319]" />
-                  <span>POKÉMON CENTER DESK</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSpeechBubble(false);
-                    }}
-                    className="text-neutral-500 hover:text-black cursor-pointer p-0.5"
-                    title="Dismiss dialogue"
-                    aria-label="Dismiss dialogue"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Dynamic Speech Text */}
-              <p className="font-sans text-xs sm:text-[13px] leading-snug font-medium text-neutral-800">
-                {currentPrompt}
-              </p>
-
-              {/* Dialogue Arrow pointing to pixel character */}
-              <div className="absolute -bottom-2 right-10 w-3.5 h-3.5 bg-white border-r-2 border-b-2 border-black rotate-45" />
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* 2D PIXELATED SPRITE CONTAINER */}
         <div
