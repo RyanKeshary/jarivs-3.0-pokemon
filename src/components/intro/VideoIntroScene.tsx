@@ -104,7 +104,9 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
   }, [hasTriedFallback, videoSrc, handleFinishOrSkip]);
 
-  // Playback automatically - try unmuted first, seamlessly fallback to muted autoplay if browser restricts
+  const userDidMuteRef = useRef(false);
+
+  // Playback automatically - audio is ON by default
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
@@ -113,19 +115,22 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     vid.playsInline = true;
 
     // Try unmuted autoplay first
-    vid.muted = false;
+    vid.muted = userDidMuteRef.current;
     const playPromise = vid.play();
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
           setIsPlaying(true);
-          setSoundOn(true);
+          if (!userDidMuteRef.current) setSoundOn(true);
           lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
         })
         .catch(() => {
-          // If browser restricts unmuted autoplay, immediately start playing automatically without asking for permission!
+          // If browser restricts unmuted autoplay on cold page load, start playing frames,
+          // and audio un-mutes automatically upon the very first user interaction anywhere
           vid.muted = true;
-          setSoundOn(false);
+          if (userDidMuteRef.current) {
+            setSoundOn(false);
+          }
           vid.play()
             .then(() => {
               setIsPlaying(true);
@@ -148,8 +153,8 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     vid.setAttribute('x5-playsinline', '');
     vid.setAttribute('x5-video-player-type', 'h5-page');
 
-    // Audio is strictly ON
-    vid.muted = false;
+    // Audio is strictly ON by default
+    vid.muted = userDidMuteRef.current;
     attemptPlay();
   }, [videoSrc, attemptPlay]);
 
@@ -159,10 +164,12 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       const vid = videoRef.current;
       if (!vid || isExiting) return;
 
-      if (vid.muted || !soundOn) {
-        vid.muted = false;
-        vid.volume = 1.0;
-        setSoundOn(true);
+      if (!userDidMuteRef.current) {
+        if (vid.muted || !soundOn) {
+          vid.muted = false;
+          vid.volume = 1.0;
+          setSoundOn(true);
+        }
       }
 
       if (vid.paused) {
@@ -234,6 +241,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     const vid = videoRef.current;
     if (!vid) return;
 
+    userDidMuteRef.current = false;
     vid.muted = false;
     vid.volume = 1.0;
     setSoundOn(true);
@@ -248,6 +256,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     if (!soundOn) {
       unmuteAndPlay();
     } else {
+      userDidMuteRef.current = true;
       vid.muted = true;
       setSoundOn(false);
       playTacticalChime(329.63, 'sine');

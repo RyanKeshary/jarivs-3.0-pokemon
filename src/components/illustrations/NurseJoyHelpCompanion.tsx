@@ -51,12 +51,14 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
     }
   }, []);
 
-  // Reliable video autoplay with unmuted -> muted fallback
+  // Reliable video autoplay with audio strictly ON by default
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
-    vid.muted = isMuted;
+    vid.volume = 1.0;
+    vid.muted = isMuted; // False by default: audio ON
+
     const playPromise = vid.play();
     if (playPromise !== undefined) {
       playPromise
@@ -64,9 +66,9 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
           setIsPlaying(true);
         })
         .catch((err) => {
-          console.warn('Unmuted playback restricted by browser policy; trying muted fallback:', err);
+          console.warn('Initial unmuted playback restricted by browser policy; starting muted video with audio ready on first tap:', err);
+          // Start video frames so it doesn't freeze, but preserve audio-on user setting
           vid.muted = true;
-          setIsMuted(true);
           vid.play()
             .then(() => setIsPlaying(true))
             .catch((e2) => {
@@ -220,6 +222,7 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
       setCompletedEdgeDrags(nextCount);
 
       if (nextCount >= 5) {
+        setIsMuted(false);
         setShowVideo(true);
         setCompletedEdgeDrags(0);
         setCurrentPrompt(
@@ -242,8 +245,18 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
 
     // Quick tap shortcut: 3 taps opens the video directly
     if (nextClicks >= 3) {
+      setIsMuted(false);
       setShowVideo(true);
       setClickCount(0);
+    }
+  };
+
+  const handleModalInteraction = () => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (!isMuted && vid.muted) {
+      vid.muted = false;
+      vid.volume = 1.0;
     }
   };
 
@@ -253,6 +266,7 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
     if (!vid) return;
     const nextMuted = !isMuted;
     vid.muted = nextMuted;
+    vid.volume = 1.0;
     setIsMuted(nextMuted);
     if (vid.paused) {
       vid.play().then(() => setIsPlaying(true)).catch(() => {});
@@ -295,6 +309,7 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      setIsMuted(false);
                       setShowVideo(true);
                     }}
                     className="text-[9px] font-bold text-pink-600 hover:text-pink-700 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-200 cursor-pointer"
@@ -384,7 +399,11 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
               exit={{ scale: 0.92, opacity: 0, y: 15 }}
               transition={{ type: 'spring', damping: 26, stiffness: 320 }}
               className="relative w-full max-w-2xl sm:max-w-3xl bg-[#0E101D] border-2 border-pink-500 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(236,72,153,0.35)] overflow-hidden flex flex-col my-auto"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleModalInteraction();
+              }}
+              onPointerDown={handleModalInteraction}
             >
               {/* Lightbox Top Header Bar */}
               <div className="relative z-30 px-3.5 py-2.5 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-b border-white/10 flex items-center justify-between text-white font-mono text-xs select-none">
@@ -443,6 +462,8 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                   loop
                   preload="auto"
                   muted={isMuted}
+                  onCanPlay={attemptPlay}
+                  onLoadedMetadata={attemptPlay}
                   onPlay={() => setIsPlaying(true)}
                   onPlaying={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
@@ -462,13 +483,13 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                       const vid = videoRef.current;
                       if (vid) {
                         vid.muted = false;
+                        vid.volume = 1.0;
                         setIsMuted(false);
                         vid.play()
                           .then(() => setIsPlaying(true))
                           .catch((err) => {
                             console.warn('Playback error:', err);
                             vid.muted = true;
-                            setIsMuted(true);
                             vid.play().then(() => setIsPlaying(true)).catch(() => {});
                           });
                       }

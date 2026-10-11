@@ -18,21 +18,32 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  // Play video with audio strictly ON by default
+  const attemptPlay = React.useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+
+    vid.volume = 1.0;
+    vid.muted = isMuted; // False by default: audio ON
+
+    const playPromise = vid.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => setIsPlaying(true))
+        .catch((err) => {
+          console.warn('Initial unmuted autoplay restricted, starting muted video with audio ready on first tap:', err);
+          // Start video frames so it doesn't freeze, but preserve audio-on user setting
+          vid.muted = true;
+          vid.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+        });
+    }
+  }, [isMuted]);
+
   useEffect(() => {
     if (showPsyduckVideo) {
       document.body.style.overflow = 'hidden';
       const timer = setTimeout(() => {
-        const vid = videoRef.current;
-        if (!vid) return;
-        vid.muted = isMuted;
-        vid.play()
-          .then(() => setIsPlaying(true))
-          .catch((err) => {
-            console.warn('Psyduck video autoplay restricted, trying muted fallback:', err);
-            vid.muted = true;
-            setIsMuted(true);
-            vid.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-          });
+        attemptPlay();
       }, 60);
       return () => {
         clearTimeout(timer);
@@ -42,7 +53,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
       document.body.style.overflow = '';
       setIsPlaying(false);
     }
-  }, [showPsyduckVideo, isMuted]);
+  }, [showPsyduckVideo, attemptPlay]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -132,7 +143,10 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
           >
             <AnimatedPsyduck
               size={96}
-              onEasterEggTrigger={() => setShowPsyduckVideo(true)}
+              onEasterEggTrigger={() => {
+                setIsMuted(false);
+                setShowPsyduckVideo(true);
+              }}
             />
           </div>
         </div>
@@ -243,7 +257,21 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
           {/* Centered Lightbox Card */}
           <div
             className="relative w-full max-w-[380px] sm:max-w-[440px] bg-[#0E101D] border-2 border-amber-400 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(251,191,36,0.35)] overflow-hidden flex flex-col my-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              const vid = videoRef.current;
+              if (vid && !isMuted && vid.muted) {
+                vid.muted = false;
+                vid.volume = 1.0;
+              }
+            }}
+            onPointerDown={() => {
+              const vid = videoRef.current;
+              if (vid && !isMuted && vid.muted) {
+                vid.muted = false;
+                vid.volume = 1.0;
+              }
+            }}
           >
             {/* Top Bar Header */}
             <div className="relative z-30 px-3.5 py-2.5 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-b border-white/10 flex items-center justify-between text-white font-mono text-xs select-none">
@@ -265,6 +293,7 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
                     if (!vid) return;
                     const nextMuted = !isMuted;
                     vid.muted = nextMuted;
+                    vid.volume = 1.0;
                     setIsMuted(nextMuted);
                     if (vid.paused) {
                       vid.play().then(() => setIsPlaying(true)).catch(() => {});
@@ -313,6 +342,8 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
                 muted={isMuted}
                 loop
                 preload="auto"
+                onCanPlay={attemptPlay}
+                onLoadedMetadata={attemptPlay}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 className="w-full h-full object-contain bg-black"
@@ -329,12 +360,12 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
                     const vid = videoRef.current;
                     if (vid) {
                       vid.muted = false;
+                      vid.volume = 1.0;
                       setIsMuted(false);
                       vid.play()
                         .then(() => setIsPlaying(true))
                         .catch(() => {
                           vid.muted = true;
-                          setIsMuted(true);
                           vid.play().then(() => setIsPlaying(true)).catch(() => {});
                         });
                     }
