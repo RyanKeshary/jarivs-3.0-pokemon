@@ -73,8 +73,8 @@ To allow the automated backup script to upload backups directly into your Google
 
 ## Running Backups
 
-### 1. Fully Automated (Every 2 Hours)
-The GitHub Actions workflow [`.github/workflows/database-backup.yml`](file:///.github/workflows/database-backup.yml) runs every 2 hours automatically via cron `0 */2 * * *`.
+### 1. Fully Automated (Every 1 Hour)
+The GitHub Actions workflow [`.github/workflows/database-backup.yml`](file:///.github/workflows/database-backup.yml) runs every hour automatically via cron `0 * * * *`.
 
 ### 2. Manual On-Demand Backup via GitHub UI (1 Click)
 1. Go to your repo's **Actions** tab.
