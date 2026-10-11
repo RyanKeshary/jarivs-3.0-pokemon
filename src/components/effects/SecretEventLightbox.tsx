@@ -199,10 +199,10 @@ export function SecretEventLightbox() {
             {/* User Requested Body Text */}
             <div className="space-y-4 font-sans text-sm sm:text-base leading-relaxed text-sky-100">
               <p className="drop-shadow-sm font-medium">
-                There are in total 7 hidden easter eggs hidden throughout the website. and some intentional technical ones <span className="text-sky-300 font-semibold">(find them, dev's will hate u💔)</span>
+                There are 5 easter eggs on this webiste, including this one. Two intentional mistakes. Find them all and report to The President or Takniki Desk from the &ldquo;Helpline&rdquo; page.
               </p>
               <div className="font-bold text-white text-base sm:text-lg border-l-4 border-sky-400 pl-3.5 py-2.5 bg-sky-500/15 rounded-r shadow-inner">
-                the one to find all will win something sepecial😝.
+                Be the first one to find all the easter eggs and you shall receive a special reward.
               </div>
             </div>
 
