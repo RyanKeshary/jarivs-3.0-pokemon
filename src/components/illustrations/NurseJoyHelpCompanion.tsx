@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX, Heart, Play } from 'lucide-react';
+import { X, Heart } from 'lucide-react';
+import { playInstantVoice, lazyStoreMedia } from '@/lib/mediaCache';
 
 interface NurseJoyHelpCompanionProps {
   className?: string;
@@ -19,7 +20,6 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
     'Welcome to the Indigo Pokémon Center Help Desk! Need assistance reaching our coordinators? 💖'
   );
   const [isDragging, setIsDragging] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSpeechBubble, setShowSpeechBubble] = useState(true);
 
@@ -27,39 +27,23 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
   const dragStartPointRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const maxTravelRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Synthesize authentic 8-bit/16-bit retro chime via Web Audio API
-  const playRetroChime = useCallback(() => {
-    try {
-      const AudioContextClass =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      const notes = [587.33, 739.99, 880.0, 1174.66]; // D5, F#5, A5, D6
-      notes.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.07);
-        gain.gain.setValueAtTime(0.04, ctx.currentTime + i * 0.07);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.07 + 0.16);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + i * 0.07);
-        osc.stop(ctx.currentTime + i * 0.07 + 0.18);
-      });
-    } catch {
-      // Audio autoplay policy
-    }
+  // Lazy store Nurse Joy video in chunk packets in background so it's ready instantly
+  useEffect(() => {
+    lazyStoreMedia(['/media/nurse-joy-video.mp4', '/media/nurse-joy-voice.mp3']);
   }, []);
 
-  // Reliable video autoplay with audio strictly ON by default
+  // Play authentic Nurse Joy & Chansey voice line on every single click/drag
+  const playRetroChime = useCallback(() => {
+    playInstantVoice('/media/nurse-joy-voice.mp3', 1.0);
+  }, []);
+
+  // Reliable video autoplay with audio strictly ON by default (unmuted, full volume)
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
     vid.volume = 1.0;
-    vid.muted = isMuted; // False by default: audio ON
+    vid.muted = false;
 
     const playPromise = vid.play();
     if (playPromise !== undefined) {
@@ -68,28 +52,9 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
           setIsPlaying(true);
         })
         .catch((err) => {
-          console.warn('Browser policy required muted start; keeping state synchronized:', err);
-          vid.muted = true;
-          setIsMuted(true); // Maintain strict synchronization with DOM
-          vid.play()
-            .then(() => setIsPlaying(true))
-            .catch((e2) => {
-              console.warn('Playback requires direct user tap:', e2);
-              setIsPlaying(false);
-            });
+          console.warn('Playback policy retry:', err);
+          vid.play().then(() => setIsPlaying(true)).catch(() => {});
         });
-    }
-  }, [isMuted]);
-
-  // Guaranteed unmute on any user gesture
-  const unlockAudio = useCallback(() => {
-    const vid = videoRef.current;
-    if (!vid) return;
-    vid.muted = false;
-    vid.volume = 1.0;
-    setIsMuted(false);
-    if (vid.paused) {
-      vid.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   }, []);
 
@@ -237,7 +202,6 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
       setCompletedEdgeDrags(nextCount);
 
       if (nextCount >= targetSwipesRef.current) {
-        setIsMuted(false);
         setShowVideo(true);
         setCompletedEdgeDrags(0);
         targetSwipesRef.current = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
@@ -261,31 +225,9 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
 
     // Tap easter egg trigger (40-67 taps)
     if (nextClicks >= targetClicksRef.current) {
-      setIsMuted(false);
       setShowVideo(true);
       setClickCount(0);
       targetClicksRef.current = Math.floor(Math.random() * (67 - 40 + 1)) + 40;
-    }
-  };
-
-  const handleModalInteraction = () => {
-    const vid = videoRef.current;
-    if (!vid) return;
-    if (isMuted || vid.muted) {
-      unlockAudio();
-    }
-  };
-
-  const handleToggleSound = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const vid = videoRef.current;
-    if (!vid) return;
-    const nextMuted = !isMuted;
-    vid.muted = nextMuted;
-    vid.volume = 1.0;
-    setIsMuted(nextMuted);
-    if (vid.paused) {
-      vid.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   };
 
@@ -405,9 +347,7 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
               className="relative w-full max-w-2xl sm:max-w-3xl bg-[#0E101D] border-2 border-pink-500 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(236,72,153,0.35)] overflow-hidden flex flex-col my-auto"
               onClick={(e) => {
                 e.stopPropagation();
-                handleModalInteraction();
               }}
-              onPointerDown={handleModalInteraction}
             >
               {/* Lightbox Top Header Bar */}
               <div className="relative z-30 px-3.5 py-2.5 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-b border-white/10 flex items-center justify-between text-white font-mono text-xs select-none">
@@ -422,25 +362,9 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Audio Status & Toggle */}
-                  <button
-                    type="button"
-                    onClick={handleToggleSound}
-                    className="flex items-center gap-1 text-[11px] text-slate-200 hover:text-white px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded border border-white/20 transition-all cursor-pointer font-bold"
-                    title={isMuted ? 'Unmute' : 'Mute'}
-                  >
-                    {isMuted ? (
-                      <>
-                        <VolumeX size={13} className="text-amber-400" />
-                        <span className="text-amber-300">UNMUTE</span>
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 size={13} className="text-emerald-400" />
-                        <span className="text-emerald-300">AUDIO ON</span>
-                      </>
-                    )}
-                  </button>
+                  <span className="flex items-center gap-1 text-[11px] text-emerald-300 px-2.5 py-1 bg-emerald-950/60 rounded border border-emerald-500/40 font-mono font-bold">
+                    AUDIO ON
+                  </span>
 
                   {/* Close Lightbox Button */}
                   <button
@@ -465,7 +389,6 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                   playsInline
                   loop
                   preload="auto"
-                  muted={isMuted}
                   onCanPlay={attemptPlay}
                   onLoadedMetadata={attemptPlay}
                   onPlay={() => setIsPlaying(true)}
@@ -477,41 +400,6 @@ export function NurseJoyHelpCompanion({ className = '' }: NurseJoyHelpCompanionP
                   <source src="/media/nurse-joy-video.webm" type="video/webm" />
                   Your browser does not support HTML5 video.
                 </video>
-
-                {/* Floating Unmute Prompt if browser restricted initial unmuted play */}
-                {isMuted && isPlaying && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlockAudio();
-                    }}
-                    className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pink-600 hover:bg-pink-700 text-white text-xs font-mono font-bold shadow-[0_4px_16px_rgba(236,72,153,0.7)] animate-bounce cursor-pointer border border-white/40 active:scale-95"
-                  >
-                    <Volume2 size={13} />
-                    <span>TAP FOR AUDIO 🔊</span>
-                  </button>
-                )}
-
-                {/* Big Center Play Overlay (visible if paused or awaiting interaction) */}
-                {!isPlaying && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlockAudio();
-                    }}
-                    className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
-                    aria-label="Play video"
-                  >
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-pink-600 hover:bg-pink-700 text-white flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95">
-                      <Play size={26} className="translate-x-0.5 fill-white" />
-                    </div>
-                    <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
-                      Tap to Play Transmission
-                    </span>
-                  </button>
-                )}
               </div>
 
               {/* Lightbox Footer Bar */}

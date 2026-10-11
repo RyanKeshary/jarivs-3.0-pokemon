@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { adminLoginAction } from '@/app/actions/admin';
 import { createClient } from '@/lib/supabase/client';
 import { AnimatedPsyduck } from '@/components/illustrations/AnimatedPsyduck';
-import { Eye, EyeOff, X, Volume2, VolumeX, Play } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
 
 export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any) => void }) {
   const [email, setEmail] = useState('');
@@ -14,47 +14,32 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPsyduckVideo, setShowPsyduckVideo] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Play video with audio strictly ON by default
-  const attemptPlay = React.useCallback(() => {
+  // Play video with audio strictly ON by default (unmuted, full volume)
+  const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
     vid.volume = 1.0;
-    vid.muted = isMuted; // False by default: audio ON
+    vid.muted = false;
 
     const playPromise = vid.play();
     if (playPromise !== undefined) {
       playPromise
         .then(() => setIsPlaying(true))
         .catch((err) => {
-          console.warn('Browser policy required muted start; keeping state synchronized:', err);
-          vid.muted = true;
-          setIsMuted(true); // Maintain strict synchronization with DOM
-          vid.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+          console.warn('Playback policy retry:', err);
+          // If browser initially halted unmuted, retry play immediately
+          vid.play().then(() => setIsPlaying(true)).catch(() => {});
         });
-    }
-  }, [isMuted]);
-
-  // Guaranteed unmute on user gesture
-  const unlockAudio = useCallback(() => {
-    const vid = videoRef.current;
-    if (!vid) return;
-    vid.muted = false;
-    vid.volume = 1.0;
-    setIsMuted(false);
-    if (vid.paused) {
-      vid.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   }, []);
 
   useEffect(() => {
     if (showPsyduckVideo) {
       document.body.style.overflow = 'hidden';
-      // Trigger immediately without artificial delay to preserve user gesture token
       const raf = requestAnimationFrame(() => {
         attemptPlay();
       });
@@ -157,7 +142,6 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
             <AnimatedPsyduck
               size={96}
               onEasterEggTrigger={() => {
-                setIsMuted(false);
                 setShowPsyduckVideo(true);
               }}
             />
@@ -272,10 +256,6 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
             className="relative w-full max-w-[380px] sm:max-w-[440px] bg-[#0E101D] border-2 border-amber-400 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(251,191,36,0.35)] overflow-hidden flex flex-col my-auto"
             onClick={(e) => {
               e.stopPropagation();
-              if (isMuted) unlockAudio();
-            }}
-            onPointerDown={() => {
-              if (isMuted) unlockAudio();
             }}
           >
             {/* Top Bar Header */}
@@ -291,35 +271,6 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const vid = videoRef.current;
-                    if (!vid) return;
-                    const nextMuted = !isMuted;
-                    vid.muted = nextMuted;
-                    vid.volume = 1.0;
-                    setIsMuted(nextMuted);
-                    if (vid.paused) {
-                      vid.play().then(() => setIsPlaying(true)).catch(() => {});
-                    }
-                  }}
-                  className="flex items-center gap-1 text-[11px] text-slate-200 hover:text-white px-2 py-1 bg-white/10 hover:bg-white/20 rounded border border-white/20 transition-all cursor-pointer font-bold"
-                  title={isMuted ? 'Unmute' : 'Mute'}
-                >
-                  {isMuted ? (
-                    <>
-                      <VolumeX size={13} className="text-amber-400" />
-                      <span className="text-amber-300">UNMUTE</span>
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 size={13} className="text-emerald-400" />
-                      <span className="text-emerald-300">AUDIO ON</span>
-                    </>
-                  )}
-                </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -344,7 +295,6 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
                 controls
                 autoPlay
                 playsInline
-                muted={isMuted}
                 loop
                 preload="auto"
                 onCanPlay={attemptPlay}
@@ -356,40 +306,6 @@ export function AdminLoginCard({ onLoginSuccess }: { onLoginSuccess: (data?: any
                 <source src="/media/untitled-design.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
-
-                {/* Floating Unmute Prompt if browser restricted initial unmuted play */}
-                {isMuted && isPlaying && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlockAudio();
-                    }}
-                    className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-black text-xs font-mono font-black shadow-[0_4px_16px_rgba(245,158,11,0.7)] animate-bounce cursor-pointer border border-white/40 active:scale-95"
-                  >
-                    <Volume2 size={13} />
-                    <span>TAP FOR AUDIO 🔊</span>
-                  </button>
-                )}
-
-                {!isPlaying && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlockAudio();
-                    }}
-                    className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
-                    aria-label="Play video"
-                  >
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95 font-black">
-                      <Play size={26} className="translate-x-0.5 fill-black" />
-                    </div>
-                    <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
-                      Tap to Play
-                    </span>
-                  </button>
-                )}
             </div>
 
             {/* Bottom Bar Notice */}

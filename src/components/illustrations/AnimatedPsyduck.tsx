@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { playInstantVoice, lazyStoreMedia } from '@/lib/mediaCache';
 
 interface AnimatedPsyduckProps {
   size?: number;
@@ -23,44 +24,14 @@ export function AnimatedPsyduck({
   const [clickCount, setClickCount] = useState(0);
   const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
 
-  // Synthesize Psyduck's nostalgic confused "Psy-yi-yi?!" quack chime via native Web Audio API
+  // Lazy store Psyduck video in chunk packets in background so it's ready instantly
+  useEffect(() => {
+    lazyStoreMedia(['/media/untitled-design.mp4', '/media/psyduck-voice.mp3']);
+  }, []);
+
+  // Play authentic Psyduck voice line on every single click/interaction
   const playPsyduckCry = useCallback(() => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      const now = ctx.currentTime;
-
-      // 1. Quizzical rising quack oscillator
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'sawtooth';
-      osc1.frequency.setValueAtTime(320, now);
-      osc1.frequency.exponentialRampToValueAtTime(540, now + 0.12);
-      osc1.frequency.exponentialRampToValueAtTime(380, now + 0.28);
-      gain1.gain.setValueAtTime(0.09, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + 0.32);
-
-      // 2. Head-scratch harmonic overtone
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(640, now + 0.05);
-      osc2.frequency.exponentialRampToValueAtTime(880, now + 0.16);
-      osc2.frequency.exponentialRampToValueAtTime(700, now + 0.35);
-      gain2.gain.setValueAtTime(0.06, now + 0.05);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(now + 0.05);
-      osc2.stop(now + 0.4);
-    } catch {
-      // Audio muted or autoplay policy
-    }
+    playInstantVoice('/media/psyduck-voice.mp3', 1.0);
   }, []);
 
   const handleInteract = () => {

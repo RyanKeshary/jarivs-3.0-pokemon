@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX, Play } from 'lucide-react';
+import { X } from 'lucide-react';
+import { playInstantVoice, lazyStoreMedia } from '@/lib/mediaCache';
 
 interface AnimatedMrMimeProps {
   size?: number;
@@ -22,17 +23,21 @@ export function AnimatedMrMime({
   const [clickCount, setClickCount] = useState(0);
   const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
   const [showVideoModal, setShowVideoModal] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Play video with robust browser autoplay fallback (audio strictly ON by default)
+  // Lazy store Mr Mime video in chunk packets in background so it's ready instantly
+  useEffect(() => {
+    lazyStoreMedia(['/media/mr-mime-secret.mp4', '/media/mr-mime-voice.mp3']);
+  }, []);
+
+  // Play video with audio strictly ON by default (unmuted, full volume)
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
     vid.volume = 1.0;
-    vid.muted = isMuted; // False by default: audio ON
+    vid.muted = false;
 
     const playPromise = vid.play();
     if (playPromise !== undefined) {
@@ -41,30 +46,9 @@ export function AnimatedMrMime({
           setIsPlaying(true);
         })
         .catch((err) => {
-          console.warn('Browser policy required muted start; keeping state synchronized:', err);
-          vid.muted = true;
-          setIsMuted(true); // Maintain strict synchronization with DOM
-          vid.play()
-            .then(() => {
-              setIsPlaying(true);
-            })
-            .catch((e2) => {
-              console.warn('Autoplay requires direct user tap:', e2);
-              setIsPlaying(false);
-            });
+          console.warn('Playback policy retry:', err);
+          vid.play().then(() => setIsPlaying(true)).catch(() => {});
         });
-    }
-  }, [isMuted]);
-
-  // Guaranteed unmute on any user gesture
-  const unlockAudio = useCallback(() => {
-    const vid = videoRef.current;
-    if (!vid) return;
-    vid.muted = false;
-    vid.volume = 1.0;
-    setIsMuted(false);
-    if (vid.paused) {
-      vid.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   }, []);
 
@@ -121,47 +105,11 @@ export function AnimatedMrMime({
     setIsPlaying(false);
   };
 
-  // Synthesize Mr. Mime's signature playful psychic tap sound via native Web Audio API
-  const playMimeSound = useCallback(() => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-
-      // First crisp glass "tink"
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'triangle';
-      osc1.frequency.setValueAtTime(880, ctx.currentTime);
-      osc1.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
-      gain1.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start();
-      osc1.stop(ctx.currentTime + 0.18);
-
-      // Second harmonic overtone
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(1760, ctx.currentTime + 0.06);
-      osc2.frequency.exponentialRampToValueAtTime(2200, ctx.currentTime + 0.14);
-      gain2.gain.setValueAtTime(0.08, ctx.currentTime + 0.06);
-      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(ctx.currentTime + 0.06);
-      osc2.stop(ctx.currentTime + 0.28);
-    } catch {
-      // Audio may be muted or blocked by autoplay policy
-    }
-  }, []);
-
   const handleInteract = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsTapping(true);
-    playMimeSound();
+    // Play authentic Mr. Mime voice line on every single click/interaction
+    playInstantVoice('/media/mr-mime-voice.mp3', 1.0);
 
     const phrases = ['✨ TINK! ✨', '🖐️ *mime* 🖐️', '🛡️ BARRIER!', '✨ *tap tap* ✨', '🔮 PSYCHIC!'];
     const text = phrases[Math.floor(Math.random() * phrases.length)];
@@ -183,31 +131,9 @@ export function AnimatedMrMime({
 
     // Open lightbox when reaching target clicks (40-67 taps)
     if (nextClicks >= targetClicksRef.current) {
-      setIsMuted(false);
       setShowVideoModal(true);
       setClickCount(0);
       targetClicksRef.current = Math.floor(Math.random() * (67 - 40 + 1)) + 40;
-    }
-  };
-
-  const handleModalInteraction = () => {
-    const vid = videoRef.current;
-    if (!vid) return;
-    if (isMuted || vid.muted) {
-      unlockAudio();
-    }
-  };
-
-  const handleToggleSound = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const vid = videoRef.current;
-    if (!vid) return;
-    const nextMuted = !isMuted;
-    vid.muted = nextMuted;
-    vid.volume = 1.0;
-    setIsMuted(nextMuted);
-    if (vid.paused) {
-      vid.play().then(() => setIsPlaying(true)).catch(() => {});
     }
   };
 
@@ -336,9 +262,7 @@ export function AnimatedMrMime({
               className="relative w-full max-w-[360px] sm:max-w-[420px] bg-[#0E101D] border-2 border-[#D21319] rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(210,19,25,0.35)] overflow-hidden flex flex-col my-auto"
               onClick={(e) => {
                 e.stopPropagation();
-                handleModalInteraction();
               }}
-              onPointerDown={handleModalInteraction}
             >
               {/* Lightbox Header Bar */}
               <div className="relative z-30 px-3.5 py-2.5 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-b border-white/10 flex items-center justify-between text-white font-mono text-xs">
@@ -353,27 +277,10 @@ export function AnimatedMrMime({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Audio Mute/Unmute toggle */}
-                  <button
-                    type="button"
-                    onClick={handleToggleSound}
-                    className="flex items-center gap-1 text-[11px] text-slate-200 hover:text-white px-2 py-1 bg-white/10 hover:bg-white/20 rounded border border-white/20 transition-all cursor-pointer font-bold"
-                    title={isMuted ? 'Unmute' : 'Mute'}
-                  >
-                    {isMuted ? (
-                      <>
-                        <VolumeX size={13} className="text-amber-400" />
-                        <span className="text-amber-300">UNMUTE</span>
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 size={13} className="text-emerald-400" />
-                        <span className="text-emerald-300">AUDIO ON</span>
-                      </>
-                    )}
-                  </button>
+                  <span className="flex items-center gap-1 text-[11px] text-emerald-300 px-2.5 py-1 bg-emerald-950/60 rounded border border-emerald-500/40 font-mono font-bold">
+                    AUDIO ON
+                  </span>
 
-                  {/* Close Lightbox Button */}
                   <button
                     type="button"
                     onClick={closeLightbox}
@@ -386,64 +293,28 @@ export function AnimatedMrMime({
                 </div>
               </div>
 
-              {/* Video Player Area with Aspect Ratio matching 480x864 portrait */}
-              <div className="relative w-full aspect-[9/16] max-h-[68vh] bg-black flex items-center justify-center overflow-hidden">
-                <video
-                  ref={videoRef}
-                  poster="/media/mr-mime-poster.jpg"
-                  autoPlay
-                  controls
-                  playsInline
-                  loop
-                  preload="auto"
-                  muted={isMuted}
-                  onCanPlay={attemptPlay}
-                  onLoadedMetadata={attemptPlay}
-                  onPlay={() => setIsPlaying(true)}
-                  onPlaying={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  className="w-full h-full object-contain bg-black"
-                >
-                  <source src="/media/mr-mime-secret.mp4" type="video/mp4" />
-                  <source src="/media/mr-mime-secret.webm" type="video/webm" />
-                  Your browser does not support HTML5 video.
-                </video>
-
-                {/* Floating Unmute Prompt if browser restricted initial unmuted play */}
-                {isMuted && isPlaying && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlockAudio();
-                    }}
-                    className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#D21319] hover:bg-[#b00f14] text-white text-xs font-mono font-bold shadow-[0_4px_16px_rgba(210,19,25,0.7)] animate-bounce cursor-pointer border border-white/40 active:scale-95"
-                  >
-                    <Volume2 size={13} />
-                    <span>TAP FOR AUDIO 🔊</span>
-                  </button>
-                )}
-
-                {/* Big Center Play Overlay (visible if paused or awaiting interaction) */}
-                {!isPlaying && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlockAudio();
-                    }}
-                    className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px] cursor-pointer group transition-opacity"
-                    aria-label="Play video"
-                  >
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#D21319] text-white flex items-center justify-center shadow-2xl border-2 border-white mb-2 transition-transform group-hover:scale-110 active:scale-95">
-                      <Play size={26} className="translate-x-0.5 fill-white" />
-                    </div>
-                    <span className="font-mono text-xs font-bold text-white bg-black/80 px-3 py-1 rounded border border-white/20 uppercase tracking-wider">
-                      Tap to Play
-                    </span>
-                  </button>
-                )}
-              </div>
+            {/* Video Player Area with Aspect Ratio matching 480x864 portrait */}
+            <div className="relative w-full aspect-[9/16] max-h-[68vh] bg-black flex items-center justify-center overflow-hidden">
+              <video
+                ref={videoRef}
+                poster="/media/mr-mime-poster.jpg"
+                autoPlay
+                controls
+                playsInline
+                loop
+                preload="auto"
+                onCanPlay={attemptPlay}
+                onLoadedMetadata={attemptPlay}
+                onPlay={() => setIsPlaying(true)}
+                onPlaying={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                className="w-full h-full object-contain bg-black"
+              >
+                <source src="/media/mr-mime-secret.mp4" type="video/mp4" />
+                <source src="/media/mr-mime-secret.webm" type="video/webm" />
+                Your browser does not support HTML5 video.
+              </video>
+            </div>
 
               {/* Lightbox Footer Bar */}
               <div className="px-3.5 py-2 bg-gradient-to-r from-[#17192A] via-[#0E101D] to-[#17192A] border-t border-white/10 flex items-center justify-between font-mono text-[10px] text-slate-300">
