@@ -1,18 +1,29 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Volume2, VolumeX, Sparkles, ShieldAlert, Award } from 'lucide-react';
 
 export function SecretEventLightbox() {
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith('/admin') || pathname?.startsWith('/master');
+
   const [isOpen, setIsOpen] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 4 Minutes = 240 Seconds active tracking
+  // Immediately close if navigating to admin page
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (isAdmin && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isAdmin, isOpen]);
+
+  // 4 Minutes = 240 Seconds active tracking (Disabled on Admin Pages)
+  useEffect(() => {
+    if (typeof window === 'undefined' || isAdmin) return;
 
     // Check if already displayed in this browser session
     const hasBeenShown = sessionStorage.getItem('indigo_secret_lightbox_displayed');
@@ -129,6 +140,10 @@ export function SecretEventLightbox() {
     setIsOpen(false);
   };
 
+  if (isAdmin) {
+    return null;
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -218,9 +233,6 @@ export function SecretEventLightbox() {
                 </div>
                 <div className="text-[10px] font-mono leading-tight">
                   <div className="font-bold text-sky-300 uppercase tracking-wider">
-                    GREEN LANTERN OST · FREDERIK WIEDMANN
-                  </div>
-                  <div className="text-sky-200/70 text-[9px]">
                     {isMuted ? 'Soundtrack Muted' : isPlayingAudio ? 'Now Playing · Secret Transmission' : 'Tap audio to play soundtrack'}
                   </div>
                 </div>
