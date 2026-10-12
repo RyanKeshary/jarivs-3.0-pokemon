@@ -9,7 +9,7 @@ coverage
 out
 dist
 build
-*.mp4
-*.mp3
+public/media/intro-theme.mp4
+public/media/jigglypuff-song.mp3
 gdrive-key*.json
 service-account*.json

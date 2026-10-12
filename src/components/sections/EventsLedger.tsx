@@ -75,7 +75,7 @@ export const FEST_EVENTS: FestEventItem[] = [
     description: 'Autonomous wheeled robotic vehicles navigate precision tracks calibrated for high-speed line tracking and closed-loop control.',
     dayTag: 'DAY 1',
     isMultiDay: false,
-    mode: 'ROBOTICS',
+    mode: 'OFFLINE',
     category: 'ROBOTICS',
     teamSize: '1 to 3 Members',
     minSize: 1,
@@ -331,9 +331,11 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
                   <span className="bg-white text-black font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
                     {event.mode}
                   </span>
-                  <span className="bg-black text-white font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
-                    {event.category}
-                  </span>
+                  {event.category && event.category.toLowerCase() !== event.mode.toLowerCase() && (
+                    <span className="bg-black text-white font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
+                      {event.category}
+                    </span>
+                  )}
                 </div>
 
                 {/* PIXELATED POKEMON IMAGE / ANIMATED SPRITE */}
