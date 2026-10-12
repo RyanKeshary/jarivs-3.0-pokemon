@@ -1,0 +1,15 @@
+node_modules
+.next
+.backup-temp
+*.tar.gz
+*.sha256
+.env*
+.git
+coverage
+out
+dist
+build
+*.mp4
+*.mp3
+gdrive-key*.json
+service-account*.json
