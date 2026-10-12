@@ -1034,6 +1034,7 @@ export function RegistrationModal({
                       <option value="FY">FY</option>
                       <option value="SY">SY</option>
                       <option value="TY">TY</option>
+                      <option value="BE">BE</option>
                     </select>
                   </div>
 
