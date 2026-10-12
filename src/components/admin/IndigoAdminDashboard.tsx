@@ -83,7 +83,7 @@ const DEFAULT_FEST_EVENTS = [
 
 interface IndigoAdminDashboardProps {
   data: any;
-  onRefresh?: () => void;
+  onRefresh?: () => void | Promise<void>;
 }
 
 export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardProps) {
@@ -214,6 +214,47 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     setTimeout(() => {
       setToast((curr) => (curr?.id === id ? null : curr));
     }, 4500);
+  };
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      if (onRefresh) {
+        await onRefresh();
+        showToast('Admin data refreshed', 'success');
+      } else {
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
+
+  const handleTriggerDriveBackup = async () => {
+    if (isBackingUp) return;
+    setIsBackingUp(true);
+    setBackupStatusMessage('Triggering Google Drive backup...');
+    try {
+      const res = await triggerLiveBackup();
+      if (res.success) {
+        showToast(res.message, 'success');
+        alert('✅ ' + res.message);
+      } else {
+        showToast(res.message || 'Backup failed', 'error');
+        alert('❌ ' + res.message);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Backup failed', 'error');
+      alert('❌ ' + (err.message || 'Backup failed'));
+    } finally {
+      setIsBackingUp(false);
+      setBackupStatusMessage(null);
+    }
   };
 
   // Password Management Modal State for Coordinators & Admins & Participants (Supports single & batch scopes)
@@ -1037,15 +1078,26 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
               )}
             </div>
 
-            {onRefresh && (
+            {!isCoordinator && (
               <button
-                onClick={onRefresh}
-                className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                title="Refresh latest telemetry"
+                onClick={handleTriggerDriveBackup}
+                disabled={isBackingUp}
+                className="inline-flex items-center gap-1 px-2 py-1.5 sm:px-2.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                title="Trigger automated database backup to Google Drive"
               >
-                <RefreshCw size={13} />
+                <CloudUpload size={12} className={isBackingUp ? 'animate-bounce text-emerald-600' : 'text-emerald-600'} />
+                <span className="text-[11px] font-semibold">{isBackingUp ? 'Backing Up...' : 'Drive Backup'}</span>
               </button>
             )}
+
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-60"
+              title="Refresh latest telemetry"
+            >
+              <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-[#D21319]' : ''} />
+            </button>
 
             {!isCoordinator && (
               <AdminPokemonGuardian
@@ -1521,34 +1573,6 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     <Download size={14} className="text-[#D21319]" />
                     <span>Export CSV</span>
                   </button>
-
-                  {/* Drive Backup Button */}
-                  <button
-                    onClick={async () => {
-                      setIsBackingUp(true);
-                      setBackupStatusMessage('Triggering Google Drive backup...');
-                      try {
-                        const res = await triggerLiveBackup();
-                        if (res.success) {
-                          alert('✅ ' + res.message);
-                        } else {
-                          alert('❌ ' + res.message);
-                        }
-                      } catch (err: any) {
-                        alert('❌ ' + (err.message || 'Backup failed'));
-                      } finally {
-                        setIsBackingUp(false);
-                        setBackupStatusMessage(null);
-                      }
-                    }}
-                    disabled={isBackingUp}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
-                    title="Trigger automated database backup to Google Drive"
-                  >
-                    <CloudUpload size={14} className="text-emerald-600" />
-                    <span>{isBackingUp ? 'Backing Up...' : 'Drive Backup'}</span>
-                  </button>
-
                 </div>
               </div>
 
