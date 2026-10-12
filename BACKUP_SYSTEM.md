@@ -73,15 +73,22 @@ To allow the automated backup script to upload backups directly into your Google
 
 ## Running Backups
 
-### 1. Fully Automated (Resilient Staggered Schedule: Every 30–60 Min)
-The GitHub Actions workflow [`.github/workflows/database-backup.yml`](file:///.github/workflows/database-backup.yml) is scheduled with cron `15,45 * * * *`.
-- **Why :15 and :45?** Running at minute 0 (`0 * * * *`) caused severe delays and skipped runs because thousands of repositories schedule at the exact top-of-hour, causing GitHub's queue to delay or drop cron runs.
-- The staggered schedule (`:15` and `:45`) avoids GitHub peak queue congestion and guarantees that backups run reliably without multi-hour gaps.
+### 1. Fully Automated (Multi-Tier Schedule: Vercel Cron & GitHub Actions)
+1. **GitHub Actions Schedule:**
+   The workflow [`.github/workflows/database-backup.yml`](file:///.github/workflows/database-backup.yml) is scheduled with cron:
+   - `- cron: '17 * * * *'`
+   - `- cron: '47 * * * *'`
+   Running at `:17` and `:47` avoids the top-of-hour (`:00`) queue congestion on GitHub where workflows get delayed or dropped.
+2. **Vercel Cron Trigger:**
+   [`vercel.json`](file:///vercel.json) schedules an automated hourly ping to `/api/cron/backup` which dispatches the GitHub Actions backup immediately.
+3. **External Cron Webhook (Guaranteed 100% Hourly Precision):**
+   You can also set any free cron service (like [cron-job.org](https://cron-job.org) or UptimeRobot) to ping:
+   `https://indigo-techfest.vercel.app/api/cron/backup` every hour.
+   Because this is an active external HTTP request, it dispatches the GitHub Actions runner immediately without waiting on GitHub's internal scheduler queue.
 
-### 2. Manual On-Demand Backup via GitHub UI (1 Click)
-1. Go to your repo's **Actions** tab.
-2. Select **Automated Database Backup (Google Drive)** in the left sidebar.
-3. Click **Run workflow** → Click **Run workflow**.
+### 2. Admin Dashboard Instant Backup (1 Click)
+In your Indigo Admin Dashboard ([IndigoAdminDashboard.tsx](file:///src/components/admin/IndigoAdminDashboard.tsx)), next to the **Export CSV** button:
+- Click the green **Drive Backup** button anytime to instantly trigger a full disaster recovery backup to Google Drive.
 
 ### 3. Continuous Local Daemon (100% Reliable Every Hour)
 If you want guaranteed hourly backups running in the background on your machine or local server during the fest:
