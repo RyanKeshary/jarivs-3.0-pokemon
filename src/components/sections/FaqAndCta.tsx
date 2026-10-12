@@ -7,7 +7,7 @@ import { AnimatedMrMime } from '@/components/illustrations/AnimatedMrMime';
 const FAQS = [
   {
     q: 'Can a candidate register for multiple festival disciplines?',
-    a: 'Yes, up to a maximum of 2 events per participant. The registration engine automatically runs a clash detection algorithm to warn you if chosen disciplines conflict.'
+    a: 'Yes, up to a maximum of 2 events per participant.'
   },
   {
     q: 'How does progression work for two-day disciplines?',

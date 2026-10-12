@@ -4,20 +4,54 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DAY_1_SCHEDULE = [
-  { time: '09:00 AM', event: 'Inaugural Convocation & Keynote', desc: 'Opening address, ceremonial rules briefing, and jury introduction in Main Hall.', location: 'Auditorium' },
-  { time: '10:00 AM', event: 'Poké Expo: Project Exhibition', desc: 'Hardware apparatus demonstrations and software project benches open for examination.', location: 'Exhibition Hall A' },
-  { time: '10:00 AM', event: 'Buildasaur: Buildathon Round 1', desc: 'Buildathon architecture kickoff with open connectivity and initial prototyping.', location: 'Lab 4 & Online' },
-  { time: '11:30 AM', event: "Team Rocket's Pokéquest: Treasure Hunt", desc: 'Stage 1: On-Day Chaos campus riddle hunt across active checkpoints.', location: 'Campus Grounds' },
-  { time: '01:30 PM', event: 'Pidgetto: Line-Follower Race', desc: 'Autonomous wheeled vehicles navigate black stripe tracks with precision control.', location: 'Robotics Arena' },
-  { time: '05:00 PM', event: 'Snorreelax: Reel Making Submission', desc: 'Delivery of short-form documentary digital reels captured across the festival grounds.', location: 'Media Studio' },
+  {
+    event: 'Poké Expo',
+    desc: 'Hardware apparatus demonstrations and software project benches open for examination.',
+    location: 'Exhibition Hall A',
+  },
+  {
+    event: 'PID-Geotto — Line Follower Race',
+    desc: 'Autonomous wheeled vehicles navigate black stripe tracks with precision control.',
+    location: 'Robotics Arena',
+  },
+  {
+    event: 'PokéQuest — Treasure Hunt',
+    desc: 'Campus riddle challenge and clue-tracking across active campus checkpoints.',
+    location: 'Campus Grounds',
+  },
+  {
+    event: 'Quiz-tle — Tech Knowledge Tournament',
+    desc: 'Technical quiz preliminary rounds, written qualifiers, and buzzer stages.',
+    location: 'Auditorium',
+  },
+  {
+    event: 'Builda-Saur — Hackathon',
+    desc: '24-hour innovation hackathon architecture kickoff and initial prototyping.',
+    location: 'Lab 4 & Online',
+  },
+  {
+    event: 'Snorreelax — Reel Making Competition',
+    desc: 'Delivery of short-form documentary digital reels captured across festival grounds.',
+    location: 'Media Studio',
+  },
 ];
 
 const DAY_2_SCHEDULE = [
-  { time: '09:00 AM', event: 'Buildasaur: Buildathon Round 2', desc: 'Round 2 prototype completion, final debugging, and jury defense.', location: 'Lab 4' },
-  { time: '10:00 AM', event: 'Quiztle: Technical Quiz Stage Finals', desc: 'Finalist teams compete live on stage in rapid buzzer eliminator rounds.', location: 'Main Stage' },
-  { time: '11:00 AM', event: 'Cadmander: 2D AutoCAD Competition', desc: '2D AutoCAD engineering blueprints under geometric dimensioning and tolerancing.', location: 'CAD Lab 2' },
-  { time: '02:00 PM', event: 'Jury Deliberation & Evaluation Seal', desc: 'Adjudicator scoreboards locked and final deliberations by senior faculty.', location: 'Council Room' },
-  { time: '03:30 PM', event: 'Valedictory & Awards Ceremony', desc: 'Official presentation of commendations, certificates, and festival honors.', location: 'Auditorium' },
+  {
+    event: 'Quiz-tle — Tech Knowledge Tournament',
+    desc: 'Top qualifying finalist duos battle live on stage in rapid buzzer elimination rounds.',
+    location: 'Main Stage',
+  },
+  {
+    event: 'Builda-Saur — Hackathon',
+    desc: 'Round 2 prototype completion, final debugging, and jury defense.',
+    location: 'Lab 4',
+  },
+  {
+    event: 'CAD-Mander — Parametric CAD Drafting & 2D Solid Assembly',
+    desc: '2D AutoCAD engineering blueprints under geometric dimensioning and tolerancing.',
+    location: 'CAD Lab 2',
+  },
 ];
 
 export function DaysTimeline() {
@@ -81,14 +115,11 @@ export function DaysTimeline() {
             {(selectedDay === 'day1' ? DAY_1_SCHEDULE : DAY_2_SCHEDULE).map((item, idx) => (
               <div
                 key={idx}
-                className="py-2.5 px-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4 hover:bg-neutral-50 transition-colors"
+                className="py-3 px-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 hover:bg-neutral-50 transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-[130px] shrink-0">
-                  <span className="font-mono text-[11px] font-bold text-neutral-400">
-                    [0{idx + 1}]
-                  </span>
-                  <span className="font-mono font-bold text-xs text-[#D21319] tracking-wider">
-                    {item.time}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <span className="font-mono text-xs font-bold text-[#D21319] bg-[#D21319]/10 border border-[#D21319]/30 px-2 py-0.5 tracking-wider">
+                    EVENT 0{idx + 1}
                   </span>
                 </div>
 
@@ -115,7 +146,7 @@ export function DaysTimeline() {
 
         <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between text-[10px] font-mono text-neutral-600 gap-1">
           <span>* MULTI-DAY DISCIPLINES (BUILDA-SAUR, QUIZ-TLE) PROCEED ACROSS BOTH DATES.</span>
-          <span className="text-[#D21319] font-bold">ZERO OVERLAP CONFLICTS PERMITTED</span>
+          <span className="text-[#D21319] font-bold">MAX 2 EVENT REGISTRATIONS PER PARTICIPANT</span>
         </div>
 
       </div>

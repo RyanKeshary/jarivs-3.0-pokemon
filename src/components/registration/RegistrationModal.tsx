@@ -152,33 +152,6 @@ export function RegistrationModal({
     }
   };
 
-  // Schedule Clash Detection
-  const detectClashes = (): string[] => {
-    const clashes: string[] = [];
-    if (selectedEvents.includes('build-asor')) {
-      if (selectedEvents.includes('project-exhibition')) {
-        clashes.push('Builda-saur overlaps with Poké Expo (10:00 AM - 01:00 PM)');
-      }
-      if (selectedEvents.includes('treasure-hunt')) {
-        clashes.push('Builda-saur overlaps with Team Rocket\'s Pokéquest (11:30 AM - 02:30 PM)');
-      }
-      if (selectedEvents.includes('pid-geotto')) {
-        clashes.push('Builda-saur overlaps with PID-geotto Robot Trials (01:30 PM - 04:30 PM)');
-      }
-      if (selectedEvents.includes('quiz-tle')) {
-        clashes.push('Builda-saur overlaps with Quiz-tle Rounds 1 & 2 (02:00 PM - 04:30 PM)');
-      }
-    }
-    if (selectedEvents.includes('treasure-hunt') && selectedEvents.includes('pid-geotto')) {
-      clashes.push('Team Rocket\'s Pokéquest (11:30 AM - 02:30 PM) overlaps with PID-geotto (01:30 PM - 04:30 PM)');
-    }
-    if (selectedEvents.includes('pid-geotto') && selectedEvents.includes('quiz-tle')) {
-      clashes.push('PID-geotto Robot Trials (01:30 PM) clashes with Quiz-tle (02:00 PM)');
-    }
-    return clashes;
-  };
-
-  const activeClashes = detectClashes();
 
   // Verify Team Code for Join Mode
   const handleVerifyCode = async (codeToTest?: string) => {
@@ -899,20 +872,6 @@ export function RegistrationModal({
                     );
                   })}
                 </div>
-
-                {/* Schedule Clash Warning Alert */}
-                {activeClashes.length > 0 && (
-                  <div className="p-2 bg-amber-50 border-2 border-amber-600 text-amber-900 text-xs space-y-0.5">
-                    <span className="font-bold flex items-center gap-1.5 font-mono text-[11px]">
-                      <span>⚠️</span> Schedule Overlap Notice:
-                    </span>
-                    {activeClashes.map((c, i) => (
-                      <div key={i} className="text-[10px] pl-4 font-sans">
-                        • {c}
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {/* Step 1 Actions */}
                 <div className="pt-2 flex items-center justify-between gap-2.5">

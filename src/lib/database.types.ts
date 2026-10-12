@@ -93,7 +93,7 @@ export interface LandingContent {
   tracks: { name: string; desc: string }[];
   rules: string[];
   eligibility: string;
-  timeline: { time: string; title: string; desc: string; phase: string }[];
+  timeline: { time?: string; title: string; desc: string; phase: string }[];
 }
 
 export interface EventSettings {
