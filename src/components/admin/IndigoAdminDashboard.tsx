@@ -314,6 +314,16 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
   const { metrics, perEventStats, timelineData, registrations, teams, events, announcements, auditLogs, currentUser, adminUsers, coordinators = [] } = data;
 
+  const chronologicalTimeline = useMemo(() => {
+    if (!timelineData || timelineData.length === 0) return [];
+    return [...timelineData].sort((a: any, b: any) => {
+      const year = new Date().getFullYear();
+      const da = new Date(a.date.includes(',') ? a.date : `${a.date}, ${year}`).getTime();
+      const db = new Date(b.date.includes(',') ? b.date : `${b.date}, ${year}`).getTime();
+      return da - db;
+    });
+  }, [timelineData]);
+
   const availableEvents = useMemo(() => {
     if (events && events.length > 0) {
       return events.map((e: any) => ({
@@ -1389,35 +1399,69 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
             {/* Registrations Influx Timeline */}
             <div className="p-6 bg-white border border-slate-200 rounded-xl shadow-xs">
-              <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">Registrations Timeline</h2>
-                  <p className="text-xs text-slate-500">Chronological influx of participants</p>
+                  <p className="text-xs text-slate-500">Chronological influx of participants over time</p>
                 </div>
-                <span className="text-xs font-mono font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                  Daily Volume
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-slate-500 font-medium">
+                    Total: <strong className="text-slate-900">{registrations?.length || 0}</strong>
+                  </span>
+                  <span className="text-xs font-mono font-bold text-[#D21319] bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
+                    Daily Volume
+                  </span>
+                </div>
               </div>
 
-              {timelineData && timelineData.length > 0 ? (
-                <div className="h-44 flex items-end gap-3 pt-6 px-2 overflow-x-auto">
-                  {timelineData.map((d: any, idx: number) => {
-                    const maxCount = Math.max(...timelineData.map((t: any) => t.count), 1);
-                    const heightPercent = Math.max(15, (d.count / maxCount) * 100);
+              {chronologicalTimeline && chronologicalTimeline.length > 0 ? (
+                <div className="pt-3">
+                  <div className="h-44 flex items-end justify-center gap-4 sm:gap-8 px-2 overflow-x-auto">
+                    {chronologicalTimeline.map((d: any, idx: number) => {
+                      const maxCount = Math.max(...chronologicalTimeline.map((t: any) => t.count), 1);
+                      const heightPercent = Math.max(12, Math.round((d.count / maxCount) * 100));
+                      const isPeak = d.count === maxCount;
+                      const isLatest = idx === chronologicalTimeline.length - 1;
 
-                    return (
-                      <div key={idx} className="flex-1 min-w-[50px] flex flex-col items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-slate-800">{d.count}</span>
-                        <div className="w-full bg-slate-100 rounded-t-md h-32 flex items-end p-0.5">
-                          <div
-                            className="w-full bg-[#D21319] hover:bg-[#b00f14] transition-all rounded-t-xs"
-                            style={{ height: `${heightPercent}%` }}
-                          />
+                      return (
+                        <div key={idx} className="flex-1 max-w-[80px] sm:max-w-[100px] flex flex-col items-center gap-2 group">
+                          {/* Count Label */}
+                          <div className="flex items-center gap-1">
+                            <span className={`text-xs font-mono font-bold ${isPeak ? 'text-[#D21319]' : 'text-slate-700'}`}>
+                              {d.count}
+                            </span>
+                            {isPeak && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#D21319] animate-pulse" title="Peak volume" />
+                            )}
+                          </div>
+
+                          {/* Bar Container */}
+                          <div className="w-full bg-slate-100/80 hover:bg-slate-100 rounded-t-lg h-32 flex items-end p-1 transition-colors border border-slate-200/60">
+                            <div
+                              className={`w-full transition-all duration-500 rounded-t-md shadow-xs ${
+                                isPeak
+                                  ? 'bg-gradient-to-t from-[#B00F14] to-[#D21319] group-hover:brightness-110'
+                                  : 'bg-gradient-to-t from-[#D21319]/80 to-[#D21319] group-hover:bg-[#D21319]'
+                              }`}
+                              style={{ height: `${heightPercent}%` }}
+                            />
+                          </div>
+
+                          {/* Date Label */}
+                          <div className="flex flex-col items-center">
+                            <span className="text-[11px] font-mono text-slate-700 font-bold whitespace-nowrap">
+                              {d.date}
+                            </span>
+                            {isLatest && (
+                              <span className="text-[9px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-1 rounded mt-0.5">
+                                Latest
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-600 font-medium whitespace-nowrap">{d.date}</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="p-8 text-center text-xs font-mono text-slate-500 bg-slate-50 rounded-lg">

@@ -1431,13 +1431,21 @@ export async function getFestAdminData(userOverride?: any) {
     };
   });
 
-  // Registrations over time (grouped by day for theme line chart)
-  const timelineMap: Record<string, number> = {};
+  // Registrations over time (grouped by day, sorted chronologically from oldest to newest)
+  const timelineMap: Record<string, { label: string; count: number; rawDate: string }> = {};
   for (const reg of registrations) {
-    const dateStr = new Date(reg.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    timelineMap[dateStr] = (timelineMap[dateStr] || 0) + 1;
+    if (!reg.created_at) continue;
+    const d = new Date(reg.created_at);
+    const rawDate = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (!timelineMap[rawDate]) {
+      timelineMap[rawDate] = { label, count: 0, rawDate };
+    }
+    timelineMap[rawDate].count += 1;
   }
-  const timelineData = Object.entries(timelineMap).map(([date, count]) => ({ date, count }));
+  const timelineData = Object.values(timelineMap)
+    .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
+    .map(({ label, count }) => ({ date: label, count }));
 
   // STRICT PRIVACY: Hide ryankeshary as master/admin from non-master admins
   const userEmail = (user.email || '').toLowerCase();
