@@ -135,8 +135,8 @@ export const FEST_EVENTS: FestEventItem[] = [
     name: 'Quiztle: Technical Quiz',
     subtitle: 'Technical Quiz',
     description: 'A rigorous intellectual tournament examining core computer systems, data structures, algorithms, discrete math, and computing history.',
-    dayTag: 'DAY 2',
-    isMultiDay: false,
+    dayTag: 'DAY 1 & 2',
+    isMultiDay: true,
     mode: 'OFFLINE',
     category: 'TECH',
     teamSize: '2 Members (Pairs)',
@@ -321,15 +321,9 @@ export function EventsLedger({ onSelectEventForRegistration }: EventsLedgerProps
 
                 {/* Overlaid Badges Top Left */}
                 <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
-                  {event.isMultiDay ? (
-                    <span className="bg-[#D21319] text-white font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
-                      DAY 1 & 2
-                    </span>
-                  ) : (
-                    <span className="bg-white text-black font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
-                      {event.dayTag}
-                    </span>
-                  )}
+                  <span className="bg-white text-black font-mono font-bold text-[10px] tracking-wider px-2 py-0.5 border border-black shadow-[2px_2px_0px_#000]">
+                    {event.dayTag}
+                  </span>
                 </div>
 
                 {/* Overlaid Badges Top Right */}

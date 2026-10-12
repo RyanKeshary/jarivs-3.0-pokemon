@@ -75,7 +75,7 @@ const THEME_CONFIGS: Record<string, EventThemeConfig> = {
     cardBg: 'bg-[#e0f2fe]',
     badgeBg: 'bg-[#0284c7] text-white',
     badgeText: 'TECHNICAL QUIZ ARENA',
-    tagline: 'DAY 2 TECHNICAL QUIZ: STAGE FINALS & RAPID BUZZER ARENA',
+    tagline: 'DAY 1 & 2 TECHNICAL QUIZ: PRELIMS & LIVE STAGE FINALS',
     themeGlyph: '💧',
     judgingCriteria: [
       'Core Systems & Algorithms Knowledge',
