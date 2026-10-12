@@ -81,19 +81,6 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       throw new Error('Roll Number is required.');
     }
 
-    // 1. Strict duplicate account check: prevent registering twice with the same email
-    const existingWithEmail = await sql`
-      SELECT fr.email, ft.name as team_name, ft.code as team_code
-      FROM public.fest_registrations fr
-      JOIN public.fest_teams ft ON fr.team_id = ft.id
-      WHERE LOWER(fr.email) = ${email}
-    `;
-
-    if (existingWithEmail.length > 0) {
-      throw new Error(
-        `Account already exists! A registration with email "${email}" is already enrolled under squad "${existingWithEmail[0].team_name}" (Code: ${existingWithEmail[0].team_code}). Please sign in to your dashboard.`
-      );
-    }
 
     const cleanRefId = (referenceId || '').trim().toLowerCase();
     const phone10 = phone.slice(-10);
@@ -550,19 +537,6 @@ export async function joinFestTeam(payload: {
       throw new Error('Roll Number is required.');
     }
 
-    // 1. Strict duplicate account check: prevent registering twice with the same email
-    const existingWithEmail = await sql`
-      SELECT fr.email, ft.name as team_name, ft.code as team_code
-      FROM public.fest_registrations fr
-      JOIN public.fest_teams ft ON fr.team_id = ft.id
-      WHERE LOWER(fr.email) = ${email}
-    `;
-
-    if (existingWithEmail.length > 0) {
-      throw new Error(
-        `Account already exists! A registration with email "${email}" is already enrolled under squad "${existingWithEmail[0].team_name}" (Code: ${existingWithEmail[0].team_code}). Please sign in to your dashboard.`
-      );
-    }
 
 
     const cleanRefId = (referenceId || '').trim().toLowerCase();

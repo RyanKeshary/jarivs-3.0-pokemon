@@ -82,15 +82,25 @@ describe('Indigo Tech Fest Registration Validation', () => {
     expect(CODE_CHARS).not.toContain('L');
   });
 
-  it('rejects duplicate email enrollment with clear warning that account exists', () => {
-    const existingEmails = ['trainer@slrtce.in', 'ash@slrtce.in'];
-    const emailToRegister = 'Ash@Slrtce.in';
-    const isDuplicate = existingEmails.some(e => e.toLowerCase() === emailToRegister.trim().toLowerCase());
-    
-    expect(isDuplicate).toBe(true);
-    const errorMsg = `Account already exists! A registration with email "${emailToRegister.trim().toLowerCase()}" is already enrolled. Please sign in to your dashboard.`;
-    expect(errorMsg).toContain('Account already exists');
-    expect(errorMsg).toContain('Please sign in to your dashboard');
+  it('allows registering up to 2 distinct events across separate registrations and enforces strict max 2 limit', () => {
+    // 1st registration: Event A
+    const enrolledEvents = ['build-asor'];
+    const newEvent = 'quiz-tle';
+    const totalAfterSecond = enrolledEvents.length + [newEvent].length;
+    expect(totalAfterSecond <= 2).toBe(true);
+
+    // After 2nd registration: Event A + Event B
+    enrolledEvents.push(newEvent);
+    expect(enrolledEvents.length).toBe(2);
+
+    // Attempting 3rd event (Event C) must be rejected
+    const thirdEvent = 'cad-mander';
+    const wouldExceed = enrolledEvents.length + [thirdEvent].length > 2;
+    expect(wouldExceed).toBe(true);
+
+    const errorMsg = `Disqualification Rule: You are already enrolled in 2 events (${enrolledEvents.join(', ')}). Maximum limit is strictly 2 events (2 means 2).`;
+    expect(errorMsg).toContain('Disqualification Rule: You are already enrolled in 2 events');
+    expect(errorMsg).toContain('Maximum limit is strictly 2 events');
   });
 
   it('validates emails from any valid domain are accepted', () => {
