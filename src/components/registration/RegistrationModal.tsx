@@ -82,7 +82,11 @@ export function RegistrationModal({
         if (parsed.fullName) setFullName(parsed.fullName);
         // Do not prefill login id / email - keep blank
         if (parsed.phone) setPhone(parsed.phone);
-        if (parsed.college) setCollege(parsed.college);
+        if (parsed.college && parsed.college !== 'SLRTCE Mumbai') {
+          setCollege(parsed.college);
+        } else {
+          setCollege('');
+        }
         if (parsed.department) setDepartment(parsed.department);
         if (parsed.yearOfStudy) setYearOfStudy(parsed.yearOfStudy);
         if (parsed.division) setDivision(parsed.division);
@@ -245,10 +249,6 @@ export function RegistrationModal({
     }
     if (!rollNo.trim()) {
       setStepError('Please specify your roll number.');
-      return false;
-    }
-    if (!referenceId.trim()) {
-      setStepError('Please enter your Reference ID from your college ID card.');
       return false;
     }
     setStepError(null);
@@ -1066,17 +1066,16 @@ export function RegistrationModal({
 
                   <div className="sm:col-span-2">
                     <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
-                      Reference ID (from your ID card) <span className="text-[#D21319]">*</span>
+                      Reference ID (from your ID card) <span className="text-neutral-400 font-normal">(Optional)</span>
                     </label>
                     <input
                       type="text"
-                      required
                       value={referenceId}
                       onChange={(e) => setReferenceId(e.target.value)}
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                     <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
-                      Mandatory · Enter the reference ID as printed on your ID card
+                      Optional · Enter the reference ID as printed on your ID card (if available)
                     </span>
                   </div>
                 </div>

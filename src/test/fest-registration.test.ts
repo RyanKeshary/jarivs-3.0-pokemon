@@ -115,15 +115,15 @@ describe('Indigo Tech Fest Registration Validation', () => {
     expect(invalidShort.length === 10).toBe(false);
   });
 
-  it('verifies mandatory reference ID, division, and roll number', () => {
-    const participant = {
-      referenceId: 'SLRTCE/REF-2024/042',
+  it('verifies optional reference ID and mandatory division and roll number', () => {
+    const participantWithoutRef = {
+      referenceId: '',
       division: 'A',
       rollNo: '42',
     };
-    expect(participant.referenceId.trim().length > 0).toBe(true);
-    expect(participant.division.trim().length > 0).toBe(true);
-    expect(participant.rollNo.trim().length > 0).toBe(true);
+    expect(participantWithoutRef.division.trim().length > 0).toBe(true);
+    expect(participantWithoutRef.rollNo.trim().length > 0).toBe(true);
+    expect(participantWithoutRef.referenceId).toBe('');
   });
 
   it('supports selecting each of the 7 official events for manual on-spot enrollment', () => {

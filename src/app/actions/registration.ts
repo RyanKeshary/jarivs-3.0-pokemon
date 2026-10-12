@@ -70,11 +70,8 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       throw new Error('Please enter a valid 10-digit WhatsApp/phone number (numbers only).');
     }
 
-    // Reference ID from ID Card, Division, Roll No are mandatory
+    // Division and Roll No are mandatory; Reference ID is optional
     const referenceId = (leader.referenceId || leader.collegeId || '').trim();
-    if (!referenceId) {
-      throw new Error('Reference ID (from your ID card) is required.');
-    }
     const division = (leader.division || '').trim().toUpperCase();
     if (!division) {
       throw new Error('Division is required.');
@@ -542,10 +539,8 @@ export async function joinFestTeam(payload: {
       throw new Error('Please enter a valid 10-digit WhatsApp/phone number (numbers only).');
     }
 
+    // Division and Roll No are mandatory; Reference ID is optional
     const referenceId = (member.referenceId || member.collegeId || '').trim();
-    if (!referenceId) {
-      throw new Error('Reference ID (from your ID card) is required.');
-    }
     const division = (member.division || '').trim().toUpperCase();
     if (!division) {
       throw new Error('Division is required.');

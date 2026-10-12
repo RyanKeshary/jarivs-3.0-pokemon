@@ -283,16 +283,15 @@ export default function JoinTeamPage({
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="label-editorial text-[8px] block mb-1">REFERENCE ID (FROM YOUR ID CARD) *</label>
+                    <label className="label-editorial text-[8px] block mb-1">REFERENCE ID (FROM YOUR ID CARD) (OPTIONAL)</label>
                     <input
                       type="text"
-                      required
                       value={referenceId}
                       onChange={(e) => setReferenceId(e.target.value)}
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                     <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
-                      Mandatory · Enter the reference ID as printed on your ID card
+                      Optional · Enter the reference ID as printed on your ID card (if available)
                     </span>
                   </div>
                 </div>

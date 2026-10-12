@@ -2,9 +2,10 @@ name: Automated Database Backup (Google Drive)
 
 on:
   schedule:
-    # Staggered off-peak execution at :15 and :45 of every hour
-    # Bypasses GitHub Actions top-of-hour (:00) scheduler queue congestion and drops, ensuring reliable backups
-    - cron: '15,45 * * * *'
+    # Staggered off-peak execution at :17 and :47 of every hour
+    # Bypasses GitHub Actions top-of-hour (:00) scheduler queue congestion and drops
+    - cron: '17 * * * *'
+    - cron: '47 * * * *'
   workflow_dispatch:
     inputs:
       destination_folder_id:
