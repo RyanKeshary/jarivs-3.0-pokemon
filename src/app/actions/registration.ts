@@ -57,14 +57,11 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       throw new Error('Disqualification Rule: A participant or squad can participate in a maximum of 2 events.');
     }
 
-    // Email sanitization & strict SLRTCE domain restriction
+    // Email sanitization & validation (open to any valid email)
     const email = leader.email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       throw new Error('Please enter a valid email address.');
-    }
-    if (!email.endsWith('@slrtce.in')) {
-      throw new Error('Only official SLRTCE institutional email addresses (@slrtce.in) are permitted.');
     }
 
     // Phone / WhatsApp: strictly digits only, exactly 10 digits
@@ -538,9 +535,6 @@ export async function joinFestTeam(payload: {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       throw new Error('Please enter a valid email address.');
-    }
-    if (!email.endsWith('@slrtce.in')) {
-      throw new Error('Only official SLRTCE institutional email addresses (@slrtce.in) are permitted.');
     }
 
     const phone = member.phone.trim().replace(/\D/g, '');

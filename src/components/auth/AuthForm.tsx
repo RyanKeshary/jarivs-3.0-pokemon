@@ -56,29 +56,9 @@ export function AuthForm() {
     }
   }, [searchParams]);
 
-  // Real-time domain validation check
-  // Until and unless someone puts exactly what the master email is, show college email caution
+  // Clear any domain warnings
   useEffect(() => {
-    if (!email) {
-      setDomainWarning(null);
-      return;
-    }
-
-    const emailLower = email.trim().toLowerCase();
-    const isMaster = isMasterEmail(emailLower);
-
-    // If exact master email, do not show college email caution
-    if (isMaster) {
-      setDomainWarning(null);
-      return;
-    }
-
-    // Otherwise, show caution if email doesn't end with @slrtce.in
-    if (emailLower.includes('@') && !emailLower.endsWith('@slrtce.in')) {
-      setDomainWarning('Only @slrtce.in trainers may enter! Please use your institutional college email.');
-    } else {
-      setDomainWarning(null);
-    }
+    setDomainWarning(null);
   }, [email, mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,13 +68,6 @@ export function AuthForm() {
 
     const emailTrimmed = email.trim().toLowerCase();
     const isMaster = isMasterEmail(emailTrimmed);
-
-    // Enforce @slrtce.in unless exact master email (only for register, login, reset)
-    if (mode !== 'update-password' && !emailTrimmed.endsWith('@slrtce.in') && !isMaster) {
-      setErrorMsg('Only @slrtce.in trainers may enter! Registration & Login is restricted to SLRTCE college IDs.');
-      playRetroBeep(220, 'sawtooth', 0.15);
-      return;
-    }
 
     setLoading(true);
 
@@ -328,7 +301,7 @@ export function AuthForm() {
             </span>
           ) : (
             <span className="px-2 py-0.5 bg-white/20 text-white font-mono text-[10px] rounded">
-              @slrtce.in
+              TRAINER PORTAL
             </span>
           )}
         </div>
@@ -431,7 +404,7 @@ export function AuthForm() {
           {mode !== 'update-password' && (
             <div>
               <label className="font-pixel text-[10px] text-gray-700 block mb-1 flex items-center justify-between">
-                <span>{isMasterActive ? 'STAFF / MASTER EMAIL' : 'COLLEGE EMAIL (@slrtce.in)'}</span>
+                <span>{isMasterActive ? 'STAFF / MASTER EMAIL' : 'EMAIL ADDRESS'}</span>
                 {!isMasterActive && (
                   <span className="text-[9px] text-[#EE1515] font-mono font-bold">REQUIRED</span>
                 )}
@@ -441,7 +414,7 @@ export function AuthForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your @slrtce.in ID"
+                placeholder="Enter your email address"
                 autoComplete="off"
                 className="w-full px-3.5 py-2.5 bg-white text-gray-950 font-medium placeholder:text-gray-400 border-2 border-[#1E232A] rounded-xl font-sans text-sm focus:outline-none focus:bg-white focus:border-[#EE1515] focus:ring-1 focus:ring-[#EE1515] transition-all"
               />

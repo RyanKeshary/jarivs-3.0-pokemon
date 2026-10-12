@@ -1,37 +1,34 @@
 import { describe, it, expect } from 'vitest';
 
-export function validateTrainerEmail(email: string, isMaster = false): { valid: boolean; error?: string } {
+export function validateTrainerEmail(email: string): { valid: boolean; error?: string } {
   const clean = email.trim().toLowerCase();
   if (!clean) return { valid: false, error: 'Email is required' };
-  if (isMaster) return { valid: true };
-  if (!clean.endsWith('@slrtce.in')) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(clean)) {
     return {
       valid: false,
-      error: 'Only @slrtce.in trainers may enter! Please use your institutional college email.',
+      error: 'Please enter a valid email address.',
     };
   }
   return { valid: true };
 }
 
-describe('Trainer Domain Validation Rules', () => {
-  it('accepts valid @slrtce.in institutional emails', () => {
+describe('Trainer Email Validation Rules (No Domain Restriction)', () => {
+  it('accepts valid institutional and external emails', () => {
     expect(validateTrainerEmail('ash.ketchum@slrtce.in').valid).toBe(true);
-    expect(validateTrainerEmail('TRAINER.123@SLRTCE.IN').valid).toBe(true);
+    expect(validateTrainerEmail('TRAINER.123@GMAIL.COM').valid).toBe(true);
+    expect(validateTrainerEmail('pikachu@outlook.com').valid).toBe(true);
+    expect(validateTrainerEmail('student@somaiya.edu').valid).toBe(true);
   });
 
-  it('rejects non-slrtce emails with in-theme warning', () => {
-    const res = validateTrainerEmail('ash@gmail.com');
+  it('rejects invalid email formats', () => {
+    const res = validateTrainerEmail('invalid-email');
     expect(res.valid).toBe(false);
-    expect(res.error).toBe('Only @slrtce.in trainers may enter! Please use your institutional college email.');
+    expect(res.error).toBe('Please enter a valid email address.');
   });
 
-  it('rejects lookalike or subdomain spoofing', () => {
-    expect(validateTrainerEmail('ash@fake-slrtce.in').valid).toBe(false);
-    expect(validateTrainerEmail('ash@slrtce.in.evil.com').valid).toBe(false);
-  });
-
-  it('allows master allowlist emails when isMaster is true', () => {
-    expect(validateTrainerEmail('ryankeshary@gmail.com', true).valid).toBe(true);
-    expect(validateTrainerEmail('shrey.sleeps@gmail.com', true).valid).toBe(true);
+  it('rejects empty strings', () => {
+    expect(validateTrainerEmail('').valid).toBe(false);
+    expect(validateTrainerEmail('   ').valid).toBe(false);
   });
 });

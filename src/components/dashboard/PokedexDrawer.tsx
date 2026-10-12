@@ -271,7 +271,7 @@ export function PokedexDrawer({
             {/* Email (Read-Only) */}
             <div>
               <label className="font-pixel text-[9px] text-gray-700 block mb-1 flex items-center justify-between">
-                <span>COLLEGE EMAIL (READ-ONLY)</span>
+                <span>REGISTERED EMAIL (READ-ONLY)</span>
                 <span className="font-mono text-[8px] text-gray-400">LOCKED</span>
               </label>
               <input

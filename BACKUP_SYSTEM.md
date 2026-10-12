@@ -73,21 +73,27 @@ To allow the automated backup script to upload backups directly into your Google
 
 ## Running Backups
 
-### 1. Fully Automated (Every 1 Hour)
-The GitHub Actions workflow [`.github/workflows/database-backup.yml`](file:///.github/workflows/database-backup.yml) runs every hour automatically via cron `0 * * * *`.
+### 1. Fully Automated (Resilient Staggered Schedule: Every 30–60 Min)
+The GitHub Actions workflow [`.github/workflows/database-backup.yml`](file:///.github/workflows/database-backup.yml) is scheduled with cron `15,45 * * * *`.
+- **Why :15 and :45?** Running at minute 0 (`0 * * * *`) caused severe delays and skipped runs because thousands of repositories schedule at the exact top-of-hour, causing GitHub's queue to delay or drop cron runs.
+- The staggered schedule (`:15` and `:45`) avoids GitHub peak queue congestion and guarantees that backups run reliably without multi-hour gaps.
 
 ### 2. Manual On-Demand Backup via GitHub UI (1 Click)
 1. Go to your repo's **Actions** tab.
 2. Select **Automated Database Backup (Google Drive)** in the left sidebar.
 3. Click **Run workflow** → Click **Run workflow**.
 
-### 3. Local Execution via Terminal
-You can run a backup anytime from your local machine:
+### 3. Continuous Local Daemon (100% Reliable Every Hour)
+If you want guaranteed hourly backups running in the background on your machine or local server during the fest:
+```bash
+npm run db:backup:daemon
+```
+Runs an initial backup immediately, and continues executing every 60 minutes.
+
+### 4. Single On-Demand Local Backup
 ```bash
 npm run db:backup
 ```
-- If `GDRIVE_SERVICE_ACCOUNT_KEY` is present in your environment, it will upload to Google Drive.
-- If not, it saves the encrypted archive and SHA-256 checksum locally in `.backup-temp/`.
 
 ---
 

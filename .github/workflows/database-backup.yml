@@ -2,14 +2,17 @@ name: Automated Database Backup (Google Drive)
 
 on:
   schedule:
-    # Runs every hour: at minute 0 of every hour (0:00, 1:00, 2:00, 3:00, ...)
-    - cron: '0 * * * *'
+    # Staggered off-peak execution at :15 and :45 of every hour
+    # Bypasses GitHub Actions top-of-hour (:00) scheduler queue congestion and drops, ensuring reliable backups
+    - cron: '15,45 * * * *'
   workflow_dispatch:
     inputs:
       destination_folder_id:
         description: 'Google Drive Destination Folder ID (optional override)'
         required: false
         default: '1Fsj_Lre5YDmv-iTGPa6BkuTZpGafqwS0'
+  repository_dispatch:
+    types: [backup, backup_trigger]
 
 concurrency:
   group: db-backup

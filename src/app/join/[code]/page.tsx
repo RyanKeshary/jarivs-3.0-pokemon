@@ -22,9 +22,9 @@ export default function JoinTeamPage({
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [college, setCollege] = useState('SLRTCE Mumbai');
+  const [college, setCollege] = useState('');
   const [department, setDepartment] = useState('');
-  const [yearOfStudy, setYearOfStudy] = useState('3rd Year (TE)');
+  const [yearOfStudy, setYearOfStudy] = useState('FY');
   const [division, setDivision] = useState('');
   const [rollNo, setRollNo] = useState('');
   const [referenceId, setReferenceId] = useState('');
@@ -53,8 +53,9 @@ export default function JoinTeamPage({
     setErrorMsg(null);
 
     const emailTrimmed = email.trim().toLowerCase();
-    if (!emailTrimmed.endsWith('@slrtce.in')) {
-      setErrorMsg('Only official SLRTCE institutional email addresses (@slrtce.in) are permitted.');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+      setErrorMsg('Please enter a valid email address.');
       return;
     }
 
@@ -195,7 +196,7 @@ export default function JoinTeamPage({
                   </div>
 
                   <div>
-                    <label className="label-editorial text-[8px] block mb-1">SLRTCE EMAIL ADDRESS *</label>
+                    <label className="label-editorial text-[8px] block mb-1">EMAIL ADDRESS *</label>
                     <input
                       type="email"
                       required
@@ -204,9 +205,6 @@ export default function JoinTeamPage({
                       autoComplete="off"
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
-                    <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
-                      Must end with @slrtce.in
-                    </span>
                   </div>
 
                   <div>
@@ -255,11 +253,9 @@ export default function JoinTeamPage({
                       onChange={(e) => setYearOfStudy(e.target.value)}
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     >
-                      <option value="1st Year (FE)">1st Year (FE)</option>
-                      <option value="2nd Year (SE)">2nd Year (SE)</option>
-                      <option value="3rd Year (TE)">3rd Year (TE)</option>
-                      <option value="4th Year (BE)">4th Year (BE)</option>
-                      <option value="Postgraduate">Postgraduate</option>
+                      <option value="FY">FY</option>
+                      <option value="SY">SY</option>
+                      <option value="TY">TY</option>
                     </select>
                   </div>
 
@@ -295,7 +291,7 @@ export default function JoinTeamPage({
                       className="w-full bg-[#1B1E4A] border border-[#AFAEA2] px-3 py-2 text-xs text-[#E9E6DA] focus:border-[#D21319] focus:outline-none"
                     />
                     <span className="text-[9px] text-[#AFAEA2]/70 font-mono mt-0.5 block">
-                      Mandatory · Enter the reference ID as printed on your SLRTCE ID card
+                      Mandatory · Enter the reference ID as printed on your ID card
                     </span>
                   </div>
                 </div>

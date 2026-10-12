@@ -34,9 +34,9 @@ export function RegistrationModal({
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [college, setCollege] = useState('SLRTCE Mumbai');
+  const [college, setCollege] = useState('');
   const [department, setDepartment] = useState('');
-  const [yearOfStudy, setYearOfStudy] = useState('3rd Year (TE)');
+  const [yearOfStudy, setYearOfStudy] = useState('FY');
   const [division, setDivision] = useState('');
   const [rollNo, setRollNo] = useState('');
   const [referenceId, setReferenceId] = useState('');
@@ -224,10 +224,6 @@ export function RegistrationModal({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
       setStepError('Please enter a valid email address.');
-      return false;
-    }
-    if (!emailTrimmed.endsWith('@slrtce.in')) {
-      setStepError('Only official SLRTCE institutional email addresses (@slrtce.in) are allowed.');
       return false;
     }
     const cleanPhone = phone.trim().replace(/\D/g, '');
@@ -969,7 +965,7 @@ export function RegistrationModal({
 
                   <div>
                     <label className="text-[11px] font-mono text-neutral-800 font-bold block mb-1">
-                      SLRTCE Email ID <span className="text-[#D21319]">*</span>
+                      Email ID <span className="text-[#D21319]">*</span>
                     </label>
                     <input
                       type="email"
@@ -979,9 +975,6 @@ export function RegistrationModal({
                       autoComplete="off"
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
-                    <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
-                      Must end with @slrtce.in
-                    </span>
                   </div>
 
                   <div>
@@ -1038,11 +1031,9 @@ export function RegistrationModal({
                       onChange={(e) => setYearOfStudy(e.target.value)}
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition cursor-pointer font-sans"
                     >
-                      <option value="1st Year (FE)">1st Year (FE)</option>
-                      <option value="2nd Year (SE)">2nd Year (SE)</option>
-                      <option value="3rd Year (TE)">3rd Year (TE)</option>
-                      <option value="4th Year (BE)">4th Year (BE)</option>
-                      <option value="Postgraduate">Postgraduate</option>
+                      <option value="FY">FY</option>
+                      <option value="SY">SY</option>
+                      <option value="TY">TY</option>
                     </select>
                   </div>
 
@@ -1084,7 +1075,7 @@ export function RegistrationModal({
                       className="w-full bg-[#FAF9F5] border-2 border-black focus:border-[#D21319] px-3 py-2 text-xs text-black outline-none transition font-sans"
                     />
                     <span className="text-[10px] text-neutral-500 font-mono mt-0.5 block">
-                      Mandatory · Enter the reference ID as printed on your SLRTCE ID card
+                      Mandatory · Enter the reference ID as printed on your ID card
                     </span>
                   </div>
                 </div>

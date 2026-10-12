@@ -93,14 +93,16 @@ describe('Indigo Tech Fest Registration Validation', () => {
     expect(errorMsg).toContain('Please sign in to your dashboard');
   });
 
-  it('validates only @slrtce.in emails are accepted', () => {
-    const validEmail = 'student.comp26@slrtce.in';
-    const invalidGmail = 'student@gmail.com';
-    const invalidYahoo = 'student@yahoo.co.in';
+  it('validates emails from any valid domain are accepted', () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const studentCollegeEmail = 'student.comp26@slrtce.in';
+    const gmail = 'student@gmail.com';
+    const yahoo = 'student@yahoo.co.in';
 
-    expect(validEmail.endsWith('@slrtce.in')).toBe(true);
-    expect(invalidGmail.endsWith('@slrtce.in')).toBe(false);
-    expect(invalidYahoo.endsWith('@slrtce.in')).toBe(false);
+    expect(emailRegex.test(studentCollegeEmail)).toBe(true);
+    expect(emailRegex.test(gmail)).toBe(true);
+    expect(emailRegex.test(yahoo)).toBe(true);
+    expect(emailRegex.test('not-an-email')).toBe(false);
   });
 
   it('validates numeric-only 10-digit WhatsApp numbers', () => {
