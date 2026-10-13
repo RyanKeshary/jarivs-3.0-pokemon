@@ -12,6 +12,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
   // Audio is muted initially to strictly comply with browser autoplay policies,
   // then automatically un-mutes on first user interaction or if browser MEI permits.
   const [soundOn, setSoundOn] = useState(false);
+  const soundOnRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(13.9);
@@ -106,38 +107,31 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
   }, [hasTriedFallback, videoSrc, handleFinishOrSkip]);
 
-  // Playback automatically - unmuted playback preferred across all browsers
+  // Playback automatically - muted initial playback guaranteed to succeed across all browsers
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
+    if (!vid.paused) {
+      setIsPlaying(true);
+      return;
+    }
+
     vid.volume = 1.0;
     vid.playsInline = true;
+    if (!soundOnRef.current) {
+      vid.muted = true;
+    }
 
-    // Start with muted play to guarantee immediate video streaming & frame display
-    vid.muted = true;
     const playPromise = vid.play();
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
           setIsPlaying(true);
           lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
-
-          // Attempt un-muted playback
-          vid.muted = false;
-          vid.play()
-            .then(() => {
-              setSoundOn(true);
-            })
-            .catch(() => {
-              // Browser policy restricted unmuted playback; cleanly keep muted frames until user interaction
-              vid.muted = true;
-              setSoundOn(false);
-              vid.play().catch(() => {});
-            });
         })
         .catch(() => {
-          // Retry muted playback
+          // Retry muted playback reliably
           vid.muted = true;
           vid.play()
             .then(() => {
@@ -170,14 +164,15 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
   // Universal listeners: Genuine user gestures (pointerdown, touchstart, keydown) immediately un-mute
   useEffect(() => {
-    const handleGlobalInteraction = (e: Event) => {
+    const handleGlobalInteraction = () => {
       const vid = videoRef.current;
       if (!vid || isExiting) return;
 
       // Unmute on first genuine gesture
-      if (!soundOn || vid.muted) {
+      if (!soundOnRef.current || vid.muted) {
         vid.muted = false;
         vid.volume = 1.0;
+        soundOnRef.current = true;
         setSoundOn(true);
       }
 
@@ -201,7 +196,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
         window.removeEventListener(evt, handleGlobalInteraction, { capture: true } as any);
       });
     };
-  }, [soundOn, isExiting]);
+  }, [isExiting]);
 
   // Tab switch / Screen unlock recovery
   useEffect(() => {
@@ -227,25 +222,28 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
       if (vid.paused && !vid.ended && !isExiting) {
         // Nudge paused video to keep playing automatically
-        vid.muted = true;
+        vid.muted = !soundOnRef.current;
         vid.play()
           .then(() => {
             setIsPlaying(true);
           })
-          .catch(() => {});
+          .catch(() => {
+            vid.muted = true;
+            vid.play().catch(() => {});
+          });
       } else if (!vid.paused && !vid.ended) {
-        if (stalledDuration > 2500) {
+        if (stalledDuration > 3000) {
           vid.play().catch(() => {});
         }
       }
 
-      // If video has not progressed after 5.5s on desktop, step down to lightweight stream
-      if (stalledDuration > 5500 && !hasTriedFallback && videoSrc === '/media/intro-vid.mp4') {
+      // If video has not progressed after 6s on desktop, step down to lightweight stream
+      if (stalledDuration > 6000 && !hasTriedFallback && videoSrc === '/media/intro-vid.mp4') {
         handleVideoError();
       }
 
-      // If permanently stalled for > 8s or total mount stalled > 9s, advance gracefully
-      if (stalledDuration > 8000 || (timeSinceMount > 9000 && lastProgressRef.current.time < 0.2)) {
+      // If permanently stalled for > 30s or total mount stalled > 35s, advance gracefully
+      if (stalledDuration > 30000 || (timeSinceMount > 35000 && lastProgressRef.current.time < 0.2)) {
         handleFinishOrSkip();
       }
     }, 1000);
@@ -259,6 +257,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
     vid.muted = false;
     vid.volume = 1.0;
+    soundOnRef.current = true;
     setSoundOn(true);
     vid.play().then(() => setIsPlaying(true)).catch(() => {});
     playTacticalChime(659.25, 'triangle');

@@ -58,6 +58,22 @@ export function LandingClient({ settings }: LandingClientProps) {
       const isBotOrLighthouse =
         typeof navigator !== 'undefined' &&
         /Lighthouse|Googlebot|bingbot|Baiduspider|PageSpeed|Speed Insights|PTST/i.test(navigator.userAgent);
+
+      // On page reload or ?intro / ?replay query, clear seen state so refresh allows re-playing the video intro reliably
+      const navEntry =
+        typeof performance !== 'undefined' && performance.getEntriesByType
+          ? (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming)
+          : null;
+      const isReload =
+        navEntry?.type === 'reload' ||
+        (typeof performance !== 'undefined' && (performance as any).navigation?.type === 1);
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const forceIntro = urlParams?.has('intro') || urlParams?.has('replay');
+
+      if (isReload || forceIntro) {
+        sessionStorage.removeItem('indigo_vid_intro_seen');
+      }
+
       const hasSeen = sessionStorage.getItem('indigo_vid_intro_seen') === 'true';
       if (!hasSeen && !isBotOrLighthouse) {
         setShowVideoIntro(true);
