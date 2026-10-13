@@ -126,16 +126,16 @@ select:-webkit-autofill {
   height: max(100vh, calc(100vw / 1.79137));
   height: max(100dvh, calc(100vw / 1.79137));
   aspect-ratio: 2576 / 1438;
-  --c-jiggly: url('/assets/l-jiggly.png');
-  --c-gengar: url('/assets/l-gengar.png');
-  --c-pika: url('/assets/l-pika.png');
-  --c-psy: url('/assets/l-psy.png');
-  --c-eevee: url('/assets/l-eevee.png');
-  --img: url('/assets/l-base.jpg');
-  --wl: url('/assets/l-wing-left.png');
-  --wr: url('/assets/l-wing-right.png');
-  --rd: url('/assets/l-front-red.png');
-  --sn: url('/assets/l-snorlax.png');
+  --c-jiggly: url('/assets/l-jiggly.webp');
+  --c-gengar: url('/assets/l-gengar.webp');
+  --c-pika: url('/assets/l-pika.webp');
+  --c-psy: url('/assets/l-psy.webp');
+  --c-eevee: url('/assets/l-eevee.webp');
+  --img: url('/assets/l-base.webp');
+  --wl: url('/assets/l-wing-left.webp');
+  --wr: url('/assets/l-wing-right.webp');
+  --rd: url('/assets/l-front-red.webp');
+  --sn: url('/assets/l-snorlax.webp');
 }
 
 .st-l .wl { left: 23.167%; top: 3.685%; width: 27.833%; height: 43.526%; background-image: var(--wl); transform-origin: 91.1% 66.7%; animation: flap 8s ease-in-out infinite; }
@@ -152,16 +152,16 @@ select:-webkit-autofill {
 .st-p {
   display: none !important;
   aspect-ratio: 1438 / 2576;
-  --c-jiggly: url('/assets/p-jiggly.png');
-  --c-gengar: url('/assets/p-gengar.png');
-  --c-pika: url('/assets/p-pika.png');
-  --c-psy: url('/assets/p-psy.png');
-  --c-eevee: url('/assets/p-eevee.png');
-  --img: url('/assets/p-base.jpg');
-  --wl: url('/assets/p-wing-left.png');
-  --wr: url('/assets/p-wing-right.png');
-  --rd: url('/assets/p-front-red.png');
-  --sn: url('/assets/p-snorlax.png');
+  --c-jiggly: url('/assets/p-jiggly.webp');
+  --c-gengar: url('/assets/p-gengar.webp');
+  --c-pika: url('/assets/p-pika.webp');
+  --c-psy: url('/assets/p-psy.webp');
+  --c-eevee: url('/assets/p-eevee.webp');
+  --img: url('/assets/p-base.webp');
+  --wl: url('/assets/p-wing-left.webp');
+  --wr: url('/assets/p-wing-right.webp');
+  --rd: url('/assets/p-front-red.webp');
+  --sn: url('/assets/p-snorlax.webp');
 }
 
 .st-p .wl { left: 2.917%; top: 9.493%; width: 47.750%; height: 24.430%; background-image: var(--wl); transform-origin: 90.9% 93.9%; animation: flap 8s ease-in-out infinite; }

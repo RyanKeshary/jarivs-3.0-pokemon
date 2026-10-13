@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Bodoni_Moda, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
@@ -16,6 +16,13 @@ const spaceGrotesk = Space_Grotesk({
   variable: '--font-grotesk',
   display: 'swap',
 });
+
+export const viewport: Viewport = {
+  themeColor: '#161A35',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://indigo-techfest.vercel.app'),

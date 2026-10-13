@@ -38,6 +38,24 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: '/site/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/(favicon.ico|icon.png|apple-icon.png|logo.png|logo-square.png)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
     ];
   },
   async redirects() {
