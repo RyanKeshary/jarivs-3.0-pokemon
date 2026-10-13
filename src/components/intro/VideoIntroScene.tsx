@@ -9,14 +9,16 @@ interface VideoIntroSceneProps {
 }
 
 export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
-  // Sound is ON by default
-  const [soundOn, setSoundOn] = useState(true);
+  // Audio is muted initially to strictly comply with browser autoplay policies,
+  // then automatically un-mutes on first user interaction or if browser MEI permits.
+  const [soundOn, setSoundOn] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(13.9);
   const [showCenterFeedback, setShowCenterFeedback] = useState<'play' | 'pause' | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
+  const mountTimeRef = useRef(Date.now());
 
   // Synchronously select ultra-low-packet mobile stream on handhelds (< 768px or mobile UA)
   const [videoSrc, setVideoSrc] = useState<string>(() => {
@@ -87,8 +89,8 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       setHasTriedFallback(true);
       // Ladder: lite -> mobile standard -> desktop
       let nextSrc = '/media/intro-vid-mobile.mp4';
-      if (videoSrc === '/media/intro-vid-mobile.mp4') {
-        nextSrc = '/media/intro-vid.mp4';
+      if (videoSrc === '/media/intro-vid-mobile.mp4' || videoSrc === '/media/intro-vid.mp4') {
+        nextSrc = '/media/intro-vid-mobile-lite.mp4';
       }
       setVideoSrc(nextSrc);
       setTimeout(() => {
@@ -106,7 +108,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
   const userDidMuteRef = useRef(false);
 
-  // Playback automatically - audio is ON by default
+  // Playback automatically - muted autoplay is guaranteed to succeed across all browsers
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
@@ -114,21 +116,33 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     vid.volume = 1.0;
     vid.playsInline = true;
 
-    // Try unmuted autoplay first
-    vid.muted = userDidMuteRef.current;
+    // Start with muted play to guarantee immediate video streaming & frame display
+    vid.muted = true;
     const playPromise = vid.play();
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
           setIsPlaying(true);
-          if (!userDidMuteRef.current) setSoundOn(true);
           lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
+
+          // If user hasn't explicitly muted, attempt un-muting in case browser allows it
+          if (!userDidMuteRef.current) {
+            vid.muted = false;
+            vid.play()
+              .then(() => {
+                setSoundOn(true);
+              })
+              .catch(() => {
+                // Browser policy restricted unmuted playback; cleanly keep muted frames playing
+                vid.muted = true;
+                setSoundOn(false);
+                vid.play().catch(() => {});
+              });
+          }
         })
         .catch(() => {
-          // If browser restricts unmuted autoplay on cold page load, start playing frames,
-          // and audio un-mutes automatically upon the very first user interaction anywhere
+          // Retry muted playback
           vid.muted = true;
-          setSoundOn(false); // Keep React state strictly synchronized with DOM
           vid.play()
             .then(() => {
               setIsPlaying(true);
@@ -148,28 +162,27 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
 
     vid.volume = 1.0;
     vid.playsInline = true;
+    vid.defaultMuted = true;
+    vid.setAttribute('muted', '');
     vid.setAttribute('playsinline', '');
     vid.setAttribute('webkit-playsinline', '');
     vid.setAttribute('x5-playsinline', '');
     vid.setAttribute('x5-video-player-type', 'h5-page');
 
-    // Audio is strictly ON by default
-    vid.muted = userDidMuteRef.current;
     attemptPlay();
   }, [videoSrc, attemptPlay]);
 
-  // Universal listeners: ANY interaction on screen immediately un-mutes and ensures playback with FULL audio
+  // Universal listeners: Genuine user gestures (pointerdown, touchstart, keydown) immediately un-mute
   useEffect(() => {
-    const handleGlobalInteraction = () => {
+    const handleGlobalInteraction = (e: Event) => {
       const vid = videoRef.current;
       if (!vid || isExiting) return;
 
-      if (!userDidMuteRef.current) {
-        if (vid.muted || !soundOn) {
-          vid.muted = false;
-          vid.volume = 1.0;
-          setSoundOn(true);
-        }
+      // Unmute on first genuine gesture
+      if (!userDidMuteRef.current && (!soundOn || vid.muted)) {
+        vid.muted = false;
+        vid.volume = 1.0;
+        setSoundOn(true);
       }
 
       if (vid.paused) {
@@ -181,7 +194,8 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       }
     };
 
-    const events = ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown', 'scroll'];
+    // Note: 'scroll' intentionally excluded as browsers reject it as a valid user activation gesture
+    const events = ['pointerdown', 'touchstart', 'keydown'];
     events.forEach((evt) => {
       window.addEventListener(evt, handleGlobalInteraction, { passive: true, capture: true });
     });
@@ -211,31 +225,37 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       const vid = videoRef.current;
       if (!vid) return;
 
+      const now = Date.now();
+      const timeSinceMount = now - mountTimeRef.current;
+      const stalledDuration = now - lastProgressRef.current.wallClock;
+
       if (vid.paused && !vid.ended && !isExiting) {
         // Nudge paused video to keep playing automatically
+        vid.muted = true;
         vid.play()
           .then(() => {
             setIsPlaying(true);
           })
-          .catch(() => {
-            vid.muted = true;
-            vid.play().catch(() => {});
-          });
+          .catch(() => {});
       } else if (!vid.paused && !vid.ended) {
-        const stalledDuration = Date.now() - lastProgressRef.current.wallClock;
         if (stalledDuration > 2500) {
-          // Video is playing but time hasn't advanced: nudge playback
           vid.play().catch(() => {});
         }
-        if (stalledDuration > 7000) {
-          // If network completely stalls on mobile for > 7s, advance gracefully so user is never stuck
-          handleFinishOrSkip();
-        }
+      }
+
+      // If video has not progressed after 5.5s on desktop, step down to lightweight stream
+      if (stalledDuration > 5500 && !hasTriedFallback && videoSrc === '/media/intro-vid.mp4') {
+        handleVideoError();
+      }
+
+      // If permanently stalled for > 8s or total mount stalled > 9s, advance gracefully
+      if (stalledDuration > 8000 || (timeSinceMount > 9000 && lastProgressRef.current.time < 0.2)) {
+        handleFinishOrSkip();
       }
     }, 1000);
 
     return () => clearInterval(watchdogInterval);
-  }, [isExiting, handleFinishOrSkip]);
+  }, [isExiting, hasTriedFallback, videoSrc, handleVideoError, handleFinishOrSkip]);
 
   const unmuteAndPlay = useCallback(() => {
     const vid = videoRef.current;
@@ -380,6 +400,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
         <video
           ref={videoRef}
           src={videoSrc}
+          poster="/media/intro-poster.jpg"
           autoPlay
           playsInline
           // @ts-ignore
@@ -465,8 +486,8 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           )}
         </AnimatePresence>
 
-        {/* Floating Unmute Prompt if browser restricted initial unmuted play */}
-        {!soundOn && isPlaying && (
+        {/* Floating Unmute Prompt whenever audio is muted */}
+        {!soundOn && !isExiting && (
           <div className="absolute bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
             <button
               onClick={(e) => {

@@ -6,8 +6,41 @@ import type { EventSettings } from '@/lib/database.types';
 export const revalidate = 60; // Revalidate every 60 seconds
 
 async function getEventSettings(): Promise<EventSettings> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://oqqzzyombtcjvlqbjvla.supabase.co';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_QMmz5ZNtmwnZssxC6KnH1g_zoRZ6FIr';
+
+  // 1. Fast HTTPS fetch over port 443 with 2.5s abort timeout (works reliably on Render, Vercel, edge)
   try {
-    const rows = await sql`
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+
+    const res = await fetch(`${supabaseUrl}/rest/v1/event_settings?id=eq.1&select=*`, {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+      },
+      next: { revalidate: 60 },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows[0] as EventSettings;
+      }
+    }
+  } catch (err) {
+    // REST attempt timed out or failed, try direct postgres fallback with fast timeout
+  }
+
+  // 2. Direct Postgres fallback with strict 2s race timeout
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Postgres query timeout')), 2000)
+    );
+
+    const queryPromise = sql`
       SELECT 
         id, 
         name, 
@@ -25,11 +58,12 @@ async function getEventSettings(): Promise<EventSettings> {
       WHERE id = 1
     `;
 
+    const rows = (await Promise.race([queryPromise, timeoutPromise])) as any[];
     if (rows && rows.length > 0) {
       return rows[0] as unknown as EventSettings;
     }
   } catch (err) {
-    console.error('Failed to load event settings from DB, using fallback:', err);
+    // Continue directly to hardcoded fallback defaults
   }
 
   // Fallback defaults for Indigo Tech Fest · Jarvis 3.0
