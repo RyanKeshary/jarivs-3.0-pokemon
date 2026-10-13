@@ -40,6 +40,33 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: '(.*)onrender\\.com(.*)',
+          },
+        ],
+        destination: 'https://indigo-techfest.vercel.app/:path*',
+        permanent: true,
+      },
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-forwarded-host',
+            value: '(.*)onrender\\.com(.*)',
+          },
+        ],
+        destination: 'https://indigo-techfest.vercel.app/:path*',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
