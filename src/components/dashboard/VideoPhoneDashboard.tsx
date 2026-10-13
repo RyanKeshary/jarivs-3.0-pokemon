@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Volume2, VolumeX, LogOut, ArrowLeft, Shield, Sparkles } from 'lucide-react';
+import { LogOut, ArrowLeft, Shield, Sparkles } from 'lucide-react';
 import { AnnouncementsBox } from './AnnouncementsBox';
 import { StatusUpdatesBox } from './StatusUpdatesBox';
 import { SubmissionBox } from './SubmissionBox';
@@ -11,7 +11,7 @@ import { ResourcesBox } from './ResourcesBox';
 import { PokedexDrawer } from './PokedexDrawer';
 import { TrainerCardModal } from './TrainerCardModal';
 import { createClient } from '@/lib/supabase/client';
-import { isSoundEnabled, toggleSound, playPokedexOpenSound, playRetroBeep } from '@/lib/sound';
+import { playPokedexOpenSound, playRetroBeep } from '@/lib/sound';
 import type { Profile, Team, SocialLink, Announcement, StatusUpdate, ProblemStatement, Submission, EventSettings } from '@/lib/database.types';
 
 interface VideoPhoneDashboardProps {
@@ -43,7 +43,6 @@ export function VideoPhoneDashboard({
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [selectedCardProfile, setSelectedCardProfile] = useState<Profile>(profile);
   const [selectedCardTeam, setSelectedCardTeam] = useState<Team | null>(team);
-  const [soundOn, setSoundOn] = useState(false);
 
   const handleOpenTrainerCard = (targetProfile?: any, targetTeam?: any) => {
     playRetroBeep(520, 'sine', 0.05);
@@ -55,16 +54,6 @@ export function VideoPhoneDashboard({
   const handleAvatarUpdated = (newUrl: string) => {
     setActiveProfile((prev) => ({ ...prev, avatar_url: newUrl }));
     setSelectedCardProfile((prev) => ({ ...prev, avatar_url: newUrl }));
-  };
-
-  useEffect(() => {
-    setSoundOn(isSoundEnabled());
-  }, []);
-
-  const handleSoundToggle = () => {
-    const newState = toggleSound();
-    setSoundOn(newState);
-    if (newState) playRetroBeep(880, 'sine', 0.05);
   };
 
   const handleLogout = async () => {
@@ -121,13 +110,6 @@ export function VideoPhoneDashboard({
 
           {/* Right Controls */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleSoundToggle}
-              className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-white border border-gray-600 transition-all cursor-pointer"
-              title={soundOn ? 'Mute 8-bit sound' : 'Unmute 8-bit sound'}
-            >
-              {soundOn ? <Volume2 size={14} className="text-[#FFCB05]" /> : <VolumeX size={14} />}
-            </button>
 
             <Link
               href="/"

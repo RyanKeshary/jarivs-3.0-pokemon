@@ -165,9 +165,10 @@ class TeamRocketAudioManager {
       }
     }
 
-    // High-performance HTMLAudio fallback (instant clone, works 100% of the time, allows rapid re-triggers)
+    // Robust HTMLAudio playback (unmuted, full volume, immediate)
     try {
       const audio = new Audio('/assets/team-rocket-blastoff.mp3');
+      audio.muted = false;
       audio.volume = 1.0;
       audio.currentTime = 0;
       const playPromise = audio.play();
@@ -198,6 +199,7 @@ export function TeamRocketBlastOff() {
   const targetClicksRef = useRef(Math.floor(Math.random() * (67 - 40 + 1)) + 40);
   const [showMemeModal, setShowMemeModal] = useState(false);
   const lastTriggerTimeRef = useRef(0);
+  const hasTriggeredFlightAudioRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -217,6 +219,27 @@ export function TeamRocketBlastOff() {
   }, [showMemeModal]);
 
   const { scrollYProgress } = useScroll();
+
+  // Watch scroll progress to automatically play unmuted Team Rocket audio as they blast off into view!
+  useEffect(() => {
+    const unsubscribe = scrollYProgress.on('change', (progress) => {
+      if (progress >= 0.08 && progress <= 0.85) {
+        if (!hasTriggeredFlightAudioRef.current) {
+          hasTriggeredFlightAudioRef.current = true;
+          audioManager.play((amp) => {
+            setWaveVibration(amp);
+          });
+          setShowQuote(true);
+          setTimeout(() => setShowQuote(false), 3800);
+        }
+      } else if (progress < 0.04 || progress > 0.95) {
+        // Reset when user scrolls back to the top or past the end
+        hasTriggeredFlightAudioRef.current = false;
+      }
+    });
+
+    return () => unsubscribe();
+  }, [scrollYProgress]);
 
   // Physics-smoothed scroll progress for buttery 60/120fps motion
   const smoothProgress = useSpring(scrollYProgress, {
@@ -245,7 +268,7 @@ export function TeamRocketBlastOff() {
 
   if (!mounted) return null;
 
-  // Instantaneous zero-latency trigger handler
+  // Instantaneous zero-latency trigger handler on click/tap
   const handleTrigger = (e?: React.SyntheticEvent) => {
     if (e) {
       e.stopPropagation();

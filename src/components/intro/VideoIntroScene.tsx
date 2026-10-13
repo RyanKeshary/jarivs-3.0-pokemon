@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, VolumeX, FastForward, Play, Pause } from 'lucide-react';
+import { Volume2, FastForward, Play, Pause } from 'lucide-react';
 
 interface VideoIntroSceneProps {
   onComplete: () => void;
@@ -106,9 +106,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     }
   }, [hasTriedFallback, videoSrc, handleFinishOrSkip]);
 
-  const userDidMuteRef = useRef(false);
-
-  // Playback automatically - muted autoplay is guaranteed to succeed across all browsers
+  // Playback automatically - unmuted playback preferred across all browsers
   const attemptPlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
@@ -125,20 +123,18 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
           setIsPlaying(true);
           lastProgressRef.current = { time: vid.currentTime, wallClock: Date.now() };
 
-          // If user hasn't explicitly muted, attempt un-muting in case browser allows it
-          if (!userDidMuteRef.current) {
-            vid.muted = false;
-            vid.play()
-              .then(() => {
-                setSoundOn(true);
-              })
-              .catch(() => {
-                // Browser policy restricted unmuted playback; cleanly keep muted frames playing
-                vid.muted = true;
-                setSoundOn(false);
-                vid.play().catch(() => {});
-              });
-          }
+          // Attempt un-muted playback
+          vid.muted = false;
+          vid.play()
+            .then(() => {
+              setSoundOn(true);
+            })
+            .catch(() => {
+              // Browser policy restricted unmuted playback; cleanly keep muted frames until user interaction
+              vid.muted = true;
+              setSoundOn(false);
+              vid.play().catch(() => {});
+            });
         })
         .catch(() => {
           // Retry muted playback
@@ -179,7 +175,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       if (!vid || isExiting) return;
 
       // Unmute on first genuine gesture
-      if (!userDidMuteRef.current && (!soundOn || vid.muted)) {
+      if (!soundOn || vid.muted) {
         vid.muted = false;
         vid.volume = 1.0;
         setSoundOn(true);
@@ -261,27 +257,12 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     const vid = videoRef.current;
     if (!vid) return;
 
-    userDidMuteRef.current = false;
     vid.muted = false;
     vid.volume = 1.0;
     setSoundOn(true);
     vid.play().then(() => setIsPlaying(true)).catch(() => {});
     playTacticalChime(659.25, 'triangle');
   }, [playTacticalChime]);
-
-  const handleToggleSound = useCallback(() => {
-    const vid = videoRef.current;
-    if (!vid) return;
-
-    if (!soundOn) {
-      unmuteAndPlay();
-    } else {
-      userDidMuteRef.current = true;
-      vid.muted = true;
-      setSoundOn(false);
-      playTacticalChime(329.63, 'sine');
-    }
-  }, [soundOn, unmuteAndPlay, playTacticalChime]);
 
   const handleTogglePlay = useCallback(() => {
     const vid = videoRef.current;
@@ -331,9 +312,6 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
       if (e.code === 'Space') {
         e.preventDefault();
         handleTogglePlay();
-      } else if (e.code === 'KeyM') {
-        e.preventDefault();
-        handleToggleSound();
       } else if (e.code === 'Escape' || e.code === 'Enter') {
         e.preventDefault();
         handleFinishOrSkip();
@@ -341,7 +319,7 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleTogglePlay, handleToggleSound, handleFinishOrSkip]);
+  }, [handleTogglePlay, handleFinishOrSkip]);
 
   // Throttled video time updates: saves up to 75% of main thread React re-render cycles
   const handleTimeUpdate = () => {
@@ -536,44 +514,22 @@ export function VideoIntroScene({ onComplete }: VideoIntroSceneProps) {
         {/* Right: Master Control Actions */}
         <div className="flex items-center gap-1.5 sm:gap-3">
           
-          {/* Sound Toggle (Interactive Animated Equalizer) */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleToggleSound();
-            }}
-            className={`flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-2 sm:px-4 sm:py-2.5 backdrop-blur-xl border transition-all cursor-pointer shadow-[0_4px_20px_rgba(0,0,0,0.5)] touch-manipulation active:scale-95 ${
-              soundOn
-                ? 'bg-black/75 hover:bg-black/90 border-[#D21319]/80 text-white shadow-[0_0_15px_rgba(210,19,25,0.3)]'
-                : 'bg-black/70 hover:bg-black/90 border-amber-500/60 text-[#FFCB05] shadow-[0_0_12px_rgba(255,203,5,0.3)]'
-            }`}
-            title={soundOn ? "Mute Audio (Hotkey: M)" : "Unmute Audio (Hotkey: M)"}
+          {/* Audio Status Indicator (Sound always unmuted) */}
+          <div
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-black/75 backdrop-blur-xl border border-[#D21319]/80 text-white shadow-[0_0_15px_rgba(210,19,25,0.3)] select-none"
+            title="Audio Transmission Active"
           >
-            {soundOn ? (
-              <>
-                <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D21319]" />
-                <div className="flex items-end gap-0.5 h-3.5 w-3.5 sm:w-4">
-                  <span className="w-0.5 bg-[#D21319] animate-[bounce_0.6s_ease-in-out_infinite]" style={{ height: '70%' }} />
-                  <span className="w-0.5 bg-[#D21319] animate-[bounce_0.4s_ease-in-out_infinite]" style={{ height: '100%', animationDelay: '-0.2s' }} />
-                  <span className="w-0.5 bg-[#D21319] animate-[bounce_0.7s_ease-in-out_infinite]" style={{ height: '50%', animationDelay: '-0.4s' }} />
-                  <span className="w-0.5 bg-[#D21319] animate-[bounce_0.5s_ease-in-out_infinite]" style={{ height: '85%', animationDelay: '-0.1s' }} />
-                </div>
-                <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider hidden xs:inline">
-                  MUTE 🔇
-                </span>
-              </>
-            ) : (
-              <>
-                <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FFCB05]" />
-                <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#FFCB05]">
-                  UNMUTE 🔊
-                </span>
-              </>
-            )}
-            <kbd className="hidden sm:inline font-mono text-[9px] px-1 py-0.2 bg-white/10 text-neutral-400 border border-white/15">
-              M
-            </kbd>
-          </button>
+            <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D21319]" />
+            <div className="flex items-end gap-0.5 h-3.5 w-3.5 sm:w-4">
+              <span className="w-0.5 bg-[#D21319] animate-[bounce_0.6s_ease-in-out_infinite]" style={{ height: '70%' }} />
+              <span className="w-0.5 bg-[#D21319] animate-[bounce_0.4s_ease-in-out_infinite]" style={{ height: '100%', animationDelay: '-0.2s' }} />
+              <span className="w-0.5 bg-[#D21319] animate-[bounce_0.7s_ease-in-out_infinite]" style={{ height: '50%', animationDelay: '-0.4s' }} />
+              <span className="w-0.5 bg-[#D21319] animate-[bounce_0.5s_ease-in-out_infinite]" style={{ height: '85%', animationDelay: '-0.1s' }} />
+            </div>
+            <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider hidden xs:inline text-white">
+              AUDIO ON
+            </span>
+          </div>
 
           {/* Hero Skip Button with Real-Time Radial Progress */}
           <button

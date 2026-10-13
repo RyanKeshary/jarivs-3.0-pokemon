@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX, Sparkles, ShieldAlert, Award } from 'lucide-react';
+import { X, Volume2, Sparkles, ShieldAlert, Award } from 'lucide-react';
 
 export function SecretEventLightbox() {
   const pathname = usePathname();
@@ -11,7 +11,6 @@ export function SecretEventLightbox() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Immediately close if navigating to admin page
@@ -124,18 +123,6 @@ export function SecretEventLightbox() {
     };
   }, [isOpen]);
 
-  const toggleMute = () => {
-    if (!audioRef.current) return;
-    if (isMuted) {
-      audioRef.current.muted = false;
-      setIsMuted(false);
-      audioRef.current.play().then(() => setIsPlayingAudio(true)).catch(() => {});
-    } else {
-      audioRef.current.muted = true;
-      setIsMuted(true);
-    }
-  };
-
   const handleClose = () => {
     setIsOpen(false);
   };
@@ -226,27 +213,18 @@ export function SecretEventLightbox() {
               <div className="flex items-center gap-2.5">
                 {/* Audio Equalizer Animated Bars */}
                 <div className="flex items-end gap-1 h-4">
-                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio && !isMuted ? 'h-3 animate-pulse' : 'h-1.5'}`} />
-                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio && !isMuted ? 'h-4 animate-bounce' : 'h-2'}`} />
-                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio && !isMuted ? 'h-2.5 animate-pulse' : 'h-1'}`} />
-                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio && !isMuted ? 'h-3.5 animate-bounce' : 'h-2'}`} />
+                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio ? 'h-3 animate-pulse' : 'h-1.5'}`} />
+                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio ? 'h-4 animate-bounce' : 'h-2'}`} />
+                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio ? 'h-2.5 animate-pulse' : 'h-1'}`} />
+                  <span className={`w-1 bg-sky-400 rounded-full ${isPlayingAudio ? 'h-3.5 animate-bounce' : 'h-2'}`} />
                 </div>
                 <div className="text-[10px] font-mono leading-tight">
-                  <div className="font-bold text-sky-300 uppercase tracking-wider">
-                    {isMuted ? 'Soundtrack Muted' : isPlayingAudio ? 'Now Playing · Secret Transmission' : 'Tap audio to play soundtrack'}
+                  <div className="font-bold text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Volume2 size={12} className="text-sky-400" />
+                    <span>Now Playing · Secret Transmission Soundtrack</span>
                   </div>
                 </div>
               </div>
-
-              {/* Sound Toggle Button */}
-              <button
-                type="button"
-                onClick={toggleMute}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/40 rounded text-xs font-mono font-bold transition-colors cursor-pointer"
-              >
-                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                <span>{isMuted ? 'UNMUTE' : 'MUTE'}</span>
-              </button>
             </div>
 
             {/* Action Buttons */}

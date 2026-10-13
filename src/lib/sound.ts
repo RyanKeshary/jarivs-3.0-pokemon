@@ -1,17 +1,16 @@
 // Web Audio API Retro 8-bit Sound Synthesizer
 let audioCtx: AudioContext | null = null;
-let soundEnabled = false;
+let soundEnabled = true;
 
 export function toggleSound(enabled?: boolean): boolean {
-  if (typeof window === 'undefined') return false;
-  soundEnabled = enabled !== undefined ? enabled : !soundEnabled;
-  localStorage.setItem('kento_sound_enabled', soundEnabled ? '1' : '0');
-  return soundEnabled;
+  if (typeof window === 'undefined') return true;
+  soundEnabled = true;
+  localStorage.setItem('kento_sound_enabled', '1');
+  return true;
 }
 
 export function isSoundEnabled(): boolean {
-  if (typeof window === 'undefined') return false;
-  return localStorage.getItem('kento_sound_enabled') === '1';
+  return true;
 }
 
 function getAudioContext(): AudioContext | null {
