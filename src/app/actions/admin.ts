@@ -1386,7 +1386,7 @@ export async function getFestAdminData(userOverride?: any) {
     `,
     sql`SELECT * FROM public.fest_events ORDER BY created_at ASC`,
     sql`SELECT * FROM public.fest_announcements ORDER BY created_at DESC`,
-    sql`SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 50`,
+    sql`SELECT * FROM public.audit_log ORDER BY created_at DESC LIMIT 150`,
     sql`
       SELECT id, email, full_name, role::text as role, created_at
       FROM public.profiles

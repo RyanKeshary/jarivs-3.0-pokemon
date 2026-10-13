@@ -200,6 +200,13 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [newCoordName, setNewCoordName] = useState('');
   const [coordNotice, setCoordNotice] = useState<string | null>(null);
 
+  // Audit Trail State & Inspection
+  const [selectedAuditLog, setSelectedAuditLog] = useState<any | null>(null);
+  const [auditSearchQuery, setAuditSearchQuery] = useState('');
+  const [auditActionFilter, setAuditActionFilter] = useState('ALL');
+  const [copiedAuditJson, setCopiedAuditJson] = useState(false);
+  const [showRawJson, setShowRawJson] = useState(false);
+
   // Floating Toast Notification
   const [toast, setToast] = useState<{
     id: number;
@@ -503,6 +510,200 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     setFeedbackNotice(`Updated status for ${selectedRegIds.length} participants.`);
     setSelectedRegIds([]);
     if (onRefresh) onRefresh();
+  };
+
+  // Keyboard shortcut: close audit log modal on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedAuditLog) {
+        setSelectedAuditLog(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedAuditLog]);
+
+  // Audit Trail filtering & analysis utilities
+  const uniqueAuditActions = useMemo(() => {
+    if (!auditLogs || auditLogs.length === 0) return [];
+    const set = new Set<string>();
+    auditLogs.forEach((l: any) => {
+      if (l.action) set.add(l.action);
+    });
+    return Array.from(set).sort();
+  }, [auditLogs]);
+
+  const filteredAuditLogs = useMemo(() => {
+    if (!auditLogs || auditLogs.length === 0) return [];
+    return auditLogs.filter((log: any) => {
+      if (auditActionFilter !== 'ALL' && log.action !== auditActionFilter) {
+        return false;
+      }
+      if (!auditSearchQuery.trim()) return true;
+      const q = auditSearchQuery.toLowerCase().trim();
+      const actionMatch = log.action?.toLowerCase().includes(q);
+      const emailMatch = log.actor_email?.toLowerCase().includes(q);
+      const targetMatch = log.target_type?.toLowerCase().includes(q);
+      const idMatch = log.target_id?.toLowerCase().includes(q) || log.id?.toLowerCase().includes(q);
+      const detailsStr = typeof log.details === 'string' ? log.details.toLowerCase() : JSON.stringify(log.details || {}).toLowerCase();
+      const detailsMatch = detailsStr.includes(q);
+      return actionMatch || emailMatch || targetMatch || idMatch || detailsMatch;
+    });
+  }, [auditLogs, auditActionFilter, auditSearchQuery]);
+
+  const parseAuditDetails = (details: any) => {
+    if (!details) return {};
+    if (typeof details === 'object') return details;
+    if (typeof details === 'string') {
+      try {
+        return JSON.parse(details);
+      } catch {
+        return { rawContent: details };
+      }
+    }
+    return { value: details };
+  };
+
+  const getLogTargetDisplay = (log: any, details: any) => {
+    if (log.target_id) return log.target_id;
+    if (details?.rawTargetId) return details.rawTargetId;
+    if (details?.targetId) return details.targetId;
+    if (Array.isArray(details?.teams) && details.teams.length > 0) {
+      return details.teams.map((t: any) => t.code || t.name).join(', ');
+    }
+    if (details?.email) return details.email;
+    if (details?.name) return details.name;
+    if (details?.title) return details.title;
+    return '';
+  };
+
+  const getActionBadgeClass = (action: string) => {
+    const act = (action || '').toUpperCase();
+    if (act.includes('CREATE') || act === 'FEST_TEAM_CREATED' || act.includes('ADD') || act.includes('PROMOTE') || act.includes('APPOINT')) {
+      return 'bg-emerald-50 text-emerald-700 border-emerald-300';
+    }
+    if (act.includes('UPDATE') || act.includes('CHANGE') || act.includes('TOGGLE')) {
+      return 'bg-amber-50 text-amber-800 border-amber-300';
+    }
+    if (act.includes('DELETE') || act.includes('REMOVE') || act.includes('REVOKE') || act.includes('DEMOTE')) {
+      return 'bg-rose-50 text-rose-700 border-rose-300';
+    }
+    if (act.includes('CHECKIN')) {
+      return 'bg-blue-50 text-blue-700 border-blue-300';
+    }
+    if (act.includes('PASSWORD') || act.includes('MASTER') || act.includes('RESET')) {
+      return 'bg-purple-50 text-purple-700 border-purple-300';
+    }
+    return 'bg-slate-100 text-slate-700 border-slate-300';
+  };
+
+  const getAuditAnalysis = (log: any) => {
+    if (!log) return null;
+    const details = parseAuditDetails(log.details);
+    const action = log.action || '';
+    const targetType = log.target_type || '';
+    const rawTargetId = log.target_id || details?.rawTargetId || details?.targetId || details?.id;
+
+    // Match event name if applicable
+    const matchedEvent = (events || []).find((e: any) => e.id === rawTargetId);
+
+    let title = 'Action Performed';
+    let category = 'System Operation';
+    let humanSummary = `Operation [${action}] recorded on entity "${targetType}".`;
+    const highlights: { label: string; value: string; isHighlight?: boolean }[] = [];
+
+    if (action === 'UPDATE_FEST_EVENT') {
+      title = `Updated Event: ${matchedEvent?.name || rawTargetId || 'Event Settings'}`;
+      category = 'Event Configuration';
+      humanSummary = `Administrator configured parameters for event "${matchedEvent?.name || rawTargetId}".`;
+      if (details.capacity !== undefined) {
+        highlights.push({ label: 'Maximum Team Capacity', value: `${details.capacity} teams`, isHighlight: true });
+      }
+      if (details.min_team_size !== undefined || details.max_team_size !== undefined) {
+        highlights.push({
+          label: 'Team Size Bounds',
+          value: `Min: ${details.min_team_size ?? 1} · Max: ${details.max_team_size ?? 1} members`,
+          isHighlight: true,
+        });
+      }
+      if (details.slot_time !== undefined) {
+        highlights.push({ label: 'Slot / Scheduled Time', value: details.slot_time || 'Unscheduled / Default' });
+      }
+      if (details.name) {
+        highlights.push({ label: 'Event Name', value: details.name });
+      }
+      if (details.category) {
+        highlights.push({ label: 'Event Category', value: details.category });
+      }
+    } else if (action === 'fest_team_created') {
+      const teamsList = Array.isArray(details.teams) ? details.teams : [];
+      title = `New Team Registration (${teamsList.length} Team${teamsList.length === 1 ? '' : 's'})`;
+      category = 'Team Registration';
+      humanSummary = `Registration completed by ${log.actor_email || 'Trainer'}. Successfully registered ${teamsList.length} squad(s).`;
+      teamsList.forEach((t: any, idx: number) => {
+        const eventNames = Array.isArray(t.events) ? t.events.join(', ') : (t.events || 'N/A');
+        highlights.push({
+          label: `Team #${idx + 1}: ${t.name || 'Unnamed Team'}`,
+          value: `Pass Code: ${t.code} | Events: ${eventNames}`,
+          isHighlight: true,
+        });
+      });
+    } else if (action.includes('CHECKIN')) {
+      title = 'Gate Squad Check-In';
+      category = 'Attendance Verification';
+      humanSummary = `Team verified at event gate entrance desk.`;
+      highlights.push({ label: 'Check-In Status', value: details.status || 'Checked In', isHighlight: true });
+      if (rawTargetId) {
+        highlights.push({ label: 'Target Team ID', value: rawTargetId });
+      }
+    } else if (action === 'CREATE_ANNOUNCEMENT' || action === 'DELETE_ANNOUNCEMENT') {
+      title = action === 'CREATE_ANNOUNCEMENT' ? 'Broadcasted Live Announcement' : 'Deleted Announcement';
+      category = 'Broadcast Communications';
+      humanSummary = action === 'CREATE_ANNOUNCEMENT'
+        ? `Broadcasted public fest notification: "${details.title || 'Untitled'}"`
+        : `Removed announcement with target ID: ${rawTargetId}`;
+      if (details.title) highlights.push({ label: 'Title', value: details.title, isHighlight: true });
+      if (details.priority) highlights.push({ label: 'Priority', value: details.priority });
+    } else if (action.includes('PROBLEM_STATEMENT')) {
+      title = action.includes('CREATE') ? 'Created Problem Statement' : action.includes('DELETE') ? 'Deleted Problem Statement' : 'Updated Problem Statement';
+      category = 'Problem Statements';
+      humanSummary = `Altered hackathon problem statement repository.`;
+      if (details.title) highlights.push({ label: 'Problem Title', value: details.title, isHighlight: true });
+      if (details.is_visible !== undefined) highlights.push({ label: 'Visibility', value: details.is_visible ? 'Public' : 'Hidden' });
+    } else if (action.includes('COORDINATOR')) {
+      title = action.includes('ADD') ? 'Appointed Gate Coordinator' : action.includes('REMOVE') ? 'Removed Gate Coordinator' : 'Coordinator Reset';
+      category = 'Gate Staff Administration';
+      humanSummary = `Modified access roster for gate coordinator: ${details.email || rawTargetId}`;
+      if (details.email) highlights.push({ label: 'Coordinator Email', value: details.email, isHighlight: true });
+      if (details.events) highlights.push({ label: 'Permitted Events', value: Array.isArray(details.events) ? details.events.join(', ') : String(details.events) });
+    } else if (action.includes('PASSWORD') || action.includes('MASTER') || action.includes('ADMIN')) {
+      title = 'Security & Credential Action';
+      category = 'Platform Security';
+      humanSummary = `Administrative credential or role modification executed by ${log.actor_email}.`;
+      if (details.email) highlights.push({ label: 'Target Account', value: details.email, isHighlight: true });
+      if (details.role) highlights.push({ label: 'Role Assigned', value: details.role });
+    } else {
+      title = action.replace(/_/g, ' ');
+      category = targetType || 'Audit Trail';
+      humanSummary = `Action executed by ${log.actor_email || 'System'} on target ${targetType}.`;
+      Object.entries(details).forEach(([key, val]) => {
+        if (key === 'rawTargetId' || key === 'rawActorId') return;
+        highlights.push({
+          label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          value: typeof val === 'object' ? JSON.stringify(val) : String(val),
+        });
+      });
+    }
+
+    return {
+      title,
+      category,
+      humanSummary,
+      highlights,
+      details,
+      rawTargetId,
+      matchedEvent,
+    };
   };
 
   // Participant Deletion Handlers (Strictly Master Only)
@@ -2456,24 +2657,117 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
             {/* Audit Logs List */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-xs divide-y divide-slate-100 font-mono text-xs overflow-hidden">
-              <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-800">
-                Action Event Trail
-              </div>
-              {auditLogs.map((log: any) => (
-                <div key={log.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[#D21319] font-bold">[{log.action}]</span>
-                    <span className="text-slate-800">{log.actor_email || 'System'}</span>
-                    <span className="text-slate-500">➔ {log.target_type} ({log.target_id || ''})</span>
+              <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-slate-900 tracking-tight flex items-center gap-1.5">
+                      <FileText size={14} className="text-[#D21319]" />
+                      Action Event Trail
+                    </span>
+                    <span className="text-[10px] bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-full font-sans font-bold">
+                      {filteredAuditLogs.length} {filteredAuditLogs.length === 1 ? 'event' : 'events'}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-slate-400">
-                    {new Date(log.created_at).toLocaleString()}
-                  </span>
+                  <p className="text-[11px] text-slate-500 font-sans mt-0.5">
+                    Click any log entry to view detailed analysis, diff parameters, and technical payload.
+                  </p>
                 </div>
-              ))}
-              {auditLogs.length === 0 && (
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Action Filter */}
+                  {uniqueAuditActions.length > 1 && (
+                    <select
+                      value={auditActionFilter}
+                      onChange={(e) => setAuditActionFilter(e.target.value)}
+                      className="px-2.5 py-1 text-[11px] font-sans bg-white border border-slate-300 rounded-md text-slate-700 focus:outline-none focus:border-[#D21319] cursor-pointer"
+                    >
+                      <option value="ALL">All Actions ({auditLogs.length})</option>
+                      {uniqueAuditActions.map((act) => (
+                        <option key={act} value={act}>
+                          {act}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                    <input
+                      type="text"
+                      placeholder="Filter by actor, action, slug..."
+                      value={auditSearchQuery}
+                      onChange={(e) => setAuditSearchQuery(e.target.value)}
+                      className="pl-7 pr-6 py-1 text-[11px] font-sans bg-white border border-slate-300 rounded-md text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#D21319] w-48 sm:w-56"
+                    />
+                    {auditSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setAuditSearchQuery('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-black cursor-pointer"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {filteredAuditLogs.map((log: any) => {
+                const details = parseAuditDetails(log.details);
+                const targetLabel = getLogTargetDisplay(log, details);
+                const isSelected = selectedAuditLog?.id === log.id;
+                const badgeClass = getActionBadgeClass(log.action);
+                return (
+                  <div
+                    key={log.id}
+                    onClick={() => {
+                      setSelectedAuditLog(log);
+                      setShowRawJson(false);
+                      setCopiedAuditJson(false);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setSelectedAuditLog(log);
+                        setShowRawJson(false);
+                        setCopiedAuditJson(false);
+                      }
+                    }}
+                    className={`p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer transition-all border-l-4 group ${
+                      isSelected
+                        ? 'bg-red-50/70 border-l-[#D21319]'
+                        : 'border-l-transparent hover:bg-slate-50 hover:border-l-[#D21319]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] border tracking-wide uppercase ${badgeClass}`}>
+                        {log.action}
+                      </span>
+                      <span className="text-slate-800 font-medium">{log.actor_email || 'System'}</span>
+                      <span className="text-slate-500">
+                        ➔ {log.target_type} {targetLabel ? <strong className="text-slate-700 font-bold">({targetLabel})</strong> : ''}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(log.created_at).toLocaleString()}
+                      </span>
+                      <span className="text-[11px] font-sans font-bold text-[#D21319] group-hover:translate-x-0.5 transition-transform flex items-center gap-1 bg-red-50 group-hover:bg-red-100 px-2 py-0.5 rounded border border-red-200">
+                        Analysis ➔
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredAuditLogs.length === 0 && (
                 <div className="p-8 text-center text-xs font-mono text-slate-500">
-                  No audit entries recorded yet.
+                  {auditSearchQuery || auditActionFilter !== 'ALL'
+                    ? 'No audit entries match the current search filters.'
+                    : 'No audit entries recorded yet.'}
                 </div>
               )}
             </div>
@@ -3970,6 +4264,213 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
           </div>
         </div>
       )}
+
+      {/* ========================================================
+          MODAL: AUDIT LOG DETAIL & CHANGE ANALYSIS
+         ======================================================== */}
+      {selectedAuditLog && (() => {
+        const analysis = getAuditAnalysis(selectedAuditLog);
+        const details = parseAuditDetails(selectedAuditLog.details);
+        const badgeClass = getActionBadgeClass(selectedAuditLog.action);
+        const targetLabel = getLogTargetDisplay(selectedAuditLog, details);
+        const formattedDate = new Date(selectedAuditLog.created_at).toLocaleString('en-US', {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+
+        // Relative time helper
+        const diffMs = Date.now() - new Date(selectedAuditLog.created_at).getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        const relativeTime = diffMins < 1 ? 'Just now' : diffMins < 60 ? `${diffMins}m ago` : diffHours < 24 ? `${diffHours}h ago` : `${diffDays}d ago`;
+
+        return (
+          <div 
+            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedAuditLog(null);
+            }}
+          >
+            <div className="w-full max-w-2xl bg-white border-2 border-black rounded-xl p-6 shadow-[8px_8px_0px_#000] space-y-4 max-h-[90vh] overflow-y-auto">
+              
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-neutral-200 pb-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#D21319] bg-red-50 border border-red-200 px-2 py-0.5 rounded">
+                      AUDIT ACTION ANALYSIS
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      {relativeTime}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    {analysis?.title || selectedAuditLog.action}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-sans">
+                    Category: <strong className="text-slate-700">{analysis?.category}</strong> · Target: <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-[11px] font-mono">{selectedAuditLog.target_type}</code>
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedAuditLog(null)}
+                  className="text-slate-400 hover:text-black p-1 rounded hover:bg-slate-100 cursor-pointer transition-colors"
+                  title="Close (Esc)"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Action Executive Summary Card */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <span className={`font-mono font-bold px-2 py-0.5 rounded border text-[10px] uppercase ${badgeClass}`}>
+                    {selectedAuditLog.action}
+                  </span>
+                  <span className="text-slate-700 font-sans flex items-center gap-1.5 font-medium">
+                    <Users size={13} className="text-slate-400" />
+                    <strong>{selectedAuditLog.actor_email || 'System Automation'}</strong>
+                  </span>
+                  <span className="text-slate-400">➔</span>
+                  <span className="text-slate-600 font-sans">
+                    Entity: <strong className="font-mono text-slate-800">{selectedAuditLog.target_type}</strong>
+                    {targetLabel ? <span className="text-[#D21319] font-mono font-bold ml-1">({targetLabel})</span> : ''}
+                  </span>
+                </div>
+                <div className="border-t border-slate-200/80 pt-2 text-xs text-slate-800 font-sans leading-relaxed">
+                  {analysis?.humanSummary}
+                </div>
+              </div>
+
+              {/* Highlighted Parameter Changes Breakdown */}
+              {analysis && analysis.highlights && analysis.highlights.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-900 font-mono flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-emerald-600" />
+                    <span>Applied Changes & Parameters</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {analysis.highlights.map((h, i) => (
+                      <div
+                        key={i}
+                        className={`p-3 rounded-lg border text-xs ${
+                          h.isHighlight
+                            ? 'bg-amber-50/70 border-amber-200 text-amber-950 font-medium'
+                            : 'bg-white border-slate-200 text-slate-800'
+                        }`}
+                      >
+                        <div className="font-mono text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+                          {h.label}
+                        </div>
+                        <div className="font-semibold break-all text-xs font-mono">
+                          {h.value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Record Metadata Bar */}
+              <div className="p-3 bg-slate-50/80 border border-slate-200 rounded-lg text-xs font-mono space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Log Identity & Timestamps
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600">
+                  <div>
+                    <span className="text-slate-400">Timestamp: </span>
+                    <span className="text-slate-800 font-medium">{formattedDate}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Event ID: </span>
+                    <span className="text-slate-800 break-all">{selectedAuditLog.id}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Actor ID: </span>
+                    <span className="text-slate-800">{selectedAuditLog.actor_id || 'System / Unregistered'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Target ID: </span>
+                    <span className="text-slate-800">{selectedAuditLog.target_id || details?.rawTargetId || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Collapsible Raw JSON Inspector */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setShowRawJson(!showRawJson)}
+                  className="w-full p-2.5 bg-slate-100 hover:bg-slate-200/80 flex items-center justify-between font-mono text-xs text-slate-700 cursor-pointer transition-colors"
+                >
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <FileText size={13} />
+                    <span>Raw Technical Payload (JSON)</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {showRawJson ? 'Hide ▲' : 'Show Details ▼'}
+                  </span>
+                </button>
+
+                {showRawJson && (
+                  <div className="p-3 bg-slate-900 text-emerald-400 font-mono text-[11px] relative overflow-x-auto max-h-60">
+                    <div className="flex justify-between items-center mb-2 pb-1 border-b border-slate-800 text-slate-400 text-[10px]">
+                      <span>DATABASE AUDIT ENTRY</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(JSON.stringify(selectedAuditLog, null, 2));
+                          setCopiedAuditJson(true);
+                          setTimeout(() => setCopiedAuditJson(false), 2000);
+                        }}
+                        className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white rounded cursor-pointer transition-colors flex items-center gap-1"
+                      >
+                        {copiedAuditJson ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
+                        <span>{copiedAuditJson ? 'Copied!' : 'Copy JSON'}</span>
+                      </button>
+                    </div>
+                    <pre className="whitespace-pre-wrap break-all leading-relaxed">
+                      {JSON.stringify(selectedAuditLog, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = `Audit Log [${selectedAuditLog.action}] by ${selectedAuditLog.actor_email || 'System'} at ${selectedAuditLog.created_at} -> Target: ${selectedAuditLog.target_type}`;
+                    navigator.clipboard.writeText(text);
+                    showToast('Log summary copied to clipboard', 'success');
+                  }}
+                  className="px-3 py-1.5 text-xs font-mono font-bold text-slate-600 hover:text-black bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <Copy size={12} />
+                  <span>Copy Summary</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedAuditLog(null)}
+                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
