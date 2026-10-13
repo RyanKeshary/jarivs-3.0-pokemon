@@ -52,8 +52,8 @@ const LINE_2_SUPPORT: ContactPerson[] = [
   {
     name: 'SHLOK KAMBLE',
     role: 'Takniki Desk',
-    phone: '+91 95948 30819',
-    rawPhone: '+919594830819',
+    phone: '+91 91368 54589',
+    rawPhone: '+919136854589',
     isTakniki: true,
   },
   {
