@@ -2,6 +2,7 @@
 
 import { sql, createAdminClient } from '@/lib/supabase/admin';
 import crypto from 'crypto';
+import { sendLeaderStatusEmail } from '@/lib/email';
 
 // Character set excluding confusing 0, O, 1, I, L
 const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -455,6 +456,28 @@ export async function createFestTeam(payload: CreateTeamPayload) {
         ON CONFLICT (email) DO NOTHING
       `;
     } catch {}
+
+    // Non-blocking status notification email via Resend
+    try {
+      const emailPayloadTeams = createdTeams.map((t) => ({
+        teamName: t.name,
+        teamCode: t.code,
+        disciplineName: eventMap.get(t.eventId)?.name || t.name,
+        isWaitlist: !!t.isWaitlist,
+        leaderToken: t.leaderToken,
+      }));
+
+      // Fire asynchronously so slow email sending or Resend errors never block registration
+      sendLeaderStatusEmail({
+        leaderEmail: email,
+        leaderName: leader.fullName.trim(),
+        teams: emailPayloadTeams,
+      }).catch((err) => {
+        console.warn('[Registration Email Warning] Resend status dispatch:', err);
+      });
+    } catch (e) {
+      // non-fatal
+    }
 
     return {
       success: true,

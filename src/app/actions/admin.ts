@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { sql, createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
+import { sendLeaderStatusEmail } from '@/lib/email';
 
 // Helper to verify admin or master authorization
 // Helper to verify authorization (Coordinator, Admin, Manager, or Master)
@@ -2145,5 +2146,140 @@ export async function adminDeleteFestAnnouncement(id: string) {
   revalidatePath('/dashboard');
   revalidatePath('/');
   return { success: true, deletedId: id };
+}
+
+// Resend Status Broadcast: sends confirmation / waitlist status to team leaders
+export async function adminBroadcastLeaderStatusEmails(targetEmail?: string) {
+  const { user } = await requireAdmin();
+
+  // 1. Fetch events for clean naming
+  const eventRows = await sql`SELECT id, name FROM public.fest_events`;
+  const eventNameMap = new Map<string, string>(eventRows.map((e: any) => [e.id, e.name]));
+
+  // 2. Fetch all teams and leader information
+  const teams = await sql`
+    SELECT 
+      t.id,
+      t.code,
+      t.name as team_name,
+      t.event_ids,
+      t.leader_email,
+      t.leader_token,
+      t.is_waitlist,
+      t.status,
+      COALESCE(
+        (SELECT r.full_name FROM public.fest_registrations r WHERE r.team_id = t.id AND r.is_leader = TRUE LIMIT 1),
+        (SELECT r.full_name FROM public.fest_registrations r WHERE r.team_id = t.id LIMIT 1),
+        'Team Captain'
+      ) as leader_name,
+      COALESCE(
+        (SELECT LOWER(TRIM(r.email)) FROM public.fest_registrations r WHERE r.team_id = t.id AND r.is_leader = TRUE LIMIT 1),
+        LOWER(TRIM(t.leader_email))
+      ) as leader_email_actual
+    FROM public.fest_teams t
+    ORDER BY t.created_at ASC
+  `;
+
+  // 3. Group by leader email
+  const leaderMap = new Map<
+    string,
+    {
+      leaderEmail: string;
+      leaderName: string;
+      teams: Array<{
+        teamName: string;
+        teamCode: string;
+        disciplineName: string;
+        isWaitlist: boolean;
+        leaderToken?: string;
+      }>;
+    }
+  >();
+
+  for (const t of teams) {
+    const email = (t.leader_email_actual || t.leader_email || '').toLowerCase().trim();
+    if (!email || !email.includes('@')) continue;
+
+    if (!leaderMap.has(email)) {
+      leaderMap.set(email, {
+        leaderEmail: email,
+        leaderName: t.leader_name || 'Team Captain',
+        teams: [],
+      });
+    }
+
+    const evId = Array.isArray(t.event_ids) ? t.event_ids[0] : t.event_ids;
+    const disciplineName = eventNameMap.get(evId) || evId || 'Tournament Discipline';
+
+    leaderMap.get(email)!.teams.push({
+      teamName: t.team_name,
+      teamCode: t.code,
+      disciplineName,
+      isWaitlist: !!t.is_waitlist,
+      leaderToken: t.leader_token,
+    });
+  }
+
+  const cleanTarget = targetEmail?.toLowerCase().trim();
+  let recipients = cleanTarget
+    ? Array.from(leaderMap.values()).filter((l) => l.leaderEmail === cleanTarget)
+    : Array.from(leaderMap.values());
+
+  if (cleanTarget && recipients.length === 0) {
+    // If target email is a custom test address (e.g., admin email)
+    recipients = [
+      {
+        leaderEmail: cleanTarget,
+        leaderName: 'Fest Leader (Test Preview)',
+        teams: [
+          {
+            teamName: 'Demo Squad Alpha',
+            teamCode: 'JRV-TEST',
+            disciplineName: "Team Rocket's Pokéquest: Treasure Hunt",
+            isWaitlist: false,
+            leaderToken: 'test-token',
+          },
+          {
+            teamName: 'Demo Squad Beta',
+            teamCode: 'JRV-WAIT',
+            disciplineName: 'Buildasaur: Buildathon',
+            isWaitlist: true,
+            leaderToken: 'test-token-wait',
+          },
+        ],
+      },
+    ];
+  }
+
+  let sentCount = 0;
+  let failedCount = 0;
+  const errors: Array<{ email: string; error: string }> = [];
+
+  for (const recipient of recipients) {
+    const res = await sendLeaderStatusEmail(recipient);
+    if (res.success) {
+      sentCount++;
+    } else {
+      failedCount++;
+      errors.push({ email: recipient.leaderEmail, error: res.error || 'Failed to dispatch' });
+    }
+  }
+
+  await logAudit(
+    user.id,
+    user.email || '',
+    'BROADCAST_LEADER_STATUS_EMAILS',
+    'fest_teams',
+    cleanTarget || 'all',
+    { total: recipients.length, sentCount, failedCount }
+  );
+
+  return {
+    success: true,
+    total: recipients.length,
+    sentCount,
+    failedCount,
+    errors: errors.slice(0, 10),
+  };
 }
 
