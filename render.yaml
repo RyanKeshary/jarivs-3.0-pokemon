@@ -1,0 +1,12 @@
+# Render blueprint for permanent redirection to Vercel
+# Static redirect rule that executes directly on Render edge without booting a Web Service container
+services:
+  - type: web
+    name: jarivs-3-0-pokemon
+    env: static
+    buildCommand: "echo 'Redirect service ready'"
+    staticPublishPath: ./public
+    routes:
+      - type: redirect
+        source: /*
+        destination: https://jarivs-3-0-pokemon.vercel.app/*

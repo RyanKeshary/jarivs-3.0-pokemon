@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
   if (host.includes('onrender.com')) {
     const targetUrl = new URL(
       request.nextUrl.pathname + request.nextUrl.search,
-      'https://indigo-techfest.vercel.app'
+      'https://jarivs-3-0-pokemon.vercel.app'
     );
     return NextResponse.redirect(targetUrl, 308);
   }

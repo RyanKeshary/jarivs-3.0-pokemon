@@ -3,26 +3,26 @@ import { createClient } from '@/lib/supabase/server';
 
 function getDeployedOrigin(request: NextRequest): string {
   const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost?.includes('jarivs-3-0-pokemon.vercel.app')) {
+    return 'https://jarivs-3-0-pokemon.vercel.app';
+  }
+  if (forwardedHost?.includes('jarivs-3-0-pokemon.onrender.com')) {
+    return 'https://jarivs-3-0-pokemon.vercel.app';
+  }
   if (forwardedHost?.includes('indigo-techfest.vercel.app')) {
     return 'https://indigo-techfest.vercel.app';
   }
-  if (forwardedHost?.includes('jarivs-3-0-pokemon.vercel.app')) {
-    return 'https://indigo-techfest.vercel.app';
-  }
-  if (forwardedHost?.includes('jarivs-3-0-pokemon.onrender.com')) {
-    return 'https://jarivs-3-0-pokemon.onrender.com';
-  }
   const { origin } = new URL(request.url);
+  if (origin?.includes('jarivs-3-0-pokemon.vercel.app')) {
+    return 'https://jarivs-3-0-pokemon.vercel.app';
+  }
+  if (origin?.includes('jarivs-3-0-pokemon.onrender.com')) {
+    return 'https://jarivs-3-0-pokemon.vercel.app';
+  }
   if (origin?.includes('indigo-techfest.vercel.app')) {
     return 'https://indigo-techfest.vercel.app';
   }
-  if (origin?.includes('jarivs-3-0-pokemon.vercel.app')) {
-    return 'https://indigo-techfest.vercel.app';
-  }
-  if (origin?.includes('jarivs-3-0-pokemon.onrender.com')) {
-    return 'https://jarivs-3-0-pokemon.onrender.com';
-  }
-  return process.env.NEXT_PUBLIC_APP_URL || 'https://indigo-techfest.vercel.app';
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
 }
 
 export async function GET(request: NextRequest) {

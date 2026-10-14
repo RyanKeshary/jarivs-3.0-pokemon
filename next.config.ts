@@ -68,7 +68,7 @@ const nextConfig: NextConfig = {
             value: '(.*)onrender\\.com(.*)',
           },
         ],
-        destination: 'https://indigo-techfest.vercel.app/:path*',
+        destination: 'https://jarivs-3-0-pokemon.vercel.app/:path*',
         permanent: true,
       },
       {
@@ -80,7 +80,7 @@ const nextConfig: NextConfig = {
             value: '(.*)onrender\\.com(.*)',
           },
         ],
-        destination: 'https://indigo-techfest.vercel.app/:path*',
+        destination: 'https://jarivs-3-0-pokemon.vercel.app/:path*',
         permanent: true,
       },
     ];
