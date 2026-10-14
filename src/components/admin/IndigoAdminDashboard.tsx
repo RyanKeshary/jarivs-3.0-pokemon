@@ -1011,23 +1011,37 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       });
 
       if (res?.success) {
-        setBroadcastFeedback({
-          success: true,
-          message: isTest
-            ? `Test broadcast dispatched to ${broadcastTestEmail}!`
-            : `Email broadcast dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
-          total: res.total,
-          sent: res.sentCount,
-          failed: res.failedCount,
-        });
-        showToast(
-          isTest ? `Test email sent to ${broadcastTestEmail}` : `Broadcast sent to ${res.sentCount} captains!`,
-          'success'
-        );
+        const isAllFailed = res.sentCount === 0 && res.failedCount > 0;
+        const errDetail = (res as any).errors?.[0]?.error || '';
 
-        if (!isTest && broadcastSyncOption === 'sync') {
-          window.dispatchEvent(new CustomEvent('fest_announcement_updated'));
-          if (onRefresh) await onRefresh();
+        if (isAllFailed) {
+          setBroadcastFeedback({
+            success: false,
+            message: `Delivery blocked by Resend: ${errDetail || 'Domain verification required or invalid recipient.'}`,
+            total: res.total,
+            sent: res.sentCount,
+            failed: res.failedCount,
+          });
+          showToast(`Delivery blocked: ${errDetail.slice(0, 80)}`, 'error');
+        } else {
+          setBroadcastFeedback({
+            success: true,
+            message: isTest
+              ? `Test broadcast delivered to ${broadcastTestEmail}!`
+              : `Email broadcast dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
+            total: res.total,
+            sent: res.sentCount,
+            failed: res.failedCount,
+          });
+          showToast(
+            isTest ? `Test email sent to ${broadcastTestEmail}` : `Broadcast sent to ${res.sentCount} captains!`,
+            'success'
+          );
+
+          if (!isTest && broadcastSyncOption === 'sync') {
+            window.dispatchEvent(new CustomEvent('fest_announcement_updated'));
+            if (onRefresh) await onRefresh();
+          }
         }
       } else {
         setBroadcastFeedback({
@@ -1057,19 +1071,33 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
       const res = await adminBroadcastLeaderStatusEmails(target);
 
       if (res?.success) {
-        setStatusRebroadcastFeedback({
-          success: true,
-          message: isTest
-            ? `Preview status email dispatched to ${statusTestRecipient}!`
-            : `Status cards dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
-          total: res.total,
-          sent: res.sentCount,
-          failed: res.failedCount,
-        });
-        showToast(
-          isTest ? `Test sent to ${statusTestRecipient}` : `Dispatched status to ${res.sentCount} team captains!`,
-          'success'
-        );
+        const isAllFailed = res.sentCount === 0 && res.failedCount > 0;
+        const errDetail = (res as any).errors?.[0]?.error || '';
+
+        if (isAllFailed) {
+          setStatusRebroadcastFeedback({
+            success: false,
+            message: `Delivery blocked by Resend: ${errDetail || 'Domain verification required or invalid recipient.'}`,
+            total: res.total,
+            sent: res.sentCount,
+            failed: res.failedCount,
+          });
+          showToast(`Delivery blocked: ${errDetail.slice(0, 80)}`, 'error');
+        } else {
+          setStatusRebroadcastFeedback({
+            success: true,
+            message: isTest
+              ? `Preview status email delivered to ${statusTestRecipient}!`
+              : `Status cards dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
+            total: res.total,
+            sent: res.sentCount,
+            failed: res.failedCount,
+          });
+          showToast(
+            isTest ? `Test sent to ${statusTestRecipient}` : `Dispatched status to ${res.sentCount} team captains!`,
+            'success'
+          );
+        }
       } else {
         setStatusRebroadcastFeedback({
           success: false,

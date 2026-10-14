@@ -384,11 +384,12 @@ async function sendWithSmartSender(options: {
       res.error.name === 'validation_error' ||
       (res.error as any).statusCode === 403;
 
-    if (isUnverifiedDomain && cleanEmail === 'ryankeshary@gmail.com') {
+    if (isUnverifiedDomain && (cleanEmail === 'ryankeshary@gmail.com' || cleanEmail === 'kesharyryan@gmail.com')) {
+      const targetOwner = 'ryankeshary@gmail.com';
       console.warn(`[Resend Notice] Domain ${primaryFrom} not yet verified on Resend. Falling back to sandbox ${RESEND_FALLBACK_FROM} for owner test.`);
       const fallbackRes = await resend.emails.send({
         from: RESEND_FALLBACK_FROM,
-        to: cleanEmail,
+        to: targetOwner,
         subject: options.subject,
         html: options.html,
       });
@@ -397,6 +398,13 @@ async function sendWithSmartSender(options: {
         return { success: true, id: fallbackRes.data?.id, senderUsed: RESEND_FALLBACK_FROM };
       }
       return { success: false, error: fallbackRes.error.message };
+    }
+
+    if (isUnverifiedDomain) {
+      return {
+        success: false,
+        error: `Domain "indigotechfest.in" is not verified in Resend. Please add & verify indigotechfest.in at https://resend.com/domains. Resend requires domain verification to send to external recipients like ${cleanEmail} (until verified, Resend only allows sending to the account owner ryankeshary@gmail.com).`,
+      };
     }
 
     return { success: false, error: res.error.message };

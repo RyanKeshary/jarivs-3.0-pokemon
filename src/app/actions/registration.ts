@@ -457,7 +457,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
       `;
     } catch {}
 
-    // Non-blocking status notification email via Resend
+    // Status notification email via Resend (Awaited with safety timeout so Vercel does not terminate container early)
     try {
       const emailPayloadTeams = createdTeams.map((t) => ({
         teamName: t.name,
@@ -467,16 +467,16 @@ export async function createFestTeam(payload: CreateTeamPayload) {
         leaderToken: t.leaderToken,
       }));
 
-      // Fire asynchronously so slow email sending or Resend errors never block registration
-      sendLeaderStatusEmail({
-        leaderEmail: email,
-        leaderName: leader.fullName.trim(),
-        teams: emailPayloadTeams,
-      }).catch((err) => {
-        console.warn('[Registration Email Warning] Resend status dispatch:', err);
-      });
+      await Promise.race([
+        sendLeaderStatusEmail({
+          leaderEmail: email,
+          leaderName: leader.fullName.trim(),
+          teams: emailPayloadTeams,
+        }),
+        new Promise((resolve) => setTimeout(resolve, 3500)),
+      ]);
     } catch (e) {
-      // non-fatal
+      console.warn('[Registration Email Warning] Resend status dispatch:', e);
     }
 
     return {
@@ -732,6 +732,32 @@ export async function joinFestTeam(payload: {
         ON CONFLICT (email) DO NOTHING
       `;
     } catch {}
+
+    // Instant status notification email to joining member via Resend
+    try {
+      const evRows = await sql`
+        SELECT name FROM public.fest_events WHERE id = ANY(${team.event_ids}) LIMIT 1
+      `;
+      const evName = evRows[0]?.name || 'Tournament Event';
+
+      await Promise.race([
+        sendLeaderStatusEmail({
+          leaderEmail: email,
+          leaderName: member.fullName.trim(),
+          teams: [
+            {
+              teamName: team.name,
+              teamCode: team.code,
+              disciplineName: evName,
+              isWaitlist: Boolean(team.is_waitlist),
+            },
+          ],
+        }),
+        new Promise((resolve) => setTimeout(resolve, 3500)),
+      ]);
+    } catch (e) {
+      console.warn('[Member Join Email Warning] Resend status dispatch:', e);
+    }
 
     return {
       success: true,
