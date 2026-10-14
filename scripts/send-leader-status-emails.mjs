@@ -23,7 +23,7 @@ try {
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.oqqzzyombtcjvlqbjvla:golumolu1234$@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres';
 const resendApiKey = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'Indigo Techfest <alert@indigotechfest.in>';
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://indigo-techfest.vercel.app';
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
 
 const sql = postgres(connectionString, { ssl: 'require' });
 const resend = new Resend(resendApiKey);

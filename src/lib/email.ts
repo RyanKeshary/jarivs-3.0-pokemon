@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
 export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Indigo Techfest <alert@indigotechfest.in>';
 export const RESEND_FALLBACK_FROM = 'Indigo Techfest <onboarding@resend.dev>';
-const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://indigo-techfest.vercel.app';
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
 
 export const resend = new Resend(RESEND_API_KEY);
 
