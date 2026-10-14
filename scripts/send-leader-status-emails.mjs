@@ -22,7 +22,7 @@ try {
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.oqqzzyombtcjvlqbjvla:golumolu1234$@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres';
 const resendApiKey = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
-const fromEmail = process.env.RESEND_FROM_EMAIL || 'Indigo Techfest <onboarding@resend.dev>';
+const fromEmail = process.env.RESEND_FROM_EMAIL || 'Indigo Techfest <alert@indigotechfest.in>';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://indigo-techfest.vercel.app';
 
 const sql = postgres(connectionString, { ssl: 'require' });
@@ -244,10 +244,42 @@ async function run() {
       </ul>
     </div>
 
+    <!-- SUPPORT & CONTACT BLOCK -->
+    <div style="background: #ffffff; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); margin-bottom: 24px; text-align: center;">
+      <div style="font-size: 11px; font-family: monospace; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: #EE1515; margin-bottom: 4px;">
+        Festival Helpdesk &amp; Support
+      </div>
+      <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 12px;">
+        For any query, contact:
+      </div>
+      <table style="width: 100%; border-collapse: collapse; max-width: 440px; margin: 0 auto; font-size: 12px;">
+        <tr>
+          <td style="padding: 4px; text-align: center; width: 33.3%;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 4px;">
+              <span style="display: block; font-size: 13px;">⚡</span>
+              <strong style="color: #0F172A; font-size: 11px;">Technical Coordinator</strong>
+            </div>
+          </td>
+          <td style="padding: 4px; text-align: center; width: 33.3%;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 4px;">
+              <span style="display: block; font-size: 13px;">👑</span>
+              <strong style="color: #0F172A; font-size: 11px;">President</strong>
+            </div>
+          </td>
+          <td style="padding: 4px; text-align: center; width: 33.3%;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 4px;">
+              <span style="display: block; font-size: 13px;">🏛️</span>
+              <strong style="color: #0F172A; font-size: 11px;">Takniki Desk</strong>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
     <!-- FOOTER -->
     <div style="text-align: center; font-family: monospace; font-size: 11px; color: #6b7280; padding: 12px 0 30px 0;">
       <p style="margin: 0 0 4px 0;">Indigo Tech Fest · Jarvis 3.0 · Powered by Kanto League Protocol</p>
-      <p style="margin: 0;">Portal: <a href="${appUrl}" style="color: #D21319; font-weight: bold;">${appUrl}</a></p>
+      <p style="margin: 0;">Portal: <a href="${appUrl}" style="color: #D21319; font-weight: bold;">${appUrl}</a> · Sent via alert@indigotechfest.in</p>
     </div>
 
   </div>
@@ -256,12 +288,22 @@ async function run() {
     `;
 
     try {
-      const res = await resend.emails.send({
+      let res = await resend.emails.send({
         from: fromEmail,
         to: email,
         subject,
         html
       });
+
+      if (res.error && (res.error.message?.includes('not verified') || res.error?.statusCode === 403) && email === 'ryankeshary@gmail.com') {
+        console.log(`[SANDBOX FALLBACK] indigotechfest.in awaiting DNS verification in Resend. Retrying preview to account owner with onboarding@resend.dev...`);
+        res = await resend.emails.send({
+          from: 'Indigo Techfest <onboarding@resend.dev>',
+          to: email,
+          subject,
+          html
+        });
+      }
 
       if (res.error) {
         console.warn(`[FAILED] ${email}: ${res.error.message}`);

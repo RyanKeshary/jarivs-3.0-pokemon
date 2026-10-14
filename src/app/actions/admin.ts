@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { sql, createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import { sendLeaderStatusEmail } from '@/lib/email';
+import { sendLeaderStatusEmail, sendLeaderCustomBroadcastEmail } from '@/lib/email';
 
 // Helper to verify admin or master authorization
 // Helper to verify authorization (Coordinator, Admin, Manager, or Master)
@@ -2280,6 +2280,135 @@ export async function adminBroadcastLeaderStatusEmails(targetEmail?: string) {
     sentCount,
     failedCount,
     errors: errors.slice(0, 10),
+  };
+}
+
+// Custom Festival Broadcast: sends announcement via email and optionally syncs with website bulletin
+export async function adminBroadcastCustomEmail(payload: {
+  title: string;
+  content: string;
+  audience?: 'all' | 'confirmed' | 'waitlist' | string;
+  syncWithAnnouncement?: boolean;
+  targetTestEmail?: string;
+}) {
+  const { user } = await requireAdmin();
+  const { title, content, audience = 'all', syncWithAnnouncement = false, targetTestEmail } = payload;
+
+  if (!title?.trim() || !content?.trim()) {
+    throw new Error('Title and message content are required.');
+  }
+
+  let announcementRecord = null;
+  if (syncWithAnnouncement) {
+    const res = await sql`
+      INSERT INTO public.fest_announcements (title, content, is_active)
+      VALUES (${title.trim()}, ${content.trim()}, true)
+      RETURNING id, title, content, is_active, created_at
+    `;
+    announcementRecord = res[0];
+    try {
+      await sql`
+        INSERT INTO public.announcements (id, title, content, priority, created_by)
+        VALUES (${res[0].id}, ${title.trim()}, ${content.trim()}, 'normal', ${user.id})
+      `;
+    } catch {}
+    revalidatePath('/admin');
+    revalidatePath('/dashboard');
+    revalidatePath('/');
+  }
+
+  // Fetch all teams
+  const teams = await sql`
+    SELECT 
+      t.id,
+      t.code,
+      t.name as team_name,
+      t.event_ids,
+      t.leader_email,
+      t.is_waitlist,
+      COALESCE(
+        (SELECT r.full_name FROM public.fest_registrations r WHERE r.team_id = t.id AND r.is_leader = TRUE LIMIT 1),
+        (SELECT r.full_name FROM public.fest_registrations r WHERE r.team_id = t.id LIMIT 1),
+        'Team Captain'
+      ) as leader_name,
+      COALESCE(
+        (SELECT LOWER(TRIM(r.email)) FROM public.fest_registrations r WHERE r.team_id = t.id AND r.is_leader = TRUE LIMIT 1),
+        LOWER(TRIM(t.leader_email))
+      ) as leader_email_actual
+    FROM public.fest_teams t
+    ORDER BY t.created_at ASC
+  `;
+
+  const leaderMap = new Map<string, { email: string; name: string; isWaitlist: boolean; eventIds: string[] }>();
+  for (const t of teams) {
+    const email = (t.leader_email_actual || t.leader_email || '').toLowerCase().trim();
+    if (!email || !email.includes('@')) continue;
+    if (!leaderMap.has(email)) {
+      leaderMap.set(email, {
+        email,
+        name: t.leader_name || 'Team Captain',
+        isWaitlist: !!t.is_waitlist,
+        eventIds: Array.isArray(t.event_ids) ? t.event_ids : [],
+      });
+    }
+  }
+
+  const cleanTest = targetTestEmail?.toLowerCase().trim();
+  let recipients: Array<{ email: string; name: string }> = [];
+
+  if (cleanTest) {
+    recipients = [{ email: cleanTest, name: 'Test Leader' }];
+  } else {
+    for (const l of leaderMap.values()) {
+      if (audience === 'all') {
+        recipients.push({ email: l.email, name: l.name });
+      } else if (audience === 'confirmed' && !l.isWaitlist) {
+        recipients.push({ email: l.email, name: l.name });
+      } else if (audience === 'waitlist' && l.isWaitlist) {
+        recipients.push({ email: l.email, name: l.name });
+      } else if (l.eventIds.includes(audience)) {
+        recipients.push({ email: l.email, name: l.name });
+      }
+    }
+  }
+
+  let sentCount = 0;
+  let failedCount = 0;
+  const errors: Array<{ email: string; error: string }> = [];
+
+  for (const recipient of recipients) {
+    const res = await sendLeaderCustomBroadcastEmail({
+      leaderEmail: recipient.email,
+      leaderName: recipient.name,
+      title: title.trim(),
+      content: content.trim(),
+    });
+
+    if (res.success) {
+      sentCount++;
+    } else {
+      failedCount++;
+      errors.push({ email: recipient.email, error: res.error || 'Failed' });
+    }
+  }
+
+  await logAudit(
+    user.id,
+    user.email || '',
+    'BROADCAST_CUSTOM_EMAIL',
+    'fest_teams',
+    cleanTest || audience,
+    { title, total: recipients.length, sentCount, failedCount, synced: syncWithAnnouncement }
+  );
+
+  return {
+    success: true,
+    total: recipients.length,
+    sentCount,
+    failedCount,
+    errors: errors.slice(0, 10),
+    syncedAnnouncement: !!announcementRecord,
+    announcement: announcementRecord,
   };
 }
 

@@ -34,7 +34,10 @@ import {
   Eye,
   EyeOff,
   Copy,
-  CloudUpload
+  CloudUpload,
+  Mail,
+  Send,
+  Radio
 } from 'lucide-react';
 import { triggerLiveBackup } from '@/app/actions/backup';
 import {
@@ -55,6 +58,8 @@ import {
   adminUpdateEvent,
   adminPostFestAnnouncement,
   adminDeleteFestAnnouncement,
+  adminBroadcastLeaderStatusEmails,
+  adminBroadcastCustomEmail,
   changeAdminPassword,
   adminLogoutAction,
   masterAddAdmin,
@@ -88,7 +93,7 @@ interface IndigoAdminDashboardProps {
 
 export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'registrations' | 'teams' | 'checkin' | 'events' | 'announcements' | 'coordinators' | 'audit' | 'master' | 'password'
+    'dashboard' | 'registrations' | 'teams' | 'checkin' | 'events' | 'announcements' | 'broadcast' | 'coordinators' | 'audit' | 'master' | 'password'
   >('dashboard');
 
   // Registrations Filter & Search State
@@ -147,9 +152,37 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Email Broadcast State (Custom Bulletins + Status Cards)
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastContent, setBroadcastContent] = useState('');
+  const [broadcastAudience, setBroadcastAudience] = useState<string>('all');
+  const [broadcastSyncOption, setBroadcastSyncOption] = useState<'sync' | 'separate'>('sync');
+  const [broadcastTestEmail, setBroadcastTestEmail] = useState('ryankeshary@gmail.com');
+  const [isBroadcastingEmail, setIsBroadcastingEmail] = useState(false);
+  const [broadcastFeedback, setBroadcastFeedback] = useState<{
+    success: boolean;
+    message: string;
+    total?: number;
+    sent?: number;
+    failed?: number;
+  } | null>(null);
+
+  // Status Email Re-broadcast State
+  const [statusRebroadcastTarget, setStatusRebroadcastTarget] = useState('all');
+  const [statusTestRecipient, setStatusTestRecipient] = useState('ryankeshary@gmail.com');
+  const [isRebroadcastingStatus, setIsRebroadcastingStatus] = useState(false);
+  const [statusRebroadcastFeedback, setStatusRebroadcastFeedback] = useState<{
+    success: boolean;
+    message: string;
+    total?: number;
+    sent?: number;
+    failed?: number;
+  } | null>(null);
+
   // Announcement Form & Live State (Updates instantly without manual refresh)
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementContent, setAnnouncementContent] = useState('');
+  const [announcementSyncWithEmail, setAnnouncementSyncWithEmail] = useState(true);
   const [localAnnouncements, setLocalAnnouncements] = useState<any[]>(data.announcements || []);
 
   useEffect(() => {
@@ -958,6 +991,103 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     }
   };
 
+  // Dispatch Custom Broadcast via Email (with Sync or Keep Separate option)
+  const handleDispatchCustomBroadcast = async (isTest: boolean = false) => {
+    if (!broadcastTitle.trim() || !broadcastContent.trim()) {
+      showToast('Please provide both headline and message content.', 'error');
+      return;
+    }
+
+    setIsBroadcastingEmail(true);
+    setBroadcastFeedback(null);
+
+    try {
+      const res = await adminBroadcastCustomEmail({
+        title: broadcastTitle.trim(),
+        content: broadcastContent.trim(),
+        audience: isTest ? 'all' : broadcastAudience,
+        syncWithAnnouncement: isTest ? false : broadcastSyncOption === 'sync',
+        targetTestEmail: isTest ? broadcastTestEmail : undefined,
+      });
+
+      if (res?.success) {
+        setBroadcastFeedback({
+          success: true,
+          message: isTest
+            ? `Test broadcast dispatched to ${broadcastTestEmail}!`
+            : `Email broadcast dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
+          total: res.total,
+          sent: res.sentCount,
+          failed: res.failedCount,
+        });
+        showToast(
+          isTest ? `Test email sent to ${broadcastTestEmail}` : `Broadcast sent to ${res.sentCount} captains!`,
+          'success'
+        );
+
+        if (!isTest && broadcastSyncOption === 'sync') {
+          window.dispatchEvent(new CustomEvent('fest_announcement_updated'));
+          if (onRefresh) await onRefresh();
+        }
+      } else {
+        setBroadcastFeedback({
+          success: false,
+          message: 'Failed to complete email broadcast.',
+        });
+        showToast('Email broadcast encountered an issue.', 'error');
+      }
+    } catch (err: any) {
+      setBroadcastFeedback({
+        success: false,
+        message: err.message || 'Error occurred during email dispatch.',
+      });
+      showToast(err.message || 'Error sending broadcast', 'error');
+    } finally {
+      setIsBroadcastingEmail(false);
+    }
+  };
+
+  // Re-broadcast Team Enrollment Status Cards (Confirmed vs Waitlist)
+  const handleDispatchStatusRebroadcast = async (isTest: boolean = false) => {
+    setIsRebroadcastingStatus(true);
+    setStatusRebroadcastFeedback(null);
+
+    try {
+      const target = isTest ? statusTestRecipient : undefined;
+      const res = await adminBroadcastLeaderStatusEmails(target);
+
+      if (res?.success) {
+        setStatusRebroadcastFeedback({
+          success: true,
+          message: isTest
+            ? `Preview status email dispatched to ${statusTestRecipient}!`
+            : `Status cards dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
+          total: res.total,
+          sent: res.sentCount,
+          failed: res.failedCount,
+        });
+        showToast(
+          isTest ? `Test sent to ${statusTestRecipient}` : `Dispatched status to ${res.sentCount} team captains!`,
+          'success'
+        );
+      } else {
+        setStatusRebroadcastFeedback({
+          success: false,
+          message: 'Status broadcast encountered errors.',
+        });
+        showToast('Status broadcast failed.', 'error');
+      }
+    } catch (err: any) {
+      setStatusRebroadcastFeedback({
+        success: false,
+        message: err.message || 'Error dispatching status emails.',
+      });
+      showToast(err.message || 'Status broadcast error', 'error');
+    } finally {
+      setIsRebroadcastingStatus(false);
+    }
+  };
+
   // Password Modal Open & Save (Supports single user and batch scopes)
   const handleOpenPasswordModal = (user: { id?: string; email: string; name?: string; role?: string }) => {
     setPasswordModalUser({
@@ -1342,6 +1472,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 { id: 'checkin', label: 'Rapid Check-In', icon: CheckCircle2 },
                 { id: 'events', label: 'Disciplines', icon: Settings },
                 { id: 'announcements', label: 'Notices', icon: Bell },
+                { id: 'broadcast', label: 'Mail Broadcast', icon: Mail },
                 { id: 'coordinators', label: 'Coordinators', icon: UserCheck },
                 { id: 'audit', label: 'Audit Log', icon: FileText },
                 ...(currentUser?.isMaster ? [{ id: 'master', label: 'Master Console', icon: Crown }] : []),
@@ -1409,6 +1540,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                      activeTab === 'checkin' ? 'Rapid Check-In' :
                      activeTab === 'events' ? 'Disciplines' :
                      activeTab === 'announcements' ? 'Notices' :
+                     activeTab === 'broadcast' ? 'Mail Broadcast' :
                      activeTab === 'coordinators' ? 'Coordinators' :
                      activeTab === 'audit' ? 'Audit Log' :
                      activeTab === 'master' ? 'Master Console' :
@@ -1425,11 +1557,11 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   }`}
                 >
                   <Layers size={12} />
-                  <span>{mobileTabsMenuOpen ? 'Hide Menu ▲' : 'All Sections (10) ▼'}</span>
+                  <span>{mobileTabsMenuOpen ? 'Hide Menu ▲' : 'All Sections (11) ▼'}</span>
                 </button>
               </div>
 
-              {/* Expandable Mobile Grid (All 10 Sections with Large Tap Targets) */}
+              {/* Expandable Mobile Grid (All 11 Sections with Large Tap Targets) */}
               {mobileTabsMenuOpen && (
                 <div className="grid grid-cols-2 gap-1.5 p-2 bg-white rounded-xl border border-slate-200 shadow-sm mt-1 animate-in fade-in duration-150">
                   {[
@@ -1439,6 +1571,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     { id: 'checkin', label: 'Rapid Check-In', icon: CheckCircle2 },
                     { id: 'events', label: 'Disciplines', icon: Settings },
                     { id: 'announcements', label: 'Notices', icon: Bell },
+                    { id: 'broadcast', label: 'Mail Broadcast', icon: Mail },
                     { id: 'coordinators', label: 'Coordinators', icon: UserCheck },
                     { id: 'audit', label: 'Audit Log', icon: FileText },
                     ...(currentUser?.isMaster ? [{ id: 'master', label: 'Master Console', icon: Crown }] : []),
@@ -2381,10 +2514,30 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                 />
               </div>
 
+              <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Mail size={15} className="text-[#D21319]" />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">Email Broadcast Sync</span>
+                    <span className="text-[10px] text-slate-500">Also dispatch this announcement to all team captains via alert@indigotechfest.in</span>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={announcementSyncWithEmail}
+                    onChange={(e) => setAnnouncementSyncWithEmail(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D21319]"></div>
+                </label>
+              </div>
+
               <div className="text-right">
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                  disabled={isProcessing}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-60"
                 >
                   <Bell size={13} />
                   <span>Dispatch Announcement</span>
@@ -2417,6 +2570,371 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   No bulletins posted yet.
                 </div>
               )}
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB: MAIL BROADCAST TERMINAL (Beside Announcements)
+           ======================================================== */}
+        {currentTab === 'broadcast' && !isCoordinator && (
+          <div className="max-w-5xl mx-auto space-y-6">
+
+            {/* Header Banner */}
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center shrink-0 text-[#D21319]">
+                  <Mail size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-slate-900">Festival Mail Broadcast Terminal</h2>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      alert@indigotechfest.in
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Direct communication dispatch to festival team captains with status differentiation and website sync.
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Telemetry Pills */}
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <div className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700">
+                  <span className="text-[10px] text-slate-400 uppercase block font-bold">Total Squads</span>
+                  <strong>{teams?.length || 0}</strong>
+                </div>
+                <div className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800">
+                  <span className="text-[10px] text-emerald-600 uppercase block font-bold">Confirmed</span>
+                  <strong>{teams?.filter((t: any) => !t.is_waitlist).length || 0}</strong>
+                </div>
+                <div className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+                  <span className="text-[10px] text-amber-600 uppercase block font-bold">Waitlist</span>
+                  <strong>{teams?.filter((t: any) => t.is_waitlist).length || 0}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+              {/* Left Column: Broadcast Composer & Status Trigger (7 cols) */}
+              <div className="lg:col-span-7 space-y-6">
+
+                {/* Section 1: Custom Announcement Broadcast */}
+                <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-5 space-y-4">
+                  <div className="border-b border-slate-100 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Send size={15} className="text-[#D21319]" />
+                      <span>Compose Festival Email Broadcast</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Send custom messages, schedule changes, or room guidelines to participants.
+                    </p>
+                  </div>
+
+                  {/* Headline */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Broadcast Headline</label>
+                    <input
+                      type="text"
+                      value={broadcastTitle}
+                      onChange={(e) => setBroadcastTitle(e.target.value)}
+                      placeholder="e.g. Schedule Update for Day 2 Cad-Mander Round"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Target Audience Selector */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Target Audience</label>
+                    <select
+                      value={broadcastAudience}
+                      onChange={(e) => setBroadcastAudience(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                    >
+                      <option value="all">All Team Captains ({teams?.length || 0} Squads)</option>
+                      <option value="confirmed">Confirmed Entries Only ({teams?.filter((t: any) => !t.is_waitlist).length || 0} Squads)</option>
+                      <option value="waitlist">Waitlist Queue Only ({teams?.filter((t: any) => t.is_waitlist).length || 0} Squads)</option>
+                      <optgroup label="Filter by Tournament Discipline">
+                        {availableEvents.map((ev: any) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.name} ({teams?.filter((t: any) => (t.event_ids || []).includes(ev.id)).length || 0} Squads)
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  {/* Message Content */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Message Content</label>
+                    <textarea
+                      rows={4}
+                      value={broadcastContent}
+                      onChange={(e) => setBroadcastContent(e.target.value)}
+                      placeholder="Enter detailed room instructions, timing reminders, or protocol notices..."
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:border-[#D21319] focus:outline-none"
+                    />
+                  </div>
+
+                  {/* SYNC VS KEEP SEPARATE OPTIONS (KEY USER REQUIREMENT) */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                    <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Publishing &amp; Distribution Mode</span>
+                      <span className="text-[10px] font-mono uppercase text-slate-400">Sync Controls</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {/* Option 1: Sync */}
+                      <label
+                        className={`flex items-start gap-2.5 p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                          broadcastSyncOption === 'sync'
+                            ? 'bg-red-50/60 border-[#D21319] ring-1 ring-[#D21319]/20'
+                            : 'bg-white border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="broadcast_sync_opt"
+                          checked={broadcastSyncOption === 'sync'}
+                          onChange={() => setBroadcastSyncOption('sync')}
+                          className="mt-0.5 text-[#D21319] focus:ring-[#D21319]"
+                        />
+                        <div>
+                          <strong className="text-xs text-slate-900 block font-bold">Sync with Website</strong>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                            Publishes to site bulletin banner AND delivers email to captains.
+                          </p>
+                        </div>
+                      </label>
+
+                      {/* Option 2: Keep Separate */}
+                      <label
+                        className={`flex items-start gap-2.5 p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                          broadcastSyncOption === 'separate'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="broadcast_sync_opt"
+                          checked={broadcastSyncOption === 'separate'}
+                          onChange={() => setBroadcastSyncOption('separate')}
+                          className="mt-0.5 text-[#D21319] focus:ring-[#D21319]"
+                        />
+                        <div>
+                          <strong className={`text-xs block font-bold ${broadcastSyncOption === 'separate' ? 'text-white' : 'text-slate-900'}`}>
+                            Keep Separate (Email Only)
+                          </strong>
+                          <p className={`text-[11px] mt-0.5 leading-snug ${broadcastSyncOption === 'separate' ? 'text-slate-300' : 'text-slate-500'}`}>
+                            Sends email only. Does not post to the public website banner.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Test Dispatch Bar */}
+                  <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                    <div className="relative flex-1 w-full">
+                      <input
+                        type="email"
+                        value={broadcastTestEmail}
+                        onChange={(e) => setBroadcastTestEmail(e.target.value)}
+                        placeholder="Test email address..."
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isBroadcastingEmail}
+                      onClick={() => handleDispatchCustomBroadcast(true)}
+                      className="w-full sm:w-auto px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-lg border border-slate-300 transition-colors cursor-pointer shrink-0 disabled:opacity-60"
+                      title="Send a sample preview to your own inbox"
+                    >
+                      <span>Send Test Preview</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isBroadcastingEmail}
+                      onClick={() => handleDispatchCustomBroadcast(false)}
+                      className="w-full sm:w-auto px-4 py-1.5 bg-[#D21319] hover:bg-[#b00f14] text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer shrink-0 disabled:opacity-60 flex items-center justify-center gap-1.5"
+                    >
+                      <Send size={13} />
+                      <span>{isBroadcastingEmail ? 'Dispatching...' : 'Dispatch Fleet Broadcast'}</span>
+                    </button>
+                  </div>
+
+                  {/* Feedback Message */}
+                  {broadcastFeedback && (
+                    <div
+                      className={`p-3 rounded-lg text-xs border ${
+                        broadcastFeedback.success
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-rose-50 text-rose-800 border-rose-200'
+                      }`}
+                    >
+                      <div className="font-bold">{broadcastFeedback.message}</div>
+                      {broadcastFeedback.total !== undefined && (
+                        <div className="text-[11px] font-mono mt-1 opacity-90">
+                          Dispatched: {broadcastFeedback.sent} | Failed: {broadcastFeedback.failed}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Re-dispatch Team Enrollment Status Cards */}
+                <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-5 space-y-4">
+                  <div className="border-b border-slate-100 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Radio size={15} className="text-blue-600" />
+                      <span>Squad Enrollment Status Broadcast</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Re-send official enrollment telemetry emails informing captains whether their team is Confirmed or Waitlisted.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-lg text-xs text-blue-900 leading-relaxed">
+                    <strong>Automated Status Delivery:</strong> Each squad card includes the Squad Code, enrollment badge (Confirmed before limit vs Waitlist queue), roster management links, and contact details for the Technical Coordinator, President, and Takniki Desk.
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <input
+                      type="email"
+                      value={statusTestRecipient}
+                      onChange={(e) => setStatusTestRecipient(e.target.value)}
+                      placeholder="Your test email..."
+                      className="w-full sm:flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={isRebroadcastingStatus}
+                      onClick={() => handleDispatchStatusRebroadcast(true)}
+                      className="w-full sm:w-auto px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-lg border border-slate-300 transition-colors cursor-pointer shrink-0 disabled:opacity-60"
+                    >
+                      Test Status Card
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRebroadcastingStatus}
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to broadcast status emails to all registered team captains via alert@indigotechfest.in?`)) {
+                          handleDispatchStatusRebroadcast(false);
+                        }
+                      }}
+                      className="w-full sm:w-auto px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer shrink-0 disabled:opacity-60 flex items-center justify-center gap-1.5"
+                    >
+                      <Radio size={13} />
+                      <span>{isRebroadcastingStatus ? 'Sending Fleet...' : 'Broadcast to All Captains'}</span>
+                    </button>
+                  </div>
+
+                  {statusRebroadcastFeedback && (
+                    <div
+                      className={`p-3 rounded-lg text-xs border ${
+                        statusRebroadcastFeedback.success
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-rose-50 text-rose-800 border-rose-200'
+                      }`}
+                    >
+                      <div className="font-bold">{statusRebroadcastFeedback.message}</div>
+                      {statusRebroadcastFeedback.total !== undefined && (
+                        <div className="text-[11px] font-mono mt-1 opacity-90">
+                          Dispatched: {statusRebroadcastFeedback.sent} | Failed: {statusRebroadcastFeedback.failed}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Right Column: Live Aesthetic Pokémon Email Preview (5 cols) */}
+              <div className="lg:col-span-5 space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
+                  <span>Live Pokémon Email Preview</span>
+                  <span className="text-[10px] font-mono text-[#D21319] uppercase tracking-wider">Aesthetic Layout</span>
+                </div>
+
+                {/* Email Mockup Container */}
+                <div className="bg-[#F8FAFC] border border-slate-300 rounded-2xl shadow-sm p-4 overflow-hidden text-slate-900 text-xs">
+                  
+                  {/* Top Tricolor League Bar */}
+                  <div className="h-1 rounded-t bg-gradient-to-r from-[#EE1515] via-[#0F172A] to-[#2563EB] mb-2"></div>
+
+                  {/* Dark Header */}
+                  <div className="bg-[#0F172A] text-white p-4 rounded-xl text-center space-y-1">
+                    <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 mx-auto mb-1">
+                      <div className="w-4 h-4 rounded-full border-2 border-white flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                      </div>
+                    </div>
+                    <div className="font-mono text-[9px] text-slate-400 uppercase tracking-widest">
+                      Kanto League · Indigo Plateau
+                    </div>
+                    <div className="font-black text-sm tracking-tight uppercase">
+                      INDIGO TECH FEST · JARVIS 3.0
+                    </div>
+                  </div>
+
+                  {/* Body Preview */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 my-3 shadow-2xs space-y-2">
+                    <div className="inline-block px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-red-50 text-red-700 border border-red-200">
+                      📢 {broadcastSyncOption === 'sync' ? 'SYNCED BULLETIN' : 'EMAIL BROADCAST'}
+                    </div>
+
+                    <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                      {broadcastTitle || 'Schedule & Reporting Guidelines for Team Captains'}
+                    </h4>
+
+                    <div className="text-[11px] text-slate-600 border-l-2 border-[#EE1515] pl-2.5 py-0.5 space-y-1">
+                      <p className="line-clamp-3">
+                        {broadcastContent || 'Please ensure all participants assemble at the main registration desk at 09:00 AM with valid college ID cards...'}
+                      </p>
+                    </div>
+
+                    <div className="text-center pt-2">
+                      <span className="inline-block bg-[#0F172A] text-white font-bold text-[10px] px-3 py-1 rounded">
+                        Open Portal Terminal ➔
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Support Block Preview (User Requested) */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 text-center space-y-1.5 shadow-2xs">
+                    <span className="text-[9px] font-mono font-bold uppercase text-[#EE1515] tracking-wider block">
+                      Festival Helpdesk &amp; Support
+                    </span>
+                    <p className="text-[10px] font-bold text-slate-800">
+                      For any query, contact:
+                    </p>
+                    <div className="grid grid-cols-3 gap-1 pt-1 text-[9px] font-bold text-slate-700">
+                      <div className="bg-slate-50 border border-slate-200 rounded p-1.5">
+                        <span className="block text-xs">⚡</span>
+                        <span className="leading-tight block">Technical Coord</span>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-200 rounded p-1.5">
+                        <span className="block text-xs">👑</span>
+                        <span className="leading-tight block">President</span>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-200 rounded p-1.5">
+                        <span className="block text-xs">🏛️</span>
+                        <span className="leading-tight block">Takniki Desk</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center text-[9px] font-mono text-slate-400 pt-2">
+                    Dispatched from alert@indigotechfest.in
+                  </div>
+                </div>
+              </div>
+
             </div>
 
           </div>
