@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 
@@ -25,13 +26,27 @@ const resendApiKey = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'Indigo Techfest <alert@indigotechfest.in>';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
 
+const gmailUser = (process.env.GMAIL_USER || process.env.SMTP_USER || '').trim();
+const gmailPass = (process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || '').replace(/\s+/g, '');
+const isGmailSmtp = Boolean(gmailUser && gmailPass);
+
 const sql = postgres(connectionString, { ssl: 'require' });
 const resend = new Resend(resendApiKey);
+const gmailTransporter = isGmailSmtp
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: gmailUser, pass: gmailPass },
+    })
+  : null;
 
 async function run() {
   console.log('--- INDIGO TECH FEST: TEAM LEADER STATUS EMAIL BROADCAST ---');
-  console.log(`Using Resend API Key: ${resendApiKey.slice(0, 10)}...`);
-  console.log(`From address: ${fromEmail}`);
+  if (isGmailSmtp) {
+    console.log(`Using Gmail SMTP: ${gmailUser} (Free, sends to all domains)`);
+  } else {
+    console.log(`Using Resend API Key: ${resendApiKey.slice(0, 10)}...`);
+    console.log(`From address: ${fromEmail}`);
+  }
 
   // Fetch events to get friendly names
   const events = await sql`SELECT id, name FROM public.fest_events`;
@@ -288,29 +303,41 @@ async function run() {
     `;
 
     try {
-      let res = await resend.emails.send({
-        from: fromEmail,
-        to: email,
-        subject,
-        html
-      });
-
-      if (res.error && (res.error.message?.includes('not verified') || res.error?.statusCode === 403) && email === 'ryankeshary@gmail.com') {
-        console.log(`[SANDBOX FALLBACK] indigotechfest.in awaiting DNS verification in Resend. Retrying preview to account owner with onboarding@resend.dev...`);
-        res = await resend.emails.send({
-          from: 'Indigo Techfest <onboarding@resend.dev>',
+      if (gmailTransporter) {
+        const fromName = process.env.GMAIL_FROM_NAME || 'Indigo Techfest';
+        const info = await gmailTransporter.sendMail({
+          from: `"${fromName}" <${gmailUser}>`,
+          to: email,
+          subject,
+          html,
+        });
+        console.log(`[SUCCESS] Email dispatched to ${email} via Gmail SMTP (${info.messageId})`);
+        successCount++;
+      } else {
+        let res = await resend.emails.send({
+          from: fromEmail,
           to: email,
           subject,
           html
         });
-      }
 
-      if (res.error) {
-        console.warn(`[FAILED] ${email}: ${res.error.message}`);
-        failCount++;
-      } else {
-        console.log(`[SUCCESS] Email dispatched to ${email} (Resend ID: ${res.data?.id})`);
-        successCount++;
+        if (res.error && (res.error.message?.includes('not verified') || res.error?.statusCode === 403) && email === 'ryankeshary@gmail.com') {
+          console.log(`[SANDBOX FALLBACK] indigotechfest.in awaiting DNS verification in Resend. Retrying preview to account owner with onboarding@resend.dev...`);
+          res = await resend.emails.send({
+            from: 'Indigo Techfest <onboarding@resend.dev>',
+            to: email,
+            subject,
+            html
+          });
+        }
+
+        if (res.error) {
+          console.warn(`[FAILED] ${email}: ${res.error.message}`);
+          failCount++;
+        } else {
+          console.log(`[SUCCESS] Email dispatched to ${email} (Resend ID: ${res.data?.id})`);
+          successCount++;
+        }
       }
     } catch (err) {
       console.error(`[EXCEPTION] ${email}:`, err.message);

@@ -1,12 +1,29 @@
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-// Resend configuration with alert@indigotechfest.in default
+// Gmail SMTP configuration (100% Free, no custom domain needed)
+export const GMAIL_USER = (process.env.GMAIL_USER || process.env.SMTP_USER || '').trim();
+export const GMAIL_APP_PASSWORD = (process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || '').replace(/\s+/g, '');
+export const isGmailSmtpConfigured = Boolean(GMAIL_USER && GMAIL_APP_PASSWORD);
+
+// Resend configuration fallback
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
 export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Indigo Techfest <alert@indigotechfest.in>';
 export const RESEND_FALLBACK_FROM = 'Indigo Techfest <onboarding@resend.dev>';
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-pokemon.vercel.app';
 
 export const resend = new Resend(RESEND_API_KEY);
+
+function getGmailTransporter() {
+  if (!isGmailSmtpConfigured) return null;
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASSWORD,
+    },
+  });
+}
 
 export interface SquadItem {
   teamName: string;
@@ -364,7 +381,33 @@ async function sendWithSmartSender(options: {
     return { success: false, error: 'Invalid recipient email address.' };
   }
 
-  // Attempt 1: Using configured alert@indigotechfest.in
+  // Priority 1: Gmail SMTP (Direct delivery to any email without domain restrictions)
+  if (isGmailSmtpConfigured) {
+    try {
+      const transporter = getGmailTransporter();
+      if (transporter) {
+        const fromName = process.env.GMAIL_FROM_NAME || 'Indigo Techfest';
+        const senderString = `"${fromName}" <${GMAIL_USER}>`;
+        const info = await transporter.sendMail({
+          from: senderString,
+          to: cleanEmail,
+          subject: options.subject,
+          html: options.html,
+        });
+
+        return {
+          success: true,
+          id: info.messageId,
+          senderUsed: senderString,
+        };
+      }
+    } catch (smtpErr: any) {
+      console.warn('[Gmail SMTP Warning] Dispatch failed, trying Resend fallback:', smtpErr.message);
+      // Fall through to Resend
+    }
+  }
+
+  // Priority 2: Resend using configured domain or fallback
   const primaryFrom = RESEND_FROM_EMAIL;
   try {
     const res = await resend.emails.send({
@@ -403,7 +446,7 @@ async function sendWithSmartSender(options: {
     if (isUnverifiedDomain) {
       return {
         success: false,
-        error: `Domain "indigotechfest.in" is not verified in Resend. Please add & verify indigotechfest.in at https://resend.com/domains. Resend requires domain verification to send to external recipients like ${cleanEmail} (until verified, Resend only allows sending to the account owner ryankeshary@gmail.com).`,
+        error: `Domain "indigotechfest.in" is not verified in Resend. Please provide Gmail SMTP credentials (GMAIL_USER and GMAIL_APP_PASSWORD) in .env or verify indigotechfest.in at https://resend.com/domains so emails can reach external recipients like ${cleanEmail}.`,
       };
     }
 
