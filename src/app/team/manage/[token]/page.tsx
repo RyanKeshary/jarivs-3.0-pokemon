@@ -298,18 +298,24 @@ export default function LeaderManagePage({
                     </div>
                   </div>
 
-                  {/* Squad Lock Status */}
-                  <div className="mt-4 pt-3 border-t border-black/20 flex items-center justify-between text-xs font-mono">
+                  {/* Squad Lock / Waitlist Status */}
+                  <div className="mt-4 pt-3 border-t border-black/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
                     <div className="flex items-center gap-2">
                       <span className="text-neutral-600 font-bold">STATUS:</span>
                       <span
                         className={`px-2 py-0.5 border font-bold ${
-                          team.is_locked
+                          team.is_waitlist
+                            ? 'bg-amber-100 border-amber-600 text-amber-900 shadow-[1px_1px_0px_#000]'
+                            : team.is_locked
                             ? 'bg-red-50 border-[#D21319] text-[#D21319]'
                             : 'bg-green-50 border-green-700 text-green-900'
                         }`}
                       >
-                        {team.is_locked ? 'LOCKED (ROSTER FINAL)' : 'OPEN TO JOIN'}
+                        {team.is_waitlist
+                          ? '⏳ WAITLIST (STANDBY QUEUE)'
+                          : team.is_locked
+                          ? 'LOCKED (ROSTER FINAL)'
+                          : 'OPEN TO JOIN'}
                       </span>
                     </div>
 
@@ -322,6 +328,18 @@ export default function LeaderManagePage({
                       </button>
                     )}
                   </div>
+
+                  {team.is_waitlist && (
+                    <div className="mt-3 p-3 bg-amber-50 border-2 border-amber-500 text-amber-900 text-xs font-mono shadow-[2px_2px_0px_#000]">
+                      <div className="font-bold flex items-center gap-1.5 mb-1">
+                        <span>⏳</span>
+                        <span>OFFICIAL WAITLIST STANDBY ALLOCATION</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        This squad is queued on the event Waiting List because tournament capacity was filled at registration. You can still manage your roster. If an active team forfeits or organizers expand capacity, your squad will be automatically promoted to Confirmed.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
               </div>

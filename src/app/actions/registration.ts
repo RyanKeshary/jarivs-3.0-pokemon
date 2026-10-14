@@ -127,8 +127,47 @@ export async function createFestTeam(payload: CreateTeamPayload) {
     const cleanTeamName = teamName.trim();
     let createdTeams: any[] = [];
 
+    // Query live discipline capacities and open statuses
+    const eventRows = await sql`
+      SELECT id, name, capacity, is_open
+      FROM public.fest_events
+      WHERE id = ANY(${eventIds})
+    `;
+    const eventMap = new Map<string, any>(eventRows.map((e: any) => [e.id, e]));
+
+    // Check if any selected event is administratively closed
+    for (const evId of eventIds) {
+      const ev = eventMap.get(evId);
+      if (ev && ev.is_open === false) {
+        throw new Error(`Enrollment Closed: Registration for "${ev.name}" is currently closed by fest administration.`);
+      }
+    }
+
+    // Evaluates live capacity and sets waitlist state if event capacity is reached
+    const checkEventWaitlist = async (eventId: string) => {
+      const ev = eventMap.get(eventId);
+      const cap = ev?.capacity ?? 50;
+      const countRes = await sql`
+        SELECT COUNT(*)::int as count 
+        FROM public.fest_teams 
+        WHERE ${eventId} = ANY(event_ids) AND is_waitlist = FALSE
+      `;
+      const currentConfirmedCount = countRes[0]?.count || 0;
+      const isWaitlist = currentConfirmedCount >= cap;
+      return {
+        isWaitlist,
+        status: isWaitlist ? 'Waitlist' : 'Confirmed',
+        capacity: cap,
+        currentConfirmedCount,
+        eventName: ev?.name || eventId,
+      };
+    };
+
     if (eventIds.length === 2) {
       // 2 Events selected: Create 2 separate teams named "${teamName}-A" and "${teamName}-B"
+      const waitlistA = await checkEventWaitlist(eventIds[0]);
+      const waitlistB = await checkEventWaitlist(eventIds[1]);
+
       // Generate unique code for Team A
       let codeA = generateHumanFriendlyCode();
       while ((await sql`SELECT id FROM public.fest_teams WHERE code = ${codeA}`).length > 0) {
@@ -145,6 +184,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           leader_email,
           leader_token,
           is_locked,
+          is_waitlist,
           status
         ) VALUES (
           ${codeA},
@@ -153,9 +193,10 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           ${email},
           ${tokenA},
           FALSE,
-          'Confirmed'
+          ${waitlistA.isWaitlist},
+          ${waitlistA.status}
         )
-        RETURNING id, code, name, event_ids, leader_token, created_at;
+        RETURNING id, code, name, event_ids, leader_token, is_waitlist, status, created_at;
       `;
       const newTeamA = teamARows[0];
 
@@ -190,7 +231,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           ${referenceId},
           ${division},
           ${rollNo},
-          'Confirmed'
+          ${waitlistA.status}
         );
       `;
 
@@ -210,6 +251,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           leader_email,
           leader_token,
           is_locked,
+          is_waitlist,
           status
         ) VALUES (
           ${codeB},
@@ -218,9 +260,10 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           ${email},
           ${tokenB},
           FALSE,
-          'Confirmed'
+          ${waitlistB.isWaitlist},
+          ${waitlistB.status}
         )
-        RETURNING id, code, name, event_ids, leader_token, created_at;
+        RETURNING id, code, name, event_ids, leader_token, is_waitlist, status, created_at;
       `;
       const newTeamB = teamBRows[0];
 
@@ -255,7 +298,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           ${referenceId},
           ${division},
           ${rollNo},
-          'Confirmed'
+          ${waitlistB.status}
         );
       `;
 
@@ -267,6 +310,8 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           eventIds: newTeamA.event_ids,
           eventId: eventIds[0],
           leaderToken: newTeamA.leader_token,
+          isWaitlist: newTeamA.is_waitlist,
+          status: newTeamA.status,
         },
         {
           id: newTeamB.id,
@@ -275,10 +320,14 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           eventIds: newTeamB.event_ids,
           eventId: eventIds[1],
           leaderToken: newTeamB.leader_token,
+          isWaitlist: newTeamB.is_waitlist,
+          status: newTeamB.status,
         }
       ];
     } else {
       // 1 Event selected
+      const waitlistSingle = await checkEventWaitlist(eventIds[0]);
+
       let uniqueCode = generateHumanFriendlyCode();
       while ((await sql`SELECT id FROM public.fest_teams WHERE code = ${uniqueCode}`).length > 0) {
         uniqueCode = generateHumanFriendlyCode();
@@ -293,6 +342,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           leader_email,
           leader_token,
           is_locked,
+          is_waitlist,
           status
         ) VALUES (
           ${uniqueCode},
@@ -301,9 +351,10 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           ${email},
           ${leaderToken},
           FALSE,
-          'Confirmed'
+          ${waitlistSingle.isWaitlist},
+          ${waitlistSingle.status}
         )
-        RETURNING id, code, name, event_ids, leader_token, created_at;
+        RETURNING id, code, name, event_ids, leader_token, is_waitlist, status, created_at;
       `;
       const newTeamSingle = singleTeamRows[0];
 
@@ -337,7 +388,7 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           ${referenceId},
           ${division},
           ${rollNo},
-          'Confirmed'
+          ${waitlistSingle.status}
         );
       `;
 
@@ -349,6 +400,8 @@ export async function createFestTeam(payload: CreateTeamPayload) {
           eventIds: newTeamSingle.event_ids,
           eventId: eventIds[0],
           leaderToken: newTeamSingle.leader_token,
+          isWaitlist: newTeamSingle.is_waitlist,
+          status: newTeamSingle.status,
         }
       ];
     }
@@ -483,7 +536,7 @@ export async function joinFestTeam(payload: {
 
     const cleanCode = payload.code.trim().toUpperCase();
     const teamRows = await sql`
-      SELECT id, code, name, event_ids, is_locked FROM public.fest_teams WHERE code = ${cleanCode}
+      SELECT id, code, name, event_ids, is_locked, is_waitlist, status FROM public.fest_teams WHERE code = ${cleanCode}
     `;
 
     if (teamRows.length === 0) {
@@ -613,7 +666,7 @@ export async function joinFestTeam(payload: {
         ${referenceId},
         ${division},
         ${rollNo},
-        'Confirmed'
+        ${team.is_waitlist ? 'Waitlist' : 'Confirmed'}
       );
     `;
 
@@ -661,6 +714,7 @@ export async function joinFestTeam(payload: {
       success: true,
       teamName: team.name,
       teamCode: team.code,
+      isWaitlist: Boolean(team.is_waitlist),
       credentials: {
         email,
         password: defaultPassword,

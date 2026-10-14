@@ -1415,18 +1415,21 @@ export async function getFestAdminData(userOverride?: any) {
     return (t.member_count || 0) < minRequired;
   });
 
-  // Per-event statistics
+  // Per-event statistics (distinguishing confirmed enrolled squads vs waitlisted overflow squads)
   const perEventStats = events.map((ev: any) => {
-    const teamsInEvent = teams.filter((t: any) => (t.event_ids || []).includes(ev.id));
+    const confirmedTeamsInEvent = teams.filter((t: any) => (t.event_ids || []).includes(ev.id) && !t.is_waitlist);
+    const waitlistTeamsInEvent = teams.filter((t: any) => (t.event_ids || []).includes(ev.id) && t.is_waitlist);
     const participantsInEvent = registrations.filter((r: any) => (r.event_ids || []).includes(ev.id));
+    const capacity = ev.capacity || 50;
     return {
       id: ev.id,
       name: ev.name,
       day: ev.day_label,
-      teamCount: teamsInEvent.length,
+      teamCount: confirmedTeamsInEvent.length,
+      waitlistCount: waitlistTeamsInEvent.length,
       participantCount: participantsInEvent.length,
-      capacity: ev.capacity,
-      percentage: Math.min(100, Math.round((teamsInEvent.length / (ev.capacity || 50)) * 100)),
+      capacity,
+      percentage: Math.min(100, Math.round((confirmedTeamsInEvent.length / capacity) * 100)),
       isOpen: ev.is_open,
     };
   });
@@ -1956,13 +1959,19 @@ export async function adminCreateManualParticipant(data: {
   }
 
   if (!targetTeamId) {
-    // Create an on-spot team
+    // Create an on-spot team with capacity check
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     const code = `JRV-${randomSuffix}`;
     const chosenEvent = data.eventId || 'project-exhibition';
+    const evRows = await sql`SELECT capacity FROM public.fest_events WHERE id = ${chosenEvent}`;
+    const cap = evRows[0]?.capacity || 50;
+    const activeTeamsCount = await sql`SELECT COUNT(*)::int as count FROM public.fest_teams WHERE ${chosenEvent} = ANY(event_ids) AND is_waitlist = FALSE`;
+    const isWaitlist = (activeTeamsCount[0]?.count || 0) >= cap;
+    const teamStatus = isWaitlist ? 'Waitlist' : 'Confirmed';
+
     const newTeam = await sql`
-      INSERT INTO public.fest_teams (code, name, event_ids, leader_email, leader_token, status)
-      VALUES (${code}, ${data.fullName.trim() + ' On-Spot'}, ARRAY[${chosenEvent}], ${cleanEmail}, gen_random_uuid()::text, 'Confirmed')
+      INSERT INTO public.fest_teams (code, name, event_ids, leader_email, leader_token, is_waitlist, status)
+      VALUES (${code}, ${data.fullName.trim() + ' On-Spot'}, ARRAY[${chosenEvent}], ${cleanEmail}, gen_random_uuid()::text, ${isWaitlist}, ${teamStatus})
       RETURNING id, code;
     `;
     targetTeamId = newTeam[0].id;
@@ -2018,7 +2027,9 @@ export async function adminUpdateTeam(teamId: string, data: {
     await sql`UPDATE public.fest_teams SET is_locked = ${data.isLocked} WHERE id = ${teamId}`;
   }
   if (typeof data.isWaitlist === 'boolean') {
-    await sql`UPDATE public.fest_teams SET is_waitlist = ${data.isWaitlist} WHERE id = ${teamId}`;
+    const newStatus = data.isWaitlist ? 'Waitlist' : 'Confirmed';
+    await sql`UPDATE public.fest_teams SET is_waitlist = ${data.isWaitlist}, status = ${newStatus}, updated_at = NOW() WHERE id = ${teamId}`;
+    await sql`UPDATE public.fest_registrations SET status = ${newStatus} WHERE team_id = ${teamId}`;
   }
   if (data.status) {
     await sql`UPDATE public.fest_teams SET status = ${data.status} WHERE id = ${teamId}`;

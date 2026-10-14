@@ -337,6 +337,7 @@ export function RegistrationModal({
           leaderToken: res.team.leaderToken,
           eventIds: selectedEvents,
           teams: (res as any).teams || [res.team],
+          isWaitlist: Boolean((res.team as any).isWaitlist),
         });
         launchCelebration();
       } else {
@@ -382,6 +383,7 @@ export function RegistrationModal({
           code: res.teamCode,
           name: res.teamName,
           eventIds: targetTeam?.event_ids || selectedEvents,
+          isWaitlist: Boolean((res as any).isWaitlist),
         });
         launchCelebration();
       }
@@ -510,11 +512,18 @@ export function RegistrationModal({
                             <span className="font-mono text-[9px] sm:text-[10px] font-black uppercase text-[#D21319]">
                               {idx === 0 ? 'Discipline 1 · Squad A' : 'Discipline 2 · Squad B'}
                             </span>
-                            {ev && (
-                              <span className="text-[9px] font-mono font-bold bg-neutral-100 px-1.5 py-0.5 border border-neutral-300">
-                                {ev.teamSize}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {t.isWaitlist && (
+                                <span className="text-[8.5px] font-mono font-bold bg-amber-100 text-amber-900 px-1 py-0.5 border border-amber-500 rounded">
+                                  ⏳ Waitlist
+                                </span>
+                              )}
+                              {ev && (
+                                <span className="text-[9px] font-mono font-bold bg-neutral-100 px-1.5 py-0.5 border border-neutral-300">
+                                  {ev.teamSize}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           <div className="font-black text-xs sm:text-sm text-black mb-0.5 line-clamp-1">
@@ -563,6 +572,11 @@ export function RegistrationModal({
             ) : (
               /* Single Credential Card */
               <div className="p-4 sm:p-5 bg-white border-2 border-black shadow-[4px_4px_0px_#000] text-center relative">
+                {successData.isWaitlist && (
+                  <div className="mb-2 px-2.5 py-0.5 bg-amber-100 border-2 border-amber-600 text-amber-900 font-mono text-[10px] font-bold shadow-[1px_1px_0px_#000] inline-block">
+                    ⏳ OFFICIAL WAITLIST (STANDBY QUEUE)
+                  </div>
+                )}
                 <span className="font-mono text-[9px] sm:text-[10px] tracking-widest text-neutral-600 uppercase block mb-1 font-bold">
                   YOUR UNIQUE SQUAD CODE
                 </span>

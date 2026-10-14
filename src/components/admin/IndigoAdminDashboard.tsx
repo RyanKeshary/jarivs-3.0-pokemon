@@ -1617,7 +1617,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
               {chronologicalTimeline && chronologicalTimeline.length > 0 ? (
                 <div className="pt-3">
-                  <div className="h-44 flex items-end justify-center gap-4 sm:gap-8 px-2 overflow-x-auto">
+                  <div className="min-h-[195px] pb-2 flex items-end justify-center gap-4 sm:gap-8 px-2 overflow-x-auto">
                     {chronologicalTimeline.map((d: any, idx: number) => {
                       const maxCount = Math.max(...chronologicalTimeline.map((t: any) => t.count), 1);
                       const heightPercent = Math.max(12, Math.round((d.count / maxCount) * 100));
@@ -1717,7 +1717,14 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                         />
                       </div>
                       <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
-                        <span>{ev.teamCount} enrolled</span>
+                        <span>
+                          {ev.teamCount} enrolled
+                          {ev.waitlistCount > 0 && (
+                            <span className="text-amber-700 font-bold ml-1">
+                              (+{ev.waitlistCount} waitlist)
+                            </span>
+                          )}
+                        </span>
                         <span>Cap: {ev.capacity} teams</span>
                       </div>
                     </div>
