@@ -365,15 +365,36 @@ export function generateBroadcastEmailHtml(payload: {
   return { subject, html };
 }
 
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '$2 ($1)')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .trim();
+}
+
 /**
  * Sends an email with smart sender handling:
- * Attempts Gmail SMTP (indigotechfest@gmail.com) first if configured.
+ * Attempts Gmail SMTP (alert <indigotechfest@gmail.com>) first if configured.
  * If not configured or if sending fails, seamlessly falls back to Resend.
  */
 async function sendWithSmartSender(options: {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 }): Promise<{ success: boolean; id?: string; error?: string; senderUsed?: string }> {
   const cleanEmail = (options.to || '').trim().toLowerCase();
   if (!cleanEmail || !cleanEmail.includes('@')) {
@@ -385,14 +406,30 @@ async function sendWithSmartSender(options: {
     try {
       const transporter = getGmailTransporter();
       if (transporter) {
-        const fromName = process.env.GMAIL_FROM_NAME || 'Indigo Techfest';
-        const senderString = `"${fromName}" <${GMAIL_USER}>`;
+        const fromName = process.env.GMAIL_FROM_NAME || 'alert';
+        // Clean display name format: alert <indigotechfest@gmail.com>
+        const senderString = `${fromName} <${GMAIL_USER}>`;
+        
+        // Strip spam-trigger emojis from subject lines for superior Gmail inbox placement
+        const cleanSubject = options.subject
+          .replace(/^[\s\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+/u, '')
+          .trim();
+
+        const plainText = options.text || htmlToPlainText(options.html);
+
         const info = await transporter.sendMail({
           from: senderString,
-          replyTo: `"${fromName}" <${GMAIL_USER}>`,
+          replyTo: senderString,
           to: cleanEmail,
-          subject: options.subject,
+          subject: cleanSubject || options.subject,
+          text: plainText,
           html: options.html,
+          headers: {
+            'X-Priority': '3',
+            'X-Auto-Response-Suppress': 'All',
+            'List-Unsubscribe': `<mailto:${GMAIL_USER}?subject=unsubscribe>`,
+            'Feedback-ID': `indigo-techfest:registration:jarvis`,
+          },
         });
 
         return {
