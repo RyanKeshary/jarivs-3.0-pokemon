@@ -303,13 +303,20 @@ async function run() {
     `;
 
     try {
-      if (gmailTransporter) {
-        const fromName = process.env.GMAIL_FROM_NAME || 'Indigo Techfest';
+        const rawName = (process.env.GMAIL_FROM_NAME || '').trim();
+        const fromName = (!rawName || rawName.toLowerCase() === 'alert')
+          ? 'Indigo Tech Fest Alert'
+          : rawName;
         const info = await gmailTransporter.sendMail({
           from: `"${fromName}" <${gmailUser}>`,
+          replyTo: `"${fromName}" <${gmailUser}>`,
           to: email,
           subject,
           html,
+          headers: {
+            'X-Priority': '3',
+            'X-Mailer': 'Indigo Festival Telemetry',
+          },
         });
         console.log(`[SUCCESS] Email dispatched to ${email} via Gmail SMTP (${info.messageId})`);
         successCount++;

@@ -3,8 +3,8 @@ import nodemailer from 'nodemailer';
 
 // Gmail SMTP configuration (100% Free, direct delivery to any email without domain restrictions)
 export const GMAIL_USER = (process.env.GMAIL_USER || process.env.SMTP_USER || 'indigotechfest@gmail.com').trim();
-export const GMAIL_APP_PASSWORD = (process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || '').replace(/\s+/g, '');
-export const isGmailSmtpConfigured = Boolean(GMAIL_USER && GMAIL_APP_PASSWORD);
+export const GMAIL_APP_PASSWORD = (process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || 'talatmfbuydlrdfq').replace(/\s+/g, '');
+export const isGmailSmtpConfigured = true;
 
 // Resend configuration fallback
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_xxxxxxxxx';
@@ -15,12 +15,19 @@ const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://jarivs-3-0-poke
 export const resend = new Resend(RESEND_API_KEY);
 
 function getGmailTransporter() {
-  if (!isGmailSmtpConfigured) return null;
+  const user = (process.env.GMAIL_USER || process.env.SMTP_USER || GMAIL_USER || 'indigotechfest@gmail.com').trim();
+  const pass = (process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || GMAIL_APP_PASSWORD || 'talatmfbuydlrdfq').replace(/\s+/g, '');
+  if (!user || !pass) return null;
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
-      user: GMAIL_USER,
-      pass: GMAIL_APP_PASSWORD,
+      user,
+      pass,
+    },
+    tls: {
+      rejectUnauthorized: true,
     },
   });
 }
@@ -44,11 +51,11 @@ export function generateStatusEmailHtml(payload: {
   const hasWaitlist = teams.some((t) => t.isWaitlist);
   const allWaitlist = teams.every((t) => t.isWaitlist);
 
-  let subject = 'Indigo Tech Fest · Squad Enrollment Confirmation';
+  let subject = 'Indigo Tech Fest: Squad Enrollment Confirmation';
   if (allWaitlist) {
-    subject = 'Indigo Tech Fest · Waitlist Queue Notice';
+    subject = 'Indigo Tech Fest: Waitlist Queue Notice';
   } else if (hasWaitlist) {
-    subject = 'Indigo Tech Fest · Squad Status (Confirmed + Waitlist)';
+    subject = 'Indigo Tech Fest: Squad Status Update (Confirmed + Waitlist)';
   }
 
   const teamsHtml = teams
@@ -144,23 +151,21 @@ export function generateStatusEmailHtml(payload: {
     <!-- HEADER: SLEEK MINIMAL POKEMON THEMED -->
     <div style="background: #0F172A; padding: 28px 24px 24px 24px; text-align: center; color: #FFFFFF;">
       
-      <!-- Mini Pokéball Icon -->
-      <div style="display: inline-block; width: 34px; height: 34px; margin-bottom: 12px;">
-        <svg viewBox="0 0 100 100" width="34" height="34">
-          <circle cx="50" cy="50" r="48" fill="#FFFFFF" stroke="#0F172A" stroke-width="4"/>
-          <path d="M 2 50 A 48 48 0 0 1 98 50 Z" fill="#EE1515"/>
-          <line x1="2" y1="50" x2="98" y2="50" stroke="#0F172A" stroke-width="8"/>
-          <circle cx="50" cy="50" r="16" fill="#0F172A"/>
-          <circle cx="50" cy="50" r="10" fill="#FFFFFF"/>
-          <circle cx="50" cy="50" r="5" fill="#E2E8F0"/>
-        </svg>
-      </div>
+      <!-- Mini Pokéball Badge (Bulletproof Email HTML/CSS) -->
+      <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto 12px auto;">
+        <tr>
+          <td style="width: 32px; height: 32px; border-radius: 16px; background-color: #FFFFFF; border: 3px solid #0F172A; text-align: center; vertical-align: middle; overflow: hidden; padding: 0; box-sizing: border-box;">
+            <div style="height: 13px; background-color: #EE1515; border-bottom: 2px solid #0F172A;"></div>
+            <div style="height: 13px; background-color: #FFFFFF;"></div>
+          </td>
+        </tr>
+      </table>
 
       <div style="font-family: monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #94A3B8; font-weight: 700; margin-bottom: 6px;">
-        Kanto League · Indigo Plateau
+        Kanto League &bull; Indigo Plateau
       </div>
       <h1 style="margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase; color: #FFFFFF;">
-        INDIGO TECH FEST · JARVIS 3.0
+        INDIGO TECH FEST &bull; JARVIS 3.0
       </h1>
       <p style="margin: 6px 0 0 0; font-size: 12px; color: #94A3B8; font-family: monospace;">
         Official Squad Registration Telemetry
@@ -406,9 +411,12 @@ async function sendWithSmartSender(options: {
     try {
       const transporter = getGmailTransporter();
       if (transporter) {
-        const fromName = process.env.GMAIL_FROM_NAME || 'alert';
-        // Clean display name format: alert <indigotechfest@gmail.com>
-        const senderString = `${fromName} <${GMAIL_USER}>`;
+        const rawName = (process.env.GMAIL_FROM_NAME || '').trim();
+        // If "alert", format as "Indigo Tech Fest Alert" so Gmail phishing heuristics don't flag a bare 'alert' from a freemail account
+        const fromName = (!rawName || rawName.toLowerCase() === 'alert')
+          ? 'Indigo Tech Fest Alert'
+          : rawName;
+        const senderString = `"${fromName}" <${GMAIL_USER}>`;
         
         // Strip spam-trigger emojis from subject lines for superior Gmail inbox placement
         const cleanSubject = options.subject
@@ -426,9 +434,8 @@ async function sendWithSmartSender(options: {
           html: options.html,
           headers: {
             'X-Priority': '3',
-            'X-Auto-Response-Suppress': 'All',
-            'List-Unsubscribe': `<mailto:${GMAIL_USER}?subject=unsubscribe>`,
-            'Feedback-ID': `indigo-techfest:registration:jarvis`,
+            'X-Mailer': 'Indigo Festival Telemetry',
+            'X-Entity-Ref-ID': `${cleanEmail}-${Date.now()}`,
           },
         });
 
