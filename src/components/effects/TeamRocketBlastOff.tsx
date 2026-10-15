@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
 
-// Audio manager for instant, zero-latency playback with Web Audio API waveform integration
+// Audio manager for instant, zero-latency playback with Web Audio API waveform integration + HTML5 fallback
 class TeamRocketAudioManager {
   private ctx: AudioContext | null = null;
   private audioBuffer: AudioBuffer | null = null;
@@ -11,23 +11,33 @@ class TeamRocketAudioManager {
   private currentGain: GainNode | null = null;
   private isPreloading = false;
   private preloadedAudio: HTMLAudioElement | null = null;
+  private isUnlocked = false;
+  private hasPendingPlay = false;
+  private pendingWaveformCallback: ((amplitude: number) => void) | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      // Eager preload immediately in background
-      setTimeout(() => {
-        this.preload();
-      }, 30);
+      // 1. Immediately instantiate and pre-buffer HTMLAudio element
+      try {
+        this.preloadedAudio = new Audio('/assets/team-rocket-blastoff.mp3');
+        this.preloadedAudio.preload = 'auto';
+        this.preloadedAudio.load();
+      } catch (err) {
+        console.warn('HTMLAudio init note:', err);
+      }
 
-      // Pre-warm AudioContext on very first user gesture anywhere
-      const warmUp = () => {
-        this.getContext();
-        ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach((evt) => {
-          window.removeEventListener(evt, warmUp, { capture: true });
-        });
+      // 2. Preload Web Audio buffer shortly after boot
+      setTimeout(() => {
+        this.preloadWebAudio();
+      }, 50);
+
+      // 3. Attach global interaction listeners to unlock AudioContext & HTMLAudio
+      const unlockListener = () => {
+        this.unlock();
       };
-      ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach((evt) => {
-        window.addEventListener(evt, warmUp, { capture: true, once: true });
+      const interactionEvents = ['pointerdown', 'touchstart', 'mousedown', 'keydown', 'click', 'scroll', 'wheel'];
+      interactionEvents.forEach((evt) => {
+        window.addEventListener(evt, unlockListener, { capture: true, passive: true });
       });
     }
   }
@@ -42,26 +52,13 @@ class TeamRocketAudioManager {
         this.ctx = new AudioCtx();
       }
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
     return this.ctx;
   }
 
-  public async preload() {
+  public async preloadWebAudio() {
     if (this.audioBuffer || this.isPreloading || typeof window === 'undefined') return;
     this.isPreloading = true;
 
-    // 1. Prepare HTMLAudio fallback immediately in parallel
-    try {
-      if (!this.preloadedAudio) {
-        this.preloadedAudio = new Audio('/assets/team-rocket-blastoff.mp3');
-        this.preloadedAudio.preload = 'auto';
-        this.preloadedAudio.load();
-      }
-    } catch {}
-
-    // 2. Fetch and decode ArrayBuffer into Web Audio memory
     try {
       const res = await fetch('/assets/team-rocket-blastoff.mp3');
       const arrayBuf = await res.arrayBuffer();
@@ -70,21 +67,72 @@ class TeamRocketAudioManager {
         this.audioBuffer = await ctx.decodeAudioData(arrayBuf);
       }
     } catch (err) {
-      console.warn('Audio preloading note:', err);
+      console.warn('Web Audio preloading note:', err);
     } finally {
       this.isPreloading = false;
+    }
+  }
+
+  public preload() {
+    this.preloadWebAudio();
+  }
+
+  public async unlock() {
+    if (this.isUnlocked) {
+      if (this.hasPendingPlay) {
+        this.hasPendingPlay = false;
+        const cb = this.pendingWaveformCallback;
+        this.pendingWaveformCallback = null;
+        this.play(cb || undefined);
+      }
+      return;
+    }
+
+    // 1. Resume Web Audio context
+    try {
+      const ctx = this.getContext();
+      if (ctx && ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+    } catch {}
+
+    // 2. Prime HTMLAudio element so mobile Safari and Chrome allow programmatic unmuted playback
+    if (this.preloadedAudio) {
+      try {
+        this.preloadedAudio.muted = true;
+        const p = this.preloadedAudio.play();
+        if (p) {
+          p.then(() => {
+            if (this.preloadedAudio) {
+              this.preloadedAudio.pause();
+              this.preloadedAudio.currentTime = 0;
+              this.preloadedAudio.muted = false;
+            }
+          }).catch(() => {});
+        }
+      } catch {}
+    }
+
+    this.isUnlocked = true;
+
+    // 3. If a scroll trigger was deferred by browser autoplay policy, fire it now!
+    if (this.hasPendingPlay) {
+      this.hasPendingPlay = false;
+      const cb = this.pendingWaveformCallback;
+      this.pendingWaveformCallback = null;
+      this.play(cb || undefined);
     }
   }
 
   public play(onWaveform?: (amplitude: number) => void): number {
     const ctx = this.getContext();
 
-    // Instant Web Audio playback if buffer is in memory
-    if (ctx && this.audioBuffer) {
+    // 1. If Web Audio Context is active and running, and audioBuffer is decoded:
+    if (ctx && ctx.state === 'running' && this.audioBuffer) {
       try {
         const now = ctx.currentTime;
 
-        // Cleanly cross-fade any currently playing instance without cutting off subsequent clicks
+        // Cleanly cross-fade any currently playing instance
         const prevSource = this.currentSource;
         const prevGain = this.currentGain;
         if (prevSource && prevGain) {
@@ -111,11 +159,9 @@ class TeamRocketAudioManager {
 
         const duration = this.audioBuffer.duration;
 
-        // Instant attack (0.004s / 4ms micro-ramp) - virtually 0ms latency, zero click/pop!
         gain.gain.setValueAtTime(0.001, now);
         gain.gain.linearRampToValueAtTime(1.0, now + 0.004);
 
-        // Smooth natural end fade-out over last 80ms
         const fadeOutStart = Math.max(now + 0.05, now + duration - 0.08);
         gain.gain.setValueAtTime(1.0, fadeOutStart);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -129,7 +175,6 @@ class TeamRocketAudioManager {
 
         source.start(now);
 
-        // Real-time waveform analyzer feedback loop
         if (onWaveform) {
           const bufferLength = analyser.frequencyBinCount;
           const dataArray = new Uint8Array(bufferLength);
@@ -161,27 +206,52 @@ class TeamRocketAudioManager {
 
         return duration;
       } catch (err) {
-        console.warn('Web Audio play fallback:', err);
+        console.warn('Web Audio play failed, falling back to HTMLAudio:', err);
       }
     }
 
-    // Robust HTMLAudio playback (unmuted, full volume, immediate)
+    // 2. Also try to resume AudioContext in case it is currently suspended
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    // 3. Fallback to direct HTMLAudioElement playback (universally supported across all browsers)
     try {
-      const audio = new Audio('/assets/team-rocket-blastoff.mp3');
+      let audio = this.preloadedAudio;
+      if (!audio) {
+        audio = new Audio('/assets/team-rocket-blastoff.mp3');
+        this.preloadedAudio = audio;
+      }
       audio.muted = false;
       audio.volume = 1.0;
       audio.currentTime = 0;
+
       const playPromise = audio.play();
       if (playPromise) {
-        playPromise.catch((e) => console.warn('HTML Audio play error:', e));
+        playPromise
+          .then(() => {
+            this.isUnlocked = true;
+            this.hasPendingPlay = false;
+          })
+          .catch((err) => {
+            console.warn('Autoplay prevented on this device until user interaction:', err);
+            this.hasPendingPlay = true;
+            this.pendingWaveformCallback = onWaveform || null;
+          });
       }
+
       if (onWaveform) {
-        onWaveform(0.8);
-        setTimeout(() => onWaveform(0.4), 500);
-        setTimeout(() => onWaveform(0), 1200);
+        onWaveform(0.85);
+        setTimeout(() => onWaveform(0.5), 350);
+        setTimeout(() => onWaveform(0.2), 850);
+        setTimeout(() => onWaveform(0), 1600);
       }
+
       return audio.duration || 2.28;
-    } catch {
+    } catch (err) {
+      console.warn('Audio playback fallback note:', err);
+      this.hasPendingPlay = true;
+      this.pendingWaveformCallback = onWaveform || null;
       return 2.28;
     }
   }
@@ -278,7 +348,10 @@ export function TeamRocketBlastOff() {
     if (now - lastTriggerTimeRef.current < 100) return;
     lastTriggerTimeRef.current = now;
 
-    // 1. Play the requested audio INSTANTANEOUSLY
+    // 1. Immediately unlock browser audio state
+    audioManager.unlock();
+
+    // 2. Play the requested audio INSTANTANEOUSLY
     audioManager.play((amp) => {
       setWaveVibration(amp);
     });
@@ -286,7 +359,7 @@ export function TeamRocketBlastOff() {
     setShowQuote(true);
     setTimeout(() => setShowQuote(false), 3800);
 
-    // 2. Track clicks for the 40-67 random easter egg
+    // 3. Track clicks for the 40-67 random easter egg
     const nextClicks = clickCount + 1;
     setClickCount(nextClicks);
 
@@ -302,8 +375,7 @@ export function TeamRocketBlastOff() {
   return (
     <>
       <div
-        aria-hidden="true"
-        className="fixed inset-0 pointer-events-none z-25 overflow-hidden select-none"
+        className="fixed inset-0 pointer-events-none z-[35] overflow-hidden select-none"
       >
         {/* Scroll-Driven Team Rocket Flying Capsule */}
         <motion.div
@@ -363,6 +435,12 @@ export function TeamRocketBlastOff() {
               className="w-36 sm:w-48 md:w-56 h-auto object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)] group-hover:scale-105 transition-transform duration-200"
               draggable={false}
             />
+
+            {/* Tap to blast off audio pill badge */}
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/85 hover:bg-[#D21319] text-white text-[9px] sm:text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/40 shadow-lg whitespace-nowrap transition-all flex items-center gap-1 group-hover:scale-105">
+              <span className="text-amber-300">🔊</span>
+              <span>TAP TO BLAST OFF!</span>
+            </div>
 
             {/* Iconic Anime Twinkle Star (Apex of Flight) */}
             <motion.div
