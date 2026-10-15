@@ -1028,7 +1028,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             success: true,
             message: isTest
               ? `Test broadcast delivered to ${broadcastTestEmail}!`
-              : `Email broadcast dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
+              : `Email broadcast dispatched to ${res.sentCount} of ${res.total} team leaders via indigotechfest@gmail.com!`,
             total: res.total,
             sent: res.sentCount,
             failed: res.failedCount,
@@ -1088,7 +1088,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
             success: true,
             message: isTest
               ? `Preview status email delivered to ${statusTestRecipient}!`
-              : `Status cards dispatched to ${res.sentCount} of ${res.total} team leaders via alert@indigotechfest.in!`,
+              : `Status cards dispatched to ${res.sentCount} of ${res.total} team leaders via indigotechfest@gmail.com!`,
             total: res.total,
             sent: res.sentCount,
             failed: res.failedCount,
@@ -2547,7 +2547,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   <Mail size={15} className="text-[#D21319]" />
                   <div>
                     <span className="text-xs font-bold text-slate-800 block">Email Broadcast Sync</span>
-                    <span className="text-[10px] text-slate-500">Also dispatch this announcement to all team captains via alert@indigotechfest.in</span>
+                    <span className="text-[10px] text-slate-500">Also dispatch this announcement to all team captains via indigotechfest@gmail.com</span>
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -2619,7 +2619,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-bold text-slate-900">Festival Mail Broadcast Terminal</h2>
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                      alert@indigotechfest.in
+                      indigotechfest@gmail.com
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -2851,7 +2851,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                       type="button"
                       disabled={isRebroadcastingStatus}
                       onClick={() => {
-                        if (confirm(`Are you sure you want to broadcast status emails to all registered team captains via alert@indigotechfest.in?`)) {
+                        if (confirm(`Are you sure you want to broadcast status emails to all registered team captains via indigotechfest@gmail.com?`)) {
                           handleDispatchStatusRebroadcast(false);
                         }
                       }}
@@ -2958,7 +2958,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   </div>
 
                   <div className="text-center text-[9px] font-mono text-slate-400 pt-2">
-                    Dispatched from alert@indigotechfest.in
+                    Dispatched from indigotechfest@gmail.com
                   </div>
                 </div>
               </div>

@@ -1,8 +1,8 @@
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 
-// Gmail SMTP configuration (100% Free, no custom domain needed)
-export const GMAIL_USER = (process.env.GMAIL_USER || process.env.SMTP_USER || '').trim();
+// Gmail SMTP configuration (100% Free, direct delivery to any email without domain restrictions)
+export const GMAIL_USER = (process.env.GMAIL_USER || process.env.SMTP_USER || 'indigotechfest@gmail.com').trim();
 export const GMAIL_APP_PASSWORD = (process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || '').replace(/\s+/g, '');
 export const isGmailSmtpConfigured = Boolean(GMAIL_USER && GMAIL_APP_PASSWORD);
 
@@ -234,7 +234,7 @@ export function generateStatusEmailHtml(payload: {
         Indigo Tech Fest · Jarvis 3.0 · SLRTCE
       </p>
       <p style="margin: 0; font-family: monospace; font-size: 10px;">
-        Official Dispatch via <a href="mailto:alert@indigotechfest.in" style="color: #64748B; text-decoration: none;">alert@indigotechfest.in</a>
+        Official Dispatch via <a href="mailto:${GMAIL_USER}" style="color: #64748B; text-decoration: none;">${GMAIL_USER}</a>
       </p>
     </div>
 
@@ -353,7 +353,7 @@ export function generateBroadcastEmailHtml(payload: {
         Indigo Tech Fest · Jarvis 3.0 · SLRTCE
       </p>
       <p style="margin: 0; font-family: monospace; font-size: 10px;">
-        Sent via <a href="mailto:alert@indigotechfest.in" style="color: #64748B; text-decoration: none;">alert@indigotechfest.in</a>
+        Sent via <a href="mailto:${GMAIL_USER}" style="color: #64748B; text-decoration: none;">${GMAIL_USER}</a>
       </p>
     </div>
 
@@ -367,9 +367,8 @@ export function generateBroadcastEmailHtml(payload: {
 
 /**
  * Sends an email with smart sender handling:
- * Attempts alert@indigotechfest.in first.
- * If Resend returns unverified domain error and recipient is the owner test account,
- * seamlessly falls back to onboarding@resend.dev so local testing continues without disruption.
+ * Attempts Gmail SMTP (indigotechfest@gmail.com) first if configured.
+ * If not configured or if sending fails, seamlessly falls back to Resend.
  */
 async function sendWithSmartSender(options: {
   to: string;
@@ -390,6 +389,7 @@ async function sendWithSmartSender(options: {
         const senderString = `"${fromName}" <${GMAIL_USER}>`;
         const info = await transporter.sendMail({
           from: senderString,
+          replyTo: `"${fromName}" <${GMAIL_USER}>`,
           to: cleanEmail,
           subject: options.subject,
           html: options.html,
