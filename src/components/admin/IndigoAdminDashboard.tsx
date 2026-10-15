@@ -37,7 +37,10 @@ import {
   CloudUpload,
   Mail,
   Send,
-  Radio
+  Radio,
+  Ban,
+  Power,
+  FileSpreadsheet
 } from 'lucide-react';
 import { triggerLiveBackup } from '@/app/actions/backup';
 import {
@@ -56,6 +59,8 @@ import {
   adminChangeTeamLeader,
   adminMoveMember,
   adminUpdateEvent,
+  adminToggleAllEventsOpen,
+  adminToggleEventOpen,
   adminPostFestAnnouncement,
   adminDeleteFestAnnouncement,
   adminBroadcastLeaderStatusEmails,
@@ -794,16 +799,79 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
   // Side Export Drawer State
   const [sideExportOpen, setSideExportOpen] = useState(false);
 
+  // Squads Filter State
+  const [teamEventFilter, setTeamEventFilter] = useState('ALL');
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+
+  // Filtered Teams based on Discipline & Search Query
+  const filteredTeams = useMemo(() => {
+    let rows = teams || [];
+    if (teamEventFilter !== 'ALL') {
+      rows = rows.filter((t: any) => (t.event_ids || []).includes(teamEventFilter));
+    }
+    if (teamSearchQuery.trim()) {
+      const q = teamSearchQuery.toLowerCase().trim();
+      rows = rows.filter(
+        (t: any) =>
+          (t.name || '').toLowerCase().includes(q) ||
+          (t.code || '').toLowerCase().includes(q) ||
+          (t.leader_name || '').toLowerCase().includes(q) ||
+          (t.leader_email || '').toLowerCase().includes(q)
+      );
+    }
+    return rows;
+  }, [teams, teamEventFilter, teamSearchQuery]);
+
   // Checked-In Count memo
   const checkedInCount = useMemo(() => {
     return (registrations || []).filter((r: any) => r.status === 'Checked In').length;
   }, [registrations]);
 
-  // CSV Export: All Registrations or Checked-In Attendees
-  const exportRegistrationsCSV = (filterType: 'all' | 'checkedin' = 'all') => {
+  // Event Name Mapping Helper for Clean CSVs & Labels
+  const eventNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (availableEvents || []).forEach((e: any) => {
+      map.set(e.id, e.name);
+    });
+    return map;
+  }, [availableEvents]);
+
+  // Quick Action: Toggle individual event open / closed
+  const handleToggleEventOpen = async (eventId: string, currentOpenStatus: boolean) => {
+    const newStatus = !currentOpenStatus;
+    const res = await adminToggleEventOpen(eventId, newStatus);
+    if (res.success) {
+      showToast(res.message || (newStatus ? 'Discipline registration opened' : 'Discipline registration closed'), 'success');
+      if (onRefresh) await onRefresh();
+    } else {
+      showToast(res.error || 'Failed to update discipline status', 'error');
+    }
+  };
+
+  // Master Action: Toggle all events open / closed
+  const handleToggleAllEventsOpen = async (isOpen: boolean) => {
+    const confirmMsg = isOpen
+      ? 'Are you sure you want to RE-OPEN entries for ALL disciplines? Participants will immediately be allowed to register and form squads.'
+      : 'Are you sure you want to FREEZE / STOP ALL ENTRIES? Registration and squad creation will immediately be paused across all disciplines.';
+    if (!window.confirm(confirmMsg)) return;
+
+    const res = await adminToggleAllEventsOpen(isOpen);
+    if (res.success) {
+      showToast(res.message || (isOpen ? 'All disciplines opened' : 'All disciplines stopped'), 'success');
+      if (onRefresh) await onRefresh();
+    } else {
+      showToast(res.error || 'Failed to update all disciplines', 'error');
+    }
+  };
+
+  // CSV Export: All Registrations or Checked-In Attendees (supports specific discipline filter)
+  const exportRegistrationsCSV = (filterType: 'all' | 'checkedin' = 'all', specificEventId?: string) => {
     let rows = registrations || [];
     if (filterType === 'checkedin') {
       rows = rows.filter((r: any) => r.status === 'Checked In');
+    }
+    if (specificEventId && specificEventId !== 'ALL') {
+      rows = rows.filter((r: any) => (r.event_ids || []).includes(specificEventId));
     }
 
     const headers = [
@@ -838,7 +906,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
           `"${(r.team_name || '').replace(/"/g, '""')}"`,
           r.team_code,
           r.is_leader ? 'Yes' : 'No',
-          `"${(r.event_ids || []).join('; ')}"`,
+          `"${(r.event_ids || []).map((id: string) => eventNameMap.get(id) || id).join('; ')}"`,
           r.status,
           r.created_at
         ].join(',')
@@ -849,19 +917,32 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
+
+    const targetEvent = specificEventId && specificEventId !== 'ALL'
+      ? availableEvents.find((e: any) => e.id === specificEventId)
+      : null;
+    const eventSlug = targetEvent
+      ? targetEvent.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')
+      : 'all';
+
     const filename =
       filterType === 'checkedin'
-        ? `indigo_checkins_${new Date().toISOString().slice(0, 10)}.csv`
-        : `indigo_all_registrations_${new Date().toISOString().slice(0, 10)}.csv`;
+        ? `indigo_checkins_${eventSlug}_${new Date().toISOString().slice(0, 10)}.csv`
+        : `indigo_registrations_${eventSlug}_${new Date().toISOString().slice(0, 10)}.csv`;
+
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // CSV Export: Team / Squad Registrations
-  const exportTeamsCSV = () => {
-    const rows = teams || [];
+  // CSV Export: Team / Squad Registrations (supports specific discipline filter)
+  const exportTeamsCSV = (specificEventId?: string) => {
+    let rows = teams || [];
+    if (specificEventId && specificEventId !== 'ALL') {
+      rows = rows.filter((t: any) => (t.event_ids || []).includes(specificEventId));
+    }
+
     const headers = [
       'Team ID',
       'Squad Code',
@@ -888,7 +969,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
           t.leader_email || '',
           t.leader_phone || '',
           t.member_count || 0,
-          `"${(t.event_ids || []).join('; ')}"`,
+          `"${(t.event_ids || []).map((id: string) => eventNameMap.get(id) || id).join('; ')}"`,
           t.is_locked ? 'Locked' : 'Open',
           t.is_waitlist ? 'Waitlist' : 'Active',
           t.manage_token || '',
@@ -901,7 +982,15 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `indigo_team_registrations_${new Date().toISOString().slice(0, 10)}.csv`);
+
+    const targetEvent = specificEventId && specificEventId !== 'ALL'
+      ? availableEvents.find((e: any) => e.id === specificEventId)
+      : null;
+    const eventSlug = targetEvent
+      ? targetEvent.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')
+      : 'all';
+
+    link.setAttribute('download', `indigo_squads_${eventSlug}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1977,14 +2066,59 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                     <span>On-Spot Reg</span>
                   </button>
 
-                  {/* Export CSV */}
+                  {/* Discipline-Specific CSV Export (when discipline filtered) */}
+                  {eventFilter !== 'ALL' && (
+                    <button
+                      onClick={() => exportRegistrationsCSV('all', eventFilter)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-[#D21319] border border-rose-300 rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                      title={`Download CSV of candidates enrolled in ${availableEvents.find((e: any) => e.id === eventFilter)?.name || eventFilter}`}
+                    >
+                      <Download size={14} className="text-[#D21319]" />
+                      <span>Export {availableEvents.find((e: any) => e.id === eventFilter)?.name.split(':')[0] || 'Discipline'} CSV</span>
+                    </button>
+                  )}
+
+                  {/* Discipline-Specific Entry Freeze Toggle */}
+                  {eventFilter !== 'ALL' && (() => {
+                    const curEv = events?.find((e: any) => e.id === eventFilter);
+                    if (!curEv) return null;
+                    const isOpen = curEv.is_open !== false;
+                    return (
+                      <button
+                        onClick={() => handleToggleEventOpen(curEv.id, isOpen)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors cursor-pointer shadow-2xs ${
+                          isOpen
+                            ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                        }`}
+                        title={isOpen ? 'Click to stop/freeze new entries for this discipline' : 'Click to re-open registration for this discipline'}
+                      >
+                        {isOpen ? <Ban size={14} className="text-amber-600" /> : <CheckCircle2 size={14} className="text-emerald-600" />}
+                        <span>{isOpen ? 'Stop Entries' : 'Open Entries'}</span>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Global Stop / Open All Entries (when All Disciplines selected) */}
+                  {eventFilter === 'ALL' && (
+                    <button
+                      onClick={() => handleToggleAllEventsOpen(events.some((e: any) => e.is_open === false))}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                      title="Stop or resume all festival registrations across all disciplines"
+                    >
+                      <Power size={14} className={events.every((e: any) => e.is_open === false) ? 'text-rose-600' : 'text-emerald-600'} />
+                      <span>{events.every((e: any) => e.is_open === false) ? 'Open All Entries' : 'Stop All Entries'}</span>
+                    </button>
+                  )}
+
+                  {/* Export CSV Hub */}
                   <button
                     onClick={() => setSideExportOpen(true)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                    title="Export all or filtered CSV"
+                    title="Open CSV Export Center for all or specific disciplines"
                   >
                     <Download size={14} className="text-[#D21319]" />
-                    <span>Export CSV</span>
+                    <span>CSV Hub</span>
                   </button>
                 </div>
               </div>
@@ -2184,23 +2318,124 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
         {currentTab === 'teams' && !isCoordinator && (
           <div className="space-y-4">
             
-            <div className="flex justify-between items-center bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Registered Squads Archive</h2>
-                <p className="text-xs text-slate-500">{teams.length} total teams formed across the tournament</p>
+            {/* Control Bar: Search, Discipline Filter, CSV Export, Entry Freeze */}
+            <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Registered Squads Archive</h2>
+                  <p className="text-xs text-slate-500">
+                    Showing {filteredTeams.length} of {teams.length} total teams formed across the tournament
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                  {/* Discipline-Specific Squad CSV Export */}
+                  {teamEventFilter !== 'ALL' ? (
+                    <button
+                      onClick={() => exportTeamsCSV(teamEventFilter)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                      title={`Download CSV of squads in ${availableEvents.find((e: any) => e.id === teamEventFilter)?.name || teamEventFilter}`}
+                    >
+                      <Download size={14} className="text-emerald-700" />
+                      <span>Export {availableEvents.find((e: any) => e.id === teamEventFilter)?.name.split(':')[0] || 'Discipline'} Squads (.csv)</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => exportTeamsCSV('ALL')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                      title="Download all team registrations CSV"
+                    >
+                      <Download size={14} className="text-[#D21319]" />
+                      <span>Export All Squads (.csv)</span>
+                    </button>
+                  )}
+
+                  {/* Discipline-Specific Entry Freeze Toggle */}
+                  {teamEventFilter !== 'ALL' && (() => {
+                    const curEv = events?.find((e: any) => e.id === teamEventFilter);
+                    if (!curEv) return null;
+                    const isOpen = curEv.is_open !== false;
+                    return (
+                      <button
+                        onClick={() => handleToggleEventOpen(curEv.id, isOpen)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer shadow-2xs ${
+                          isOpen
+                            ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                        }`}
+                        title={isOpen ? 'Stop new squad formations for this discipline' : 'Re-open squad registrations for this discipline'}
+                      >
+                        {isOpen ? <Ban size={14} className="text-amber-600" /> : <CheckCircle2 size={14} className="text-emerald-600" />}
+                        <span>{isOpen ? 'Stop Entries' : 'Open Entries'}</span>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Global Stop / Open All Entries Toggle (when All Disciplines selected) */}
+                  {teamEventFilter === 'ALL' && (
+                    <button
+                      onClick={() => handleToggleAllEventsOpen(events.some((e: any) => e.is_open === false))}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                      title="Stop or resume registrations across all disciplines"
+                    >
+                      <Power size={14} className={events.every((e: any) => e.is_open === false) ? 'text-rose-600' : 'text-emerald-600'} />
+                      <span>{events.every((e: any) => e.is_open === false) ? 'Open All Entries' : 'Stop All Entries'}</span>
+                    </button>
+                  )}
+
+                  {/* Quick Link to CSV Export Hub */}
+                  <button
+                    onClick={() => setSideExportOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                    title="Open CSV Export Center"
+                  >
+                    <FileSpreadsheet size={14} className="text-[#D21319]" />
+                    <span>CSV Hub</span>
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={exportTeamsCSV}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                title="Download team registrations CSV"
-              >
-                <Download size={14} className="text-[#D21319]" />
-                <span>Export Teams (.csv)</span>
-              </button>
+
+              {/* Filters Row: Search Squads & Discipline Selector */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 border-t border-slate-100">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Filter squads by squad name, JRV code, or captain name/email..."
+                    value={teamSearchQuery}
+                    onChange={(e) => setTeamSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg text-xs font-mono focus:border-[#D21319] focus:outline-none"
+                  />
+                  {teamSearchQuery && (
+                    <button
+                      onClick={() => setTeamSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={teamEventFilter}
+                  onChange={(e) => setTeamEventFilter(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 focus:border-[#D21319] focus:outline-none"
+                >
+                  <option value="ALL">All Disciplines ({teams.length})</option>
+                  {events.map((ev: any) => {
+                    const count = teams.filter((t: any) => (t.event_ids || []).includes(ev.id)).length;
+                    return (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.name.split(':')[0]} ({count} squads)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teams.map((t: any) => (
+              {filteredTeams.map((t: any) => (
                 <div key={t.id} className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-slate-300 transition-colors space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -2231,7 +2466,7 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
                   <div className="text-xs font-mono text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="text-[10px] text-slate-400 block uppercase font-bold">Enlisted Disciplines:</span>
-                    <span>{(t.event_ids || []).join(', ') || 'No disciplines'}</span>
+                    <span>{(t.event_ids || []).map((id: string) => eventNameMap.get(id) || id).join(', ') || 'No disciplines'}</span>
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
@@ -2273,6 +2508,14 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                   </div>
                 </div>
               ))}
+
+              {filteredTeams.length === 0 && (
+                <div className="col-span-1 md:col-span-2 p-10 text-center bg-white border border-slate-200 rounded-xl">
+                  <Shield size={28} className="mx-auto text-slate-300 mb-2" />
+                  <h3 className="text-sm font-bold text-slate-700">No squads found</h3>
+                  <p className="text-xs text-slate-500 mt-1">Try selecting a different discipline or clearing your search filter.</p>
+                </div>
+              )}
             </div>
 
           </div>
@@ -4240,11 +4483,54 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
 
               {/* Sidebar Body */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-                <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
-                  Export real-time festival records into standard UTF-8 CSV formats, suitable for Microsoft Excel, Google Sheets, and attendance desks.
-                </p>
+                
+                {/* Master Registration Entry Control Card */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900">Festival Registration Control</h3>
+                      <p className="text-[10px] text-slate-500">Live portal entry switch for all disciplines</p>
+                    </div>
+                    <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold border ${
+                      events.every((e: any) => e.is_open === false)
+                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                        : events.some((e: any) => e.is_open === false)
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    }`}>
+                      {events.every((e: any) => e.is_open === false)
+                        ? '● All Entries Paused'
+                        : events.some((e: any) => e.is_open === false)
+                        ? '● Partial Pause'
+                        : '● All Disciplines Open'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleToggleAllEventsOpen(false)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-[#D21319] border border-rose-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                      title="Immediately stop and pause all registrations across all events"
+                    >
+                      <Ban size={13} />
+                      <span>Stop All Entries</span>
+                    </button>
+                    <button
+                      onClick={() => handleToggleAllEventsOpen(true)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                      title="Re-open registration portal for all events"
+                    >
+                      <CheckCircle2 size={13} />
+                      <span>Open All Entries</span>
+                    </button>
+                  </div>
+                </div>
 
                 <div className="space-y-3.5">
+                  <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider font-bold">
+                    Universal Datasets
+                  </div>
+
                   {/* Option 1: Checked-In Attendees Only */}
                   <div className="p-4 bg-white border-2 border-blue-200 rounded-xl hover:border-blue-500 transition-colors shadow-2xs space-y-3">
                     <div className="flex items-start justify-between">
@@ -4327,12 +4613,82 @@ export function IndigoAdminDashboard({ data, onRefresh }: IndigoAdminDashboardPr
                       All created squads with JRV codes, team captains, roster sizes, discipline tracks, and token keys.
                     </p>
                     <button
-                      onClick={exportTeamsCSV}
+                      onClick={() => exportTeamsCSV('ALL')}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition-colors cursor-pointer"
                     >
                       <Download size={13} />
-                      <span>Download Squads</span>
+                      <span>Download All Squads</span>
                     </button>
+                  </div>
+
+                  {/* Section 2: Specific Disciplines Export Hub */}
+                  <div className="pt-2">
+                    <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider font-bold mb-3">
+                      Export by Specific Discipline
+                    </div>
+
+                    <div className="space-y-3">
+                      {availableEvents.map((ev: any) => {
+                        const curEv = events?.find((e: any) => e.id === ev.id);
+                        const isEvOpen = curEv ? curEv.is_open !== false : true;
+                        const candidateCount = (registrations || []).filter((r: any) =>
+                          (r.event_ids || []).includes(ev.id)
+                        ).length;
+                        const squadCount = (teams || []).filter((t: any) =>
+                          (t.event_ids || []).includes(ev.id)
+                        ).length;
+
+                        return (
+                          <div
+                            key={ev.id}
+                            className="p-3.5 bg-white border border-slate-200 rounded-xl hover:border-slate-400 transition-colors shadow-2xs space-y-2.5"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-900 leading-tight">
+                                  {ev.name}
+                                </h4>
+                                <div className="text-[10px] font-mono text-slate-500 mt-0.5">
+                                  <strong className="text-slate-800">{candidateCount}</strong> candidates · <strong className="text-slate-800">{squadCount}</strong> squads
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => handleToggleEventOpen(ev.id, isEvOpen)}
+                                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer shrink-0 ${
+                                  isEvOpen
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300'
+                                    : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
+                                }`}
+                                title={isEvOpen ? 'Click to stop entries' : 'Click to open entries'}
+                              >
+                                {isEvOpen ? '● Open (Stop)' : '○ Closed (Open)'}
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <button
+                                onClick={() => exportRegistrationsCSV('all', ev.id)}
+                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-bold text-[11px] border border-slate-200 transition-colors cursor-pointer"
+                                title={`Download candidate CSV for ${ev.name}`}
+                              >
+                                <Download size={12} className="text-[#D21319]" />
+                                <span>Candidates CSV</span>
+                              </button>
+
+                              <button
+                                onClick={() => exportTeamsCSV(ev.id)}
+                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-bold text-[11px] border border-slate-200 transition-colors cursor-pointer"
+                                title={`Download squad CSV for ${ev.name}`}
+                              >
+                                <Download size={12} className="text-emerald-700" />
+                                <span>Squads CSV</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -29,6 +29,7 @@ export function RegistrationModal({
 
   // Step 1: Events Selection
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+  const [closedEventIds, setClosedEventIds] = useState<string[]>([]);
 
   // Step 2: Personal Information
   const [fullName, setFullName] = useState('');
@@ -122,6 +123,22 @@ export function RegistrationModal({
     }
   }, [fullName, phone, college, department, yearOfStudy, division, rollNo, referenceId, teamName]);
 
+  // Fetch live discipline open status from database
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchOpenStatus = async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.from('fest_events').select('id, is_open');
+        if (data && Array.isArray(data)) {
+          const closed = data.filter((e) => e.is_open === false).map((e) => e.id);
+          setClosedEventIds(closed);
+        }
+      } catch {}
+    };
+    fetchOpenStatus();
+  }, [isOpen]);
+
   // Preselection & Join Code handling
   useEffect(() => {
     if (preselectedEventId) {
@@ -136,10 +153,15 @@ export function RegistrationModal({
     }
   }, [preselectedEventId, initialJoinCode]);
 
-  // Toggle Event Selection with strict Max 2 rule
+  // Toggle Event Selection with strict Max 2 rule and closed check
   const toggleEvent = (id: string) => {
     setMaxWarning(null);
     setStepError(null);
+    if (closedEventIds.includes(id)) {
+      setMaxWarning('NOTICE: Registration for this discipline is currently closed by festival administration.');
+      setTimeout(() => setMaxWarning(null), 5000);
+      return;
+    }
     if (selectedEvents.includes(id)) {
       setSelectedEvents((prev) => prev.filter((item) => item !== id));
     } else {
@@ -170,7 +192,12 @@ export function RegistrationModal({
       if (evIds && evIds.length > 0) {
         setSelectedEvents(evIds);
       }
-      if (res.team.remainingSlots <= 0 || res.team.isLocked) {
+      if (res.team.isClosed) {
+        setStepError(
+          res.team.closedMessage ||
+            `Enrollment Closed: Registration for this squad's discipline is currently closed by festival administration.`
+        );
+      } else if (res.team.remainingSlots <= 0 || res.team.isLocked) {
         setStepError(
           `Team Limit Reached: Squad "${res.team.name}" is already at full capacity (${res.team.maxCapacity}/${res.team.maxCapacity} members).`
         );
@@ -183,9 +210,16 @@ export function RegistrationModal({
 
   // Step 1 Validation
   const validateStep1 = () => {
-    if (mode === 'create' && selectedEvents.length === 0) {
-      setStepError('Please select at least 1 competition discipline (max 2) to continue.');
-      return false;
+    if (mode === 'create') {
+      if (selectedEvents.length === 0) {
+        setStepError('Please select at least 1 competition discipline (max 2) to continue.');
+        return false;
+      }
+      const closedSelected = selectedEvents.filter((id) => closedEventIds.includes(id));
+      if (closedSelected.length > 0) {
+        setStepError('One or more selected disciplines are currently closed for registration. Please deselect closed disciplines.');
+        return false;
+      }
     }
     setStepError(null);
     return true;
@@ -834,19 +868,25 @@ export function RegistrationModal({
                 {/* 7 Interactive Compact Event Selection Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {FEST_EVENTS.map((ev) => {
+                    const isClosed = closedEventIds.includes(ev.id);
                     const isSelected = selectedEvents.includes(ev.id);
                     const isLimitReached = selectedEvents.length >= 2 && !isSelected;
 
                     return (
                       <div
                         key={ev.id}
-                        onClick={() => toggleEvent(ev.id)}
-                        className={`px-2.5 py-1.5 border-2 transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
-                          isSelected
-                            ? 'bg-[#FFF5F5] border-[#D21319] shadow-[2px_2px_0px_#D21319] ring-1 ring-[#D21319]'
+                        onClick={() => {
+                          if (isClosed) return;
+                          toggleEvent(ev.id);
+                        }}
+                        className={`px-2.5 py-1.5 border-2 transition-all flex items-center justify-between gap-2 select-none ${
+                          isClosed
+                            ? 'bg-neutral-100 border-neutral-300 opacity-60 cursor-not-allowed'
+                            : isSelected
+                            ? 'bg-[#FFF5F5] border-[#D21319] shadow-[2px_2px_0px_#D21319] ring-1 ring-[#D21319] cursor-pointer'
                             : isLimitReached
                             ? 'bg-neutral-100 border-neutral-300 opacity-50 cursor-not-allowed'
-                            : 'bg-white border-black hover:bg-[#F9F7F1] shadow-[1.5px_1.5px_0px_#000]'
+                            : 'bg-white border-black hover:bg-[#F9F7F1] shadow-[1.5px_1.5px_0px_#000] cursor-pointer'
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
@@ -871,17 +911,23 @@ export function RegistrationModal({
                           </div>
                         </div>
 
-                        <div
-                          className={`w-5 h-5 border-2 border-black flex items-center justify-center shrink-0 transition font-mono ${
-                            isSelected
-                              ? 'bg-[#D21319] text-white font-bold text-xs'
-                              : isLimitReached
-                              ? 'bg-neutral-200 text-neutral-500 text-[10px]'
-                              : 'bg-white'
-                          }`}
-                        >
-                          {isSelected ? '✓' : isLimitReached ? '🔒' : ''}
-                        </div>
+                        {isClosed ? (
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-100 text-rose-700 border border-rose-300 rounded font-mono shrink-0">
+                            CLOSED
+                          </span>
+                        ) : (
+                          <div
+                            className={`w-5 h-5 border-2 border-black flex items-center justify-center shrink-0 transition font-mono ${
+                              isSelected
+                                ? 'bg-[#D21319] text-white font-bold text-xs'
+                                : isLimitReached
+                                ? 'bg-neutral-200 text-neutral-500 text-[10px]'
+                                : 'bg-white'
+                            }`}
+                          >
+                            {isSelected ? '✓' : isLimitReached ? '🔒' : ''}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

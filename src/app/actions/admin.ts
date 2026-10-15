@@ -2112,6 +2112,70 @@ export async function adminUpdateEvent(id: string, data: {
   return { success: true };
 }
 
+// Master toggle to stop / open all festival entries in one click
+export async function adminToggleAllEventsOpen(isOpen: boolean): Promise<{ success: boolean; isOpen: boolean; message?: string; error?: string }> {
+  try {
+    const { user } = await requireAdmin();
+    await sql`UPDATE public.fest_events SET is_open = ${isOpen}`;
+    await logAudit(
+      user.id,
+      user.email || '',
+      isOpen ? 'OPEN_ALL_REGISTRATIONS' : 'CLOSE_ALL_REGISTRATIONS',
+      'fest_events',
+      'all',
+      { isOpen }
+    );
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return {
+      success: true,
+      isOpen,
+      message: isOpen
+        ? 'All festival registration portals successfully re-opened'
+        : 'All festival registration portals successfully paused and stopped'
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      isOpen,
+      error: err.message || 'Failed to update festival registration status'
+    };
+  }
+}
+
+// Toggle individual event entry portal open/closed
+export async function adminToggleEventOpen(id: string, isOpen: boolean): Promise<{ success: boolean; id: string; isOpen: boolean; message?: string; error?: string }> {
+  try {
+    const { user } = await requireAdmin();
+    await sql`UPDATE public.fest_events SET is_open = ${isOpen} WHERE id = ${id}`;
+    await logAudit(
+      user.id,
+      user.email || '',
+      isOpen ? 'OPEN_EVENT_REGISTRATION' : 'CLOSE_EVENT_REGISTRATION',
+      'fest_events',
+      id,
+      { isOpen }
+    );
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return {
+      success: true,
+      id,
+      isOpen,
+      message: isOpen
+        ? 'Discipline registration portal successfully re-opened'
+        : 'Discipline registration portal successfully paused and stopped'
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      id,
+      isOpen,
+      error: err.message || 'Failed to update discipline registration status'
+    };
+  }
+}
+
 // Admin Announcements
 export async function adminPostFestAnnouncement(title: string, content: string) {
   const { user } = await requireAdmin();

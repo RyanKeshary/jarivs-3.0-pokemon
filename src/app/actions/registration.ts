@@ -519,13 +519,16 @@ export async function getFestTeamByCode(code: string) {
     `;
     const memberCount = memberCountRows[0].count;
 
-    // Determine max team size allowed across selected events
+    // Determine max team size and open status across selected events
     const eventRows = await sql`
-      SELECT max_team_size FROM public.fest_events WHERE id = ANY(${team.event_ids})
+      SELECT id, name, max_team_size, is_open FROM public.fest_events WHERE id = ANY(${team.event_ids})
     `;
     const maxCapacity = eventRows.length > 0 
       ? Math.max(...eventRows.map((e: any) => e.max_team_size || 4))
       : 4;
+
+    const isAnyEventClosed = eventRows.some((e: any) => e.is_open === false);
+    const closedEventNames = eventRows.filter((e: any) => e.is_open === false).map((e: any) => e.name).join(', ');
 
     const remainingSlots = Math.max(0, maxCapacity - memberCount);
 
@@ -535,7 +538,9 @@ export async function getFestTeamByCode(code: string) {
         code: team.code,
         name: team.name,
         eventIds: team.event_ids,
-        isLocked: team.is_locked || remainingSlots === 0,
+        isLocked: team.is_locked || remainingSlots === 0 || isAnyEventClosed,
+        isClosed: isAnyEventClosed,
+        closedMessage: isAnyEventClosed ? `Registration for "${closedEventNames}" is closed by festival administration.` : null,
         memberCount,
         maxCapacity,
         remainingSlots,
@@ -575,8 +580,16 @@ export async function joinFestTeam(payload: {
     const memberCount = currentMembers[0].count;
 
     const eventRows = await sql`
-      SELECT max_team_size FROM public.fest_events WHERE id = ANY(${team.event_ids})
+      SELECT id, name, max_team_size, is_open FROM public.fest_events WHERE id = ANY(${team.event_ids})
     `;
+    for (const ev of eventRows) {
+      if (ev.is_open === false) {
+        throw new Error(
+          `Enrollment Closed: Registration for "${ev.name}" is currently closed by festival administration.`
+        );
+      }
+    }
+
     const maxCapacity = eventRows.length > 0 
       ? Math.min(...eventRows.map((e: any) => e.max_team_size || 4))
       : 4;
