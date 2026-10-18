@@ -4,11 +4,15 @@ import { triggerLiveBackup } from '@/app/actions/backup';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const result = await triggerLiveBackup();
-  return NextResponse.json(result, { status: result.success ? 200 : 500 });
+  return NextResponse.json(
+    { success: false, message: 'Automated backup schedule is disabled.' },
+    { status: 200 }
+  );
 }
 
 export async function POST() {
-  const result = await triggerLiveBackup();
-  return NextResponse.json(result, { status: result.success ? 200 : 500 });
+  return NextResponse.json(
+    { success: false, message: 'Automated backup schedule is disabled.' },
+    { status: 200 }
+  );
 }
